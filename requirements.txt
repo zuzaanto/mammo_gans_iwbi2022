@@ -1,0 +1,8 @@
+pydicom
+numpy
+pandas
+torch
+torchvision
+matplotlib
+opencv-python
+scikit-image
