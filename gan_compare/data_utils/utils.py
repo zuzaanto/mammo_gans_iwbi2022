@@ -2,7 +2,9 @@ from skimage.draw import polygon
 from typing import Tuple
 import numpy as np
 import plistlib
+import glob
 import io
+from gan_compare.paths import INBREAST_IMAGE_PATH
 
 
 def load_inbreast_mask(mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 3328)) -> np.ndarray:
@@ -35,5 +37,5 @@ def load_inbreast_mask(mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 
     return mask
 
 
-def get_file_list(self):
+def get_file_list():
     return glob.glob(INBREAST_IMAGE_PATH+"*.dcm")

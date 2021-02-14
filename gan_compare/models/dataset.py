@@ -18,11 +18,16 @@ class InbreastDataset(Dataset):
 
     def __init__(
         self, 
+        metadata_path: str,
         crop: bool = True, 
         min_size: int = 100, 
         margin: int = 100, 
         final_shape: Tuple[int, int] = (800, 800),
     ):
+        assert Path(metadata_path).is_file(), "Metadata not found"
+        with open(metadata_path, "r") as metadata_file:
+            self.metadata = json.load(metadata_file)
+        self.metadata = 
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
