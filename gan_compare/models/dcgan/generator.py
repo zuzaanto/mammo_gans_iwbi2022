@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+from gan_compare.models.config import nz, ngf, nc
 
 
 class Generator(nn.Module):

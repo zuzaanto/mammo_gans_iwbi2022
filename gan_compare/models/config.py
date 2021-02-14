@@ -13,7 +13,7 @@ batch_size = 2
 image_size = 64
 
 # Number of channels in the training images. For color images this is 3
-nc = 3
+nc = 1
 
 # Size of z latent vector (i.e. size of generator input)
 nz = 100

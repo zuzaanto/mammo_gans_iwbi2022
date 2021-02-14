@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset
 import torchvision.datasets as dset
+import torchvision
 import torch
 from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
 from gan_compare.data_utils.utils import load_inbreast_mask
@@ -76,7 +77,8 @@ class InbreastDataset(Dataset):
         image = cv2.resize(image, self.final_shape, interpolation = cv2.INTER_AREA)
         mask = cv2.resize(mask, self.final_shape, interpolation = cv2.INTER_AREA)
 
-        sample = {'image': torch.from_numpy(image), 'mask': torch.from_numpy(mask)}
+        # sample = {'image': torch.from_numpy(image), 'mask': torch.from_numpy(mask)}
+        sample = [torchvision.transforms.functional.to_tensor(image[..., np.newaxis])]
 
         return sample
     
