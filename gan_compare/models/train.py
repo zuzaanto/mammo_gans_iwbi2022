@@ -32,17 +32,15 @@ if __name__ == "__main__":
     # Decide which device we want to run on
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
-    # TODO create dataset & dataloader
-    inbreast_dataset = InbreastDataset()
+    inbreast_dataset = InbreastDataset(metadata_path="metadata/metadata.json")
     dataloader = DataLoader(inbreast_dataset, batch_size=batch_size,
-                            shuffle=True, num_workers=workers)
+                            shuffle=False, num_workers=workers)
 
-
-    # Plot some training images
-    real_batch = next(iter(dataloader))
-    plt.figure(figsize=(8,8))
-    plt.axis("off")
-    plt.title("Training Images")
-    plt.imshow(np.transpose(vutils.make_grid(real_batch[0].to(device)[:64], padding=2, normalize=True).cpu(),(1,2,0)))
-    plt.show()
-
+    for i in range(0, 20):
+        # Plot some training images
+        real_batch = next(iter(dataloader))
+        plt.figure(figsize=(8,8))
+        plt.axis("off")
+        plt.title("Training Images")
+        plt.imshow(np.concatenate((np.transpose(real_batch["image"][0]), np.transpose(real_batch["mask"][0]*255)), axis=0))
+        plt.show()

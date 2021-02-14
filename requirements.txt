@@ -6,3 +6,4 @@ torchvision
 matplotlib
 opencv-python
 scikit-image
+tqdm

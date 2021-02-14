@@ -47,10 +47,10 @@ if __name__ == "__main__":
                 "bbox": cv2.boundingRect(c),
                 "image_path": str(image_path.resolve()),        
                 "xml_path": str(xml_filepath.resolve()),
-                "contour": c.tolist(),
+                # "contour": c.tolist(),
             }
             lesion_metapoints.append(metapoint)
         metadata.extend(lesion_metapoints)
     with open(args.output_path, "w") as outfile:
         json.dump(metadata, outfile, indent=4)
-    print(f"Saved metadata to {args.output_path}")
+    print(f"Saved {len(metadata)} metapoints to {args.output_path}")
