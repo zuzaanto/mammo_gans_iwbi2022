@@ -1,2 +1,3 @@
 .vscode
 **__pycache__**
+gan_compare/paths.py
