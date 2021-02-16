@@ -35,3 +35,7 @@ beta1 = 0.5
 
 # Number of GPUs available. Use 0 for CPU mode.
 ngpu = 1
+
+output_model_dir = "model_checkpoints/"
+
+pretrained_model_path = "model_checkpoints/model.pt"

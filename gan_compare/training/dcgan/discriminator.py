@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-from gan_compare.models.config import ndf, nc
+from gan_compare.training.config import ndf, nc
 
 
 class Discriminator(nn.Module):

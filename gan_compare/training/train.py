@@ -13,13 +13,14 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.utils.data import DataLoader
 import numpy as np
+from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from gan_compare.models.config import * # TODO fix this ugly wildcart
-from gan_compare.models.dataset import InbreastDataset 
-from gan_compare.models.dcgan.discriminator import Discriminator
-from gan_compare.models.dcgan.generator import Generator
-from gan_compare.models.dcgan.utils import weights_init
+from gan_compare.training.config import * # TODO fix this ugly wildcart
+from gan_compare.training.dataset import InbreastDataset 
+from gan_compare.training.dcgan.discriminator import Discriminator
+from gan_compare.training.dcgan.generator import Generator
+from gan_compare.training.dcgan.utils import weights_init
 
 
 if __name__ == "__main__":
@@ -174,4 +175,9 @@ if __name__ == "__main__":
                 img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
                 
             iters += 1
-        
+    out_path = Path(output_model_dir) / "model.pt"
+    if not Path(output_model_dir).exists():
+        os.makedirs(output_model_dir)
+    torch.save({"discriminator": netD, "generator": netG}, out_path)
+    print(f"Saved model to {out_path.resolve()}")
+    
