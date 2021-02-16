@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # Decide which device we want to run on
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
-    inbreast_dataset = InbreastDataset(metadata_path="metadata/metadata.json")
+    inbreast_dataset = InbreastDataset(metadata_path="metadata/metadata.json", final_shape=(64, 64))
     dataloader = DataLoader(inbreast_dataset, batch_size=batch_size,
                             shuffle=True, num_workers=workers)
 

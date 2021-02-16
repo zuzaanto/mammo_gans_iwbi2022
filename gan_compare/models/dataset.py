@@ -24,7 +24,7 @@ class InbreastDataset(Dataset):
         crop: bool = True, 
         min_size: int = 160, 
         margin: int = 100, 
-        final_shape: Tuple[int, int] = (800, 800),
+        final_shape: Tuple[int, int] = (400, 400),
     ):
         assert Path(metadata_path).is_file(), "Metadata not found"
         with open(metadata_path, "r") as metadata_file:
