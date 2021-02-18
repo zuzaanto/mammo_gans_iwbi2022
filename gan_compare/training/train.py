@@ -13,6 +13,7 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.utils.data import DataLoader
 import numpy as np
+import cv2
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -21,6 +22,7 @@ from gan_compare.training.dataset import InbreastDataset
 from gan_compare.training.dcgan.discriminator import Discriminator
 from gan_compare.training.dcgan.generator import Generator
 from gan_compare.training.dcgan.utils import weights_init
+from gan_compare.data_utils.utils import interval_mapping
 
 
 if __name__ == "__main__":
@@ -172,12 +174,22 @@ if __name__ == "__main__":
             if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
                 with torch.no_grad():
                     fake = netG(fixed_noise).detach().cpu()
-                img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+                img_list.append(fake.numpy())
+                # img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
                 
             iters += 1
-    out_path = Path(output_model_dir) / "model.pt"
-    if not Path(output_model_dir).exists():
-        os.makedirs(output_model_dir)
+    output_model_dir = Path(output_model_dir)
+    out_path = output_model_dir / "model.pt"
+    if not output_model_dir.exists():
+        os.makedirs(output_model_dir.resolve())
     torch.save({"discriminator": netD, "generator": netG}, out_path)
     print(f"Saved model to {out_path.resolve()}")
-    
+    for i, image_batch in enumerate(img_list):
+        for j, img_ in enumerate(image_batch):
+            img_path = output_model_dir / f"{i}_{j}.png"
+            img_ = interval_mapping(img_.transpose(1, 2, 0), -1., 1., 0, 255)
+            img_ = img_.astype('uint8')
+            # print(img_)
+            # print(img_.shape)
+            cv2.imwrite(str(img_path.resolve()), img_)
+        

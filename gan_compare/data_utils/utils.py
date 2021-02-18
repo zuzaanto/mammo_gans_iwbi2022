@@ -39,3 +39,12 @@ def load_inbreast_mask(mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 
 
 def get_file_list():
     return glob.glob(INBREAST_IMAGE_PATH+"*.dcm")
+
+
+def interval_mapping(image, from_min, from_max, to_min, to_max):
+    # map values from [from_min, from_max] to [to_min, to_max]
+    # image: input array
+    from_range = from_max - from_min
+    to_range = to_max - to_min
+    scaled = np.array((image - from_min) / float(from_range), dtype=float)
+    return to_min + (scaled * to_range)
