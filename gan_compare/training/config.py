@@ -10,7 +10,7 @@ batch_size = 2
 
 # Spatial size of training images. All images will be resized to this
 #   size using a transformer.
-image_size = 64
+image_size = 128
 
 # Number of channels in the training images. For color images this is 3
 nc = 1
@@ -36,6 +36,6 @@ beta1 = 0.5
 # Number of GPUs available. Use 0 for CPU mode.
 ngpu = 1
 
-output_model_dir = "model_checkpoints/"
+output_model_dir = f"model_checkpoints/{image_size}/"
 
-pretrained_model_path = "model_checkpoints/model.pt"
+pretrained_model_path = f"model_checkpoints/{image_size}/model.pt"

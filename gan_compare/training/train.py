@@ -19,8 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from gan_compare.training.config import * # TODO fix this ugly wildcart
 from gan_compare.training.dataset import InbreastDataset 
-from gan_compare.training.dcgan.discriminator import Discriminator
-from gan_compare.training.dcgan.generator import Generator
+from gan_compare.training.dcgan import discriminator_64, discriminator_128, generator_64, generator_128
 from gan_compare.training.dcgan.utils import weights_init
 from gan_compare.data_utils.utils import interval_mapping
 
@@ -38,7 +37,7 @@ if __name__ == "__main__":
     # Decide which device we want to run on
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
-    inbreast_dataset = InbreastDataset(metadata_path="metadata/metadata.json", final_shape=(64, 64))
+    inbreast_dataset = InbreastDataset(metadata_path="metadata/metadata.json", final_shape=(image_size, image_size))
     dataloader = DataLoader(inbreast_dataset, batch_size=batch_size,
                             shuffle=True, num_workers=workers)
 
@@ -52,7 +51,13 @@ if __name__ == "__main__":
     #     plt.show()
 
     # Create the generator
-    netG = Generator(ngpu).to(device)
+    if image_size == 64:
+        netG = generator_64.Generator(ngpu).to(device)
+    elif image_size == 128:
+        netG = generator_128.Generator(ngpu).to(device)
+    else:
+        raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
+
 
     # Handle multi-gpu if desired
     if (device.type == 'cuda') and (ngpu > 1):
@@ -67,7 +72,12 @@ if __name__ == "__main__":
     
     
     # Create the Discriminator
-    netD = Discriminator(ngpu).to(device)
+    if image_size == 64:
+        netD = discriminator_64.Discriminator(ngpu).to(device)
+    elif image_size == 128:
+        netD = discriminator_128.Discriminator(ngpu).to(device)
+    else:
+        raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
 
     # Handle multi-gpu if desired
     if (device.type == 'cuda') and (ngpu > 1):
