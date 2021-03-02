@@ -57,7 +57,7 @@ class InbreastDataset(Dataset):
             h_p = self.min_size        
         return (x_p, y_p, w_p, h_p)
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int, to_save: bool = False):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
@@ -76,6 +76,8 @@ class InbreastDataset(Dataset):
         # scale
         image = cv2.resize(image, self.final_shape, interpolation = cv2.INTER_AREA)
         mask = cv2.resize(mask, self.final_shape, interpolation = cv2.INTER_AREA)
+        if to_save:
+            return image
 
         # sample = {'image': torch.from_numpy(image), 'mask': torch.from_numpy(mask)}
         sample = [torchvision.transforms.functional.to_tensor(image[..., np.newaxis])]

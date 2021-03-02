@@ -17,15 +17,28 @@ import cv2
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import argparse
 from gan_compare.training.config import * # TODO fix this ugly wildcart
 from gan_compare.training.dataset import InbreastDataset 
-from gan_compare.training.dcgan import discriminator_64, discriminator_128, generator_64, generator_128
+from gan_compare.training.dcgan import res64, res128
 from gan_compare.training.dcgan.utils import weights_init
 from gan_compare.data_utils.utils import interval_mapping
 
 
-if __name__ == "__main__":
+def parse_args()-> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--save_dataset", action="store_true", help="Whether to save the dataset samples."
+    )
+    parser.add_argument(
+        "--out_dataset_path", type=str, default="visualisation/inbreast_dataset/", help="Directory to save the dataset samples in."
+    )
+    args = parser.parse_args()
+    return args
     
+
+if __name__ == "__main__":
+    args = parse_args()
     # Set random seed for reproducibility
     manualSeed = 999
     # manualSeed = random.randint(1, 10000) # use if you want new results
@@ -40,21 +53,20 @@ if __name__ == "__main__":
     inbreast_dataset = InbreastDataset(metadata_path="metadata/metadata.json", final_shape=(image_size, image_size))
     dataloader = DataLoader(inbreast_dataset, batch_size=batch_size,
                             shuffle=True, num_workers=workers)
-
-    # for i in range(0, 20):
-    #     # Plot some training images
-    #     real_batch = next(iter(dataloader))
-    #     plt.figure(figsize=(8,8))
-    #     plt.axis("off")
-    #     plt.title("Training Images")
-    #     plt.imshow(np.concatenate((np.transpose(real_batch["image"][0]), np.transpose(real_batch["mask"][0]*255)), axis=0))
-    #     plt.show()
+    if args.save_dataset:
+        output_dataset_dir = Path(args.out_dataset_path)
+        if not output_dataset_dir.exists():
+            os.makedirs(output_dataset_dir.resolve())
+        for i in range(len(inbreast_dataset)):
+            print(inbreast_dataset[i])
+                # Plot some training images
+            cv2.imwrite(str(output_dataset_dir / f"{i}.png"), inbreast_dataset.__getitem__(i, to_save=True))
 
     # Create the generator
     if image_size == 64:
-        netG = generator_64.Generator(ngpu).to(device)
+        netG = res64.generator.Generator(ngpu).to(device)
     elif image_size == 128:
-        netG = generator_128.Generator(ngpu).to(device)
+        netG = res128.generator.Generator(ngpu).to(device)
     else:
         raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
 
@@ -73,9 +85,9 @@ if __name__ == "__main__":
     
     # Create the Discriminator
     if image_size == 64:
-        netD = discriminator_64.Discriminator(ngpu).to(device)
+        netD = res64.discriminator.Discriminator(ngpu).to(device)
     elif image_size == 128:
-        netD = discriminator_128.Discriminator(ngpu).to(device)
+        netD = res128.discriminator.Discriminator(ngpu).to(device)
     else:
         raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
 
