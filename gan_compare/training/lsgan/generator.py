@@ -5,9 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from gan_compare.training.config import nc, ngf, nz
+
 
 class Generator(nn.Module):
-    def __init__(self, nz, ngf, nc):
+    def __init__(self):
         super(Generator, self).__init__()
         # input : z
         # Generator will be consisted with a series of deconvolution networks

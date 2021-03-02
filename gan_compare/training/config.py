@@ -13,7 +13,7 @@ batch_size = 4
 
 # Spatial size of training images. All images will be resized to this
 #   size using a transformer.
-image_size = 128
+image_size = 64
 
 # Number of channels in the training images. For color images this is 3
 nc = 1

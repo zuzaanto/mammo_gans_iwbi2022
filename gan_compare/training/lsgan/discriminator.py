@@ -5,9 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from gan_compare.training.config import nc, ndf
+
 
 class Discriminator(nn.Module):
-    def __init__(self, ndf, nc):
+    def __init__(self):
         super(Discriminator, self).__init__()
         # input : (batch * nc * image width * image height)
         # Discriminator will be consisted with a series of convolution networks

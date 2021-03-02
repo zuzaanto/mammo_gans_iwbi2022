@@ -81,11 +81,14 @@ if __name__ == "__main__":
         else:
             raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
     elif args.model_name == "lsgan":
+        # only 64x64 image resolution will be supported
+        assert image_size == 64, "Wrong image size for LSGAN, change it to 64x64 before proceeding."
+        
         from gan_compare.training.lsgan.discriminator import Discriminator
         from gan_compare.training.lsgan.generator import Generator
 
-        netG = Generator(ngpu).to(device)
-        netD = Discriminator(ngpu).to(device)
+        netG = Generator().to(device)
+        netD = Discriminator().to(device)
     else:
         raise ValueError(f"Unknown model name: {args.model_name}")
 
@@ -154,7 +157,10 @@ if __name__ == "__main__":
             # Forward pass real batch through D
             output = netD(real_cpu).view(-1)
             # Calculate loss on all-real batch
-            errD_real = criterion(output, label)
+            if args.model_name != "lsgan":
+                errD_real = criterion(output, label)
+            else:
+                errD_real = 0.5 * torch.mean((output-label)**2)
             # Calculate gradients for D in backward pass
             errD_real.backward()
             D_x = output.mean().item()
@@ -168,7 +174,10 @@ if __name__ == "__main__":
             # Classify all fake batch with D
             output = netD(fake.detach()).view(-1)
             # Calculate D's loss on the all-fake batch
-            errD_fake = criterion(output, label)
+            if args.model_name != "lsgan":
+                errD_fake = criterion(output, label)
+            else:
+                errD_fake = 0.5 * torch.mean((output-label)**2)
             # Calculate the gradients for this batch
             errD_fake.backward()
             D_G_z1 = output.mean().item()
@@ -185,7 +194,10 @@ if __name__ == "__main__":
             # Since we just updated D, perform another forward pass of all-fake batch through D
             output = netD(fake).view(-1)
             # Calculate G's loss based on this output
-            errG = criterion(output, label)
+            if args.model_name != "lsgan":
+                errG = criterion(output, label)
+            else:
+                errG = 0.5 * torch.mean((output-label)**2)
             # Calculate gradients for G
             errG.backward()
             D_G_z2 = output.mean().item()
@@ -211,14 +223,14 @@ if __name__ == "__main__":
                 
             iters += 1
     output_model_dir = Path(output_model_dir)
-    out_path = output_model_dir / "model.pt"
+    out_path = output_model_dir / f"{args.model_name}.pt"
     if not output_model_dir.exists():
         os.makedirs(output_model_dir.resolve())
     torch.save({"discriminator": netD, "generator": netG}, out_path)
     print(f"Saved model to {out_path.resolve()}")
     for i, image_batch in enumerate(img_list):
         for j, img_ in enumerate(image_batch):
-            img_path = output_model_dir / f"{i}_{j}.png"
+            img_path = output_model_dir / f"{args.model_name}_{i}_{j}.png"
             img_ = interval_mapping(img_.transpose(1, 2, 0), -1., 1., 0, 255)
             img_ = img_.astype('uint8')
             # print(img_)
