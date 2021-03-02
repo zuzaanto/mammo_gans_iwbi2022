@@ -2,15 +2,18 @@
 # Root directory for dataset
 dataroot = "data/celeba"
 
+# l2 regularization in discriminator
+weight_decay = 0.5
+
 # Number of workers for dataloader
 workers = 2
 
 # Batch size during training
-batch_size = 2
+batch_size = 4
 
 # Spatial size of training images. All images will be resized to this
 #   size using a transformer.
-image_size = 64
+image_size = 128
 
 # Number of channels in the training images. For color images this is 3
 nc = 1

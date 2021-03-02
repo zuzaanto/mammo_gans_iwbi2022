@@ -20,13 +20,15 @@ import matplotlib.animation as animation
 import argparse
 from gan_compare.training.config import * # TODO fix this ugly wildcart
 from gan_compare.training.dataset import InbreastDataset 
-from gan_compare.training.dcgan import res64, res128
 from gan_compare.training.dcgan.utils import weights_init
 from gan_compare.data_utils.utils import interval_mapping
 
 
 def parse_args()-> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model_name", type=str, required=True, help="Model name: supported: dcgan and lsgan"
+    )
     parser.add_argument(
         "--save_dataset", action="store_true", help="Whether to save the dataset samples."
     )
@@ -61,14 +63,31 @@ if __name__ == "__main__":
             print(inbreast_dataset[i])
                 # Plot some training images
             cv2.imwrite(str(output_dataset_dir / f"{i}.png"), inbreast_dataset.__getitem__(i, to_save=True))
+    
+    # Create the Discriminator
+    if args.model_name =="dcgan":
+        if image_size == 64:
+            from gan_compare.training.dcgan.res64.discriminator import Discriminator
+            from gan_compare.training.dcgan.res64.generator import Generator
 
-    # Create the generator
-    if image_size == 64:
-        netG = res64.generator.Generator(ngpu).to(device)
-    elif image_size == 128:
-        netG = res128.generator.Generator(ngpu).to(device)
+            netG = Generator(ngpu).to(device)
+            netD = Discriminator(ngpu).to(device)
+        elif image_size == 128:
+            from gan_compare.training.dcgan.res128.discriminator import Discriminator
+            from gan_compare.training.dcgan.res128.generator import Generator
+
+            netD = Discriminator(ngpu, leakiness=0.3, bias=False).to(device)
+            netG = Generator(ngpu).to(device)
+        else:
+            raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
+    elif args.model_name == "lsgan":
+        from gan_compare.training.lsgan.discriminator import Discriminator
+        from gan_compare.training.lsgan.generator import Generator
+
+        netG = Generator(ngpu).to(device)
+        netD = Discriminator(ngpu).to(device)
     else:
-        raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
+        raise ValueError(f"Unknown model name: {args.model_name}")
 
 
     # Handle multi-gpu if desired
@@ -82,15 +101,6 @@ if __name__ == "__main__":
     # Print the model
     print(netG)
     
-    
-    # Create the Discriminator
-    if image_size == 64:
-        netD = res64.discriminator.Discriminator(ngpu).to(device)
-    elif image_size == 128:
-        netD = res128.discriminator.Discriminator(ngpu).to(device)
-    else:
-        raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
-
     # Handle multi-gpu if desired
     if (device.type == 'cuda') and (ngpu > 1):
         netD = nn.DataParallel(netD, list(range(ngpu)))
@@ -114,7 +124,7 @@ if __name__ == "__main__":
     fake_label = 0.
 
     # Setup Adam optimizers for both G and D
-    optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999))
+    optimizerD = optim.Adam(netD.parameters(), lr=lr, betas=(beta1, 0.999), weight_decay=weight_decay)
     optimizerG = optim.Adam(netG.parameters(), lr=lr, betas=(beta1, 0.999))
 
 
