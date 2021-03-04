@@ -157,7 +157,7 @@ if __name__ == "__main__":
             # Forward pass real batch through D
             output = netD(real_cpu).view(-1)
             # Calculate loss on all-real batch
-            if args.model_name != "lsgan":
+            if args.model_name != "lsgan" and not use_lsgan_loss:
                 errD_real = criterion(output, label)
             else:
                 errD_real = 0.5 * torch.mean((output-label)**2)
@@ -174,7 +174,7 @@ if __name__ == "__main__":
             # Classify all fake batch with D
             output = netD(fake.detach()).view(-1)
             # Calculate D's loss on the all-fake batch
-            if args.model_name != "lsgan":
+            if args.model_name != "lsgan" and not use_lsgan_loss:
                 errD_fake = criterion(output, label)
             else:
                 errD_fake = 0.5 * torch.mean((output-label)**2)
@@ -194,7 +194,7 @@ if __name__ == "__main__":
             # Since we just updated D, perform another forward pass of all-fake batch through D
             output = netD(fake).view(-1)
             # Calculate G's loss based on this output
-            if args.model_name != "lsgan":
+            if args.model_name != "lsgan" and not use_lsgan_loss:
                 errG = criterion(output, label)
             else:
                 errG = 0.5 * torch.mean((output-label)**2)

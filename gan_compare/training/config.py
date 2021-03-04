@@ -1,4 +1,4 @@
-
+from time import time
 # Root directory for dataset
 dataroot = "data/celeba"
 
@@ -13,7 +13,10 @@ batch_size = 4
 
 # Spatial size of training images. All images will be resized to this
 #   size using a transformer.
-image_size = 64
+image_size = 128
+
+# Whether to use least square loss
+use_lsgan_loss = True
 
 # Number of channels in the training images. For color images this is 3
 nc = 1
@@ -39,6 +42,6 @@ beta1 = 0.5
 # Number of GPUs available. Use 0 for CPU mode.
 ngpu = 1
 
-output_model_dir = f"model_checkpoints/{image_size}/"
+output_model_dir = f"model_checkpoints/training_{time()}/{image_size}/"
 
 pretrained_model_path = f"model_checkpoints/{image_size}/model.pt"
