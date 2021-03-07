@@ -76,7 +76,7 @@ if __name__ == "__main__":
             from gan_compare.training.dcgan.res128.discriminator import Discriminator
             from gan_compare.training.dcgan.res128.generator import Generator
 
-            netD = Discriminator(ngpu, leakiness=0.3, bias=False).to(device)
+            netD = Discriminator(ngpu, leakiness=leakiness, bias=False).to(device)
             netG = Generator(ngpu).to(device)
         else:
             raise ValueError("Unsupported image size. Supported sizes are 128 and 64.")
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     # Create batch of latent vectors that we will use to visualize
     #  the progression of the generator
-    fixed_noise = torch.randn(64, nz, 1, 1, device=device)
+    fixed_noise = torch.randn(image_size, nz, 1, 1, device=device)
 
     # Establish convention for real and fake labels during training
     real_label = 1.
@@ -220,13 +220,17 @@ if __name__ == "__main__":
                     fake = netG(fixed_noise).detach().cpu()
                 img_list.append(fake.numpy())
                 # img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
-                
             iters += 1
     output_model_dir = Path(output_model_dir)
     out_path = output_model_dir / f"{args.model_name}.pt"
     if not output_model_dir.exists():
         os.makedirs(output_model_dir.resolve())
-    torch.save({"discriminator": netD, "generator": netG}, out_path)
+    torch.save({
+        "discriminator": netD.state_dict(), 
+        "generator": netG.state_dict(), 
+        "optim_discriminator": optimizerD.state_dict(), 
+        "optim_generator": optimizerG.state_dict(),
+    }, out_path)
     print(f"Saved model to {out_path.resolve()}")
     for i, image_batch in enumerate(img_list):
         for j, img_ in enumerate(image_batch):

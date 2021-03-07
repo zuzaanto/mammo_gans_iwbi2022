@@ -18,6 +18,9 @@ image_size = 128
 # Whether to use least square loss
 use_lsgan_loss = True
 
+# Leakiness for ReLUs
+leakiness = 0.3
+
 # Number of channels in the training images. For color images this is 3
 nc = 1
 

@@ -24,6 +24,17 @@ For DCGAN, currently supported are 2 image sizes: 64x64 and 128x128.
 
 Note that you can use LS loss with DCGAN - for more details check the `gan_compare/training/config.py`. Actually, 128x128 images will cause vanishing gradient in DCGAN, unless you use LS loss.
 
+#### Inference
+
+To generate images with your pretrained GAN, run:
+```
+python gan_compare/training/generate.py \
+--model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
+--image_size IMAGE_SIZE \ #Image size: 64 or 128
+--model_checkpoint_path MODEL_CHECKPOINT_PATH \ #Path to model checkpoint
+--num_samples NUM_SAMPLES \ #How many samples to generate
+```
+
 #### Peek through the dataset
 This script walks through your data directory and shows you InBreast images with overlayed ground-truth masks:
 ```
