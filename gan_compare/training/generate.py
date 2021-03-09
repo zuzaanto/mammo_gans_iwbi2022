@@ -4,7 +4,7 @@ import cv2
 import torch
 
 from gan_compare.data_utils.utils import interval_mapping
-from gan_compare.training import config
+from gan_compare.training import config # TODO instead save a json config along with the model and read it from there
 
 
 def parse_args()-> argparse.Namespace:
@@ -65,14 +65,17 @@ if __name__ == "__main__":
     netD.eval()
     
     for ind in range(args.num_samples):
-        fixed_noise = torch.randn(args.image_size, nz, 1, 1)
+        fixed_noise = torch.randn(args.image_size, config.nz, 1, 1)
         fake = netG(fixed_noise).detach().cpu().numpy()
         for j, img_ in enumerate(fake):
-            img_path = output_model_dir / f"{args.model_name}_{i}_{j}.png"
             img_ = interval_mapping(img_.transpose(1, 2, 0), -1., 1., 0, 255)
             img_ = img_.astype('uint8')
-            cv2.imshow()
-            cv2.waitKey()
-            # print(img_)
-            # print(img_.shape)
-            # cv2.imwrite(str(args..resolve()), img_)
+            cv2.imshow("sample", img_*2)
+            k = cv2.waitKey()
+            if k==27:    # Esc key to stop
+                break
+        print("Press any key to see the next batch. Press ESC to quit.")
+        k = cv2.waitKey()
+        if k==27:    # Esc key to stop
+            break
+    cv2.destroyAllWindows()
