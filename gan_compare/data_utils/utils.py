@@ -1,9 +1,11 @@
 from skimage.draw import polygon
-from typing import Tuple
+from typing import Tuple, Union
 import numpy as np
 import plistlib
 import glob
 import io
+from pathlib import Path
+import pandas as pd
 from gan_compare.paths import INBREAST_IMAGE_PATH
 
 
@@ -38,7 +40,7 @@ def load_inbreast_mask(mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 
 
 
 def get_file_list():
-    return glob.glob(INBREAST_IMAGE_PATH+"*.dcm")
+    return glob.glob(str(INBREAST_IMAGE_PATH.resolve()) + "/*.dcm")
 
 
 def interval_mapping(image, from_min, from_max, to_min, to_max):
@@ -48,3 +50,8 @@ def interval_mapping(image, from_min, from_max, to_min, to_max):
     to_range = to_max - to_min
     scaled = np.array((image - from_min) / float(from_range), dtype=float)
     return to_min + (scaled * to_range)
+
+
+def read_csv(path: Union[Path, str], sep: chr = ";") -> pd.DataFrame:
+    with open(path, "r") as csv_file:
+        return pd.read_csv(csv_file, sep=sep)

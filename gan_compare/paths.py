@@ -1,3 +1,7 @@
-INBREAST_IMAGE_PATH = "path/to/InBreast/InBreast/AllDICOMs/"
-INBREAST_XML_PATH = "path/to/InBreast/InBreast/AllXML/"
-INBREAST_ROI_PATH = "path/to/Desktop/gan_aug/InBreast/InBreast/AllROI/"
+from pathlib import Path
+
+INBREAST_ROOT_PATH = Path("/path/to/InBreast/InBreast/")
+INBREAST_IMAGE_PATH = INBREAST_ROOT_PATH / "AllDICOMs/"
+INBREAST_XML_PATH = INBREAST_ROOT_PATH / "AllXML/"
+INBREAST_ROI_PATH = INBREAST_ROOT_PATH / "AllROI/"
+INBREAST_CSV_PATH = INBREAST_ROOT_PATH / "INbreast.csv"

@@ -1,6 +1,5 @@
 .vscode
 **__pycache__**
-gan_compare/paths.py
 metadata/
 model_checkpoints/
 visualisation/
