@@ -1,6 +1,8 @@
 from time import time
-# Root directory for dataset
-dataroot = "data/celeba"
+
+# Birads range
+birads_min = 2
+birads_max = 6
 
 # l2 regularization in discriminator
 weight_decay = 0.5
@@ -13,16 +15,16 @@ batch_size = 4
 
 # Spatial size of training images. All images will be resized to this
 #   size using a transformer.
-image_size = 128
+image_size = 64
 
 # Whether to use least square loss
-use_lsgan_loss = True
+use_lsgan_loss = False
 
 # Leakiness for ReLUs
 leakiness = 0.3
 
 # Number of channels in the training images. For color images this is 3
-nc = 1
+nc = 2
 
 # Size of z latent vector (i.e. size of generator input)
 nz = 100
