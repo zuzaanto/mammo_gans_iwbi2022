@@ -35,9 +35,11 @@ class InbreastDataset(Dataset):
         self.final_shape = final_shape
     
     def __len__(self):
+        # metadata contains a list of lesion objects (incl. patient id, bounding box, etc)
         return len(self.metadata)
     
     def _convert_to_uint8(self, image: np.ndarray) -> np.ndarray:
+        # normalize value range between 0 and 255 and convert to 8-bit unsigned integer
         img_n = cv2.normalize(src=image, dst=None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         return img_n
 
@@ -54,7 +56,7 @@ class InbreastDataset(Dataset):
             w_p = self.min_size
         if h_p < self.min_size:
             y_p = max(0, y - (self.min_size - h_p) // 2)
-            h_p = self.min_size        
+            h_p = self.min_size
         return (x_p, y_p, w_p, h_p)
 
     def __getitem__(self, idx: int, to_save: bool = False):
@@ -83,4 +85,3 @@ class InbreastDataset(Dataset):
         sample = [torchvision.transforms.functional.to_tensor(image[..., np.newaxis])]
 
         return sample
-    

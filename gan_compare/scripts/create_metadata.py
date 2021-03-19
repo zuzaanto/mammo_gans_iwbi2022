@@ -35,9 +35,11 @@ if __name__ == "__main__":
         else:
             mask = np.zeros(ds.pixel_array.shape)
             xml_filepath = ""
+        # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
         mask = np.ascontiguousarray(mask, dtype=np.uint8)
-        mask2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         lesion_metapoints = []
+        # For each contour, generate a metapoint object including the bounding box as rectangle
         for indx, c in enumerate(contours):
             if c.shape[0] < 2:
                 continue
@@ -50,7 +52,9 @@ if __name__ == "__main__":
                 # "contour": c.tolist(),
             }
             lesion_metapoints.append(metapoint)
+        # Add the metapoint objects of each contour to our metadata list
         metadata.extend(lesion_metapoints)
+    # Output metadata as json file to specified location on disk
     with open(args.output_path, "w") as outfile:
         json.dump(metadata, outfile, indent=4)
     print(f"Saved {len(metadata)} metapoints to {args.output_path}")

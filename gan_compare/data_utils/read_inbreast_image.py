@@ -25,4 +25,3 @@ if __name__ == "__main__":
         print(ds.pixel_array.shape)
         plt.imshow(ds.pixel_array * (1-mask))
         plt.show()
-        

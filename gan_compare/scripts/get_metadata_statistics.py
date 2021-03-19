@@ -42,4 +42,4 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(figsize =(10, 7)) 
     ax.hist(widths, bins=1000) 
     # Show plot 
-    plt.show() 
+    plt.show()

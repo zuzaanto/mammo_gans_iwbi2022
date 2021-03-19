@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pydicom = "*"
+numpy = "*"
+pandas = "*"
+torch = "==1.7.0"
+torchvision = "==0.8.1"
+matplotlib = "*"
+opencv-python = "*"
+scikit-image = "*"
+tqdm = "*"
+
+[requires]
+python_version = "3.8"
+
+[dev-packages]

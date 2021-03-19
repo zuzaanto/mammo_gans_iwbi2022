@@ -9,14 +9,14 @@ weight_decay = 0.5
 workers = 2
 
 # Batch size during training
-batch_size = 4
+batch_size = 16
 
 # Spatial size of training images. All images will be resized to this
 #   size using a transformer.
-image_size = 128
+image_size = 64
 
 # Whether to use least square loss
-use_lsgan_loss = True
+use_lsgan_loss = False
 
 # Leakiness for ReLUs
 leakiness = 0.3
@@ -34,7 +34,7 @@ ngf = 64
 ndf = 64
 
 # Number of training epochs
-num_epochs = 10
+num_epochs = 50
 
 # Learning rate for optimizers
 lr = 0.0002
@@ -45,6 +45,8 @@ beta1 = 0.5
 # Number of GPUs available. Use 0 for CPU mode.
 ngpu = 1
 
+# The folder in which the model checkpoint wil be stored.
 output_model_dir = f"model_checkpoints/training_{time()}/{image_size}/"
 
+# The path to a model checkpoint that is too be loaded.
 pretrained_model_path = f"model_checkpoints/{image_size}/model.pt"

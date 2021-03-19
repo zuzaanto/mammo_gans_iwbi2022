@@ -68,9 +68,11 @@ if __name__ == "__main__":
         fixed_noise = torch.randn(args.image_size, config.nz, 1, 1)
         fake = netG(fixed_noise).detach().cpu().numpy()
         for j, img_ in enumerate(fake):
+            # transpose to opencv compatible image format from [C * H * W] to [H * W * C]
             img_ = interval_mapping(img_.transpose(1, 2, 0), -1., 1., 0, 255)
             img_ = img_.astype('uint8')
-            cv2.imshow("sample", img_*2)
+            window_name = f"sample {j} of {args.model_name}.res{args.image_size}"
+            cv2.imshow(window_name, img_*2)
             k = cv2.waitKey()
             if k==27:    # Esc key to stop
                 break

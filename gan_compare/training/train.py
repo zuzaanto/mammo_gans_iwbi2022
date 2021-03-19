@@ -15,6 +15,8 @@ from torch.utils.data import DataLoader
 import numpy as np
 import cv2
 from pathlib import Path
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import argparse
@@ -35,6 +37,9 @@ def parse_args()-> argparse.Namespace:
     parser.add_argument(
         "--out_dataset_path", type=str, default="visualisation/inbreast_dataset/", help="Directory to save the dataset samples in."
     )
+    parser.add_argument(
+        "--in_metadata_path", type=str, default="metadata/metadata.json", help="File system location of metadata.json file."
+    )
     args = parser.parse_args()
     return args
     
@@ -52,7 +57,7 @@ if __name__ == "__main__":
     # Decide which device we want to run on
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
-    inbreast_dataset = InbreastDataset(metadata_path="metadata/metadata.json", final_shape=(image_size, image_size))
+    inbreast_dataset = InbreastDataset(metadata_path=args.in_metadata_path, final_shape=(image_size, image_size))
     dataloader = DataLoader(inbreast_dataset, batch_size=batch_size,
                             shuffle=True, num_workers=workers)
     if args.save_dataset:
@@ -107,7 +112,7 @@ if __name__ == "__main__":
     # Handle multi-gpu if desired
     if (device.type == 'cuda') and (ngpu > 1):
         netD = nn.DataParallel(netD, list(range(ngpu)))
-        
+    print(f'Running on device: {device.type}')
     # Apply the weights_init function to randomly initialize all weights
     #  to mean=0, stdev=0.2.
     netD.apply(weights_init)
