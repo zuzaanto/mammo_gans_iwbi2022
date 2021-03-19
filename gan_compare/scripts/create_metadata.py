@@ -1,5 +1,5 @@
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
-from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list
+from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH
+from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list, read_csv
 
 from typing import Tuple
 from pathlib import Path
@@ -7,6 +7,7 @@ import os.path
 import glob
 import cv2
 import numpy as np
+import pandas as pd
 import json
 import argparse
 from tqdm import tqdm
@@ -24,11 +25,14 @@ def parse_args()-> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     metadata = []
+    inbreast_df = read_csv(INBREAST_CSV_PATH)
     for filename in tqdm(get_file_list()):
-        image_path = Path(INBREAST_IMAGE_PATH) / filename
-        patient_id = image_path.stem.split("_")[0]
+        image_path = INBREAST_IMAGE_PATH / filename
+        image_id, patient_id = image_path.stem.split("_")[:2]
+        image_id = int(image_id)
+        csv_metadata = inbreast_df.loc[inbreast_df["File Name"] == image_id].iloc[0]
         ds = dicom.dcmread(image_path)
-        xml_filepath = Path(INBREAST_XML_PATH) / f"{patient_id}.xml"
+        xml_filepath = INBREAST_XML_PATH / f"{image_id}.xml"
         if xml_filepath.is_file():
             with open(xml_filepath, "rb") as patient_xml:
                 mask = load_inbreast_mask(patient_xml, ds.pixel_array.shape)
@@ -44,7 +48,12 @@ if __name__ == "__main__":
             if c.shape[0] < 2:
                 continue
             metapoint = {
-                "patient_id": patient_id,
+                "image_id": image_id,
+                "patient_id": patient_id, 
+                "ACR": csv_metadata["ACR"],
+                "birads": csv_metadata["Bi-Rads"],
+                "laterality": csv_metadata["Laterality"],
+                "view": csv_metadata["View"],
                 "lesion_id": indx,
                 "bbox": cv2.boundingRect(c),
                 "image_path": str(image_path.resolve()),        

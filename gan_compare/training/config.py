@@ -1,6 +1,12 @@
 from time import time
-# Root directory for dataset
-dataroot = "data/celeba"
+
+# Birads range used as condition input into cGAN
+birads_min = 2
+birads_max = 6
+
+# The number of condition labels for input into cGAN (i.e. BI-RADS 2,3,4,5,6)
+# Note: torch nn.Embedding start to count the num_embeddings at index 0 --> [0,birads_max+1] --> nn.Embedding(birads_max+1,dim)
+n_cond = birads_max + 1
 
 # l2 regularization in discriminator
 weight_decay = 0.5
@@ -22,7 +28,7 @@ use_lsgan_loss = False
 leakiness = 0.3
 
 # Number of channels in the training images. For color images this is 3
-nc = 1
+nc = 2
 
 # Size of z latent vector (i.e. size of generator input)
 nz = 100

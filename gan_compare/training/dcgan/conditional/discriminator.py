@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-from gan_compare.training.config import ndf, nc
+from gan_compare.training.config import ndf, nc, n_cond
 
 
 class Discriminator(nn.Module):
@@ -10,8 +10,8 @@ class Discriminator(nn.Module):
         self.ngpu = ngpu
         self.leakiness = leakiness
         self.bias = bias
-        self.num_embedding_input = 10
-        self.num_embedding_dimensions = 50
+        self.num_embedding_input = n_cond
+        self.num_embedding_dimensions = 50 # standard would probably be to use same as dim(z).
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
             nn.Conv2d(nc, ndf, 4, 2, 1, bias=self.bias),
@@ -38,14 +38,17 @@ class Discriminator(nn.Module):
             # target output dim of dense layer is (nc) x 64 x 64
             # input is dimension of the embedding layer output
             nn.Linear(in_features=self.num_embedding_dimensions, out_features=64*64),
-            #nn.BatchNorm2d(2*28),
+            #nn.BatchNorm2d(2*64),
             nn.LeakyReLU(self.leakiness, inplace=True)
         )
 
-    def forward(self, input):
+    def forward(self, input_img, labels):
         # combining condition labels and input images via a new image channel
         # e.g. condition -> int -> embedding -> fcl -> feature map -> concat with image -> conv layers..
+        # print(input_img.size())
         embedded_labels = self.embed_nn(labels)
-        embedded_labels_as_image_channel = embedded_labels.view(-1, 1, 28, 28)
-        x = torch.cat([input_images, embedded_labels_as_image_channel], 1)
+        # print(embedded_labels.size())
+        embedded_labels_as_image_channel = embedded_labels.view(-1, 1, 64, 64)
+        # print(embedded_labels_as_image_channel.size())
+        x = torch.cat([input_img, embedded_labels_as_image_channel], 1)
         return self.main(x)

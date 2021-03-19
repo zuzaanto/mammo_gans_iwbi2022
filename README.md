@@ -18,9 +18,10 @@ To start your DCGAN training, run:
 ```
 python -m gan_compare.training.train \
 --model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
---save_dataset SAVE_DATASET \ #Boolean indicating whether to generate and save a synthetic dataset
+--save_dataset SAVE_DATASET \ #Indicating whether to generate and save a synthetic dataset
+--conditional CONDITIONAL\ #Indicating whether the GAN contains a conditional input defined in config.py
 --out_dataset_path OUT_DATASET_PATH \ #Directory to save the dataset samples in.
---in_metadata_path IN_METADATA_PATH \ #Path to metadata.json file.
+--in_metadata_path IN_METADATA_PATH \ #Path to metadata json file.
 
 ```
 Note that you can change any parameters you want via `gan_compare/training/config.py`

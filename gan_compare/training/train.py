@@ -33,6 +33,9 @@ def parse_args()-> argparse.Namespace:
     )
     parser.add_argument(
         "--save_dataset", action="store_true", help="Whether to save the dataset samples."
+    )    
+    parser.add_argument(
+        "--conditional", action="store_true", help="Whether to use birads as conditional input."
     )
     parser.add_argument(
         "--out_dataset_path", type=str, default="visualisation/inbreast_dataset/", help="Directory to save the dataset samples in."
@@ -57,7 +60,12 @@ if __name__ == "__main__":
     # Decide which device we want to run on
     device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")
 
-    inbreast_dataset = InbreastDataset(metadata_path=args.in_metadata_path, final_shape=(image_size, image_size))
+    inbreast_dataset = InbreastDataset(
+        metadata_path=args.in_metadata_path,
+        final_shape=(image_size, image_size), 
+        conditional_birads=args.conditional,
+    )
+
     dataloader = DataLoader(inbreast_dataset, batch_size=batch_size,
                             shuffle=True, num_workers=workers)
     if args.save_dataset:
@@ -66,14 +74,19 @@ if __name__ == "__main__":
             os.makedirs(output_dataset_dir.resolve())
         for i in range(len(inbreast_dataset)):
             print(inbreast_dataset[i])
-                # Plot some training images
+            # Plot some training images
             cv2.imwrite(str(output_dataset_dir / f"{i}.png"), inbreast_dataset.__getitem__(i, to_save=True))
     
     # Create the Discriminator
     if args.model_name =="dcgan":
         if image_size == 64:
-            from gan_compare.training.dcgan.res64.discriminator import Discriminator
-            from gan_compare.training.dcgan.res64.generator import Generator
+            if args.conditional:
+                from gan_compare.training.dcgan.conditional.discriminator import Discriminator
+                from gan_compare.training.dcgan.conditional.generator import Generator
+                assert nc == 2, "To use conditional input, change number of channels (nc) to 2."
+            else:
+                from gan_compare.training.dcgan.res64.discriminator import Discriminator
+                from gan_compare.training.dcgan.res64.generator import Generator
 
             netG = Generator(ngpu).to(device)
             netD = Discriminator(ngpu).to(device)
@@ -125,7 +138,9 @@ if __name__ == "__main__":
 
     # Create batch of latent vectors that we will use to visualize
     #  the progression of the generator
-    fixed_noise = torch.randn(image_size, nz, 1, 1, device=device)
+    fixed_noise = torch.randn(12, nz, 1, 1, device=device)
+    if args.conditional:
+        fixed_conditon = torch.randint(birads_min, birads_max, (12,), device=device)
 
     # Establish convention for real and fake labels during training
     real_label = 1.
@@ -145,22 +160,34 @@ if __name__ == "__main__":
     iters = 0
 
     print("Starting Training Loop...")
+    if args.conditional:
+        print("Training conditioned on BiRADS")
     # For each epoch
     for epoch in range(num_epochs):
         # For each batch in the dataloader
-        for i, data in enumerate(dataloader, 0):
+        for i, data in enumerate(dataloader, start=0):
             
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
             ## Train with all-real batch
             netD.zero_grad()
+            
+            if args.conditional:
+                data, condition = data
+                # print(condition)
+            
             # Format batch
             real_cpu = data[0].to(device)
+            if args.conditional:
+                real_condition = condition.to(device)
             b_size = real_cpu.size(0)
             label = torch.full((b_size,), real_label, dtype=torch.float, device=device)
             # Forward pass real batch through D
-            output = netD(real_cpu).view(-1)
+            if args.conditional:
+                output = netD(real_cpu, real_condition).view(-1)
+            else:
+                output = netD(real_cpu).view(-1)
             # Calculate loss on all-real batch
             if args.model_name != "lsgan" and not use_lsgan_loss:
                 errD_real = criterion(output, label)
@@ -173,11 +200,21 @@ if __name__ == "__main__":
             ## Train with all-fake batch
             # Generate batch of latent vectors
             noise = torch.randn(b_size, nz, 1, 1, device=device)
+            
             # Generate fake image batch with G
-            fake = netG(noise)
+            if args.conditional:
+                # generate fake conditions
+                fake_cond = torch.randint(birads_min, birads_max, (b_size,), device=device)
+                fake = netG(noise, fake_cond)
+            else:
+                fake = netG(noise)
             label.fill_(fake_label)
+            
             # Classify all fake batch with D
-            output = netD(fake.detach()).view(-1)
+            if args.conditional:
+                output = netD(fake.detach(), fake_cond.detach()).view(-1)
+            else:
+                output = netD(fake.detach()).view(-1)
             # Calculate D's loss on the all-fake batch
             if args.model_name != "lsgan" and not use_lsgan_loss:
                 errD_fake = criterion(output, label)
@@ -197,7 +234,10 @@ if __name__ == "__main__":
             netG.zero_grad()
             label.fill_(real_label)  # fake labels are real for generator cost
             # Since we just updated D, perform another forward pass of all-fake batch through D
-            output = netD(fake).view(-1)
+            if args.conditional:
+                output = netD(fake, fake_cond).view(-1)
+            else:
+                output = netD(fake).view(-1)
             # Calculate G's loss based on this output
             if args.model_name != "lsgan" and not use_lsgan_loss:
                 errG = criterion(output, label)
@@ -222,12 +262,18 @@ if __name__ == "__main__":
             # Check how the generator is doing by saving G's output on fixed_noise
             if (iters % 500 == 0) or ((epoch == num_epochs-1) and (i == len(dataloader)-1)):
                 with torch.no_grad():
-                    fake = netG(fixed_noise).detach().cpu()
+                    if args.conditional:
+                        fake = netG(fixed_noise, fixed_conditon).detach().cpu()
+                    else:
+                        fake = netG(fixed_noise).detach().cpu()
                 img_list.append(fake.numpy())
                 # img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
             iters += 1
     output_model_dir = Path(output_model_dir)
-    out_path = output_model_dir / f"{args.model_name}.pt"
+    if args.conditional:
+        out_path = output_model_dir / f"cond_{args.model_name}.pt"
+    else:
+        out_path = output_model_dir / f"{args.model_name}.pt"
     if not output_model_dir.exists():
         os.makedirs(output_model_dir.resolve())
     torch.save({
@@ -245,4 +291,3 @@ if __name__ == "__main__":
             # print(img_)
             # print(img_.shape)
             cv2.imwrite(str(img_path.resolve()), img_)
-        

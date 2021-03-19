@@ -25,6 +25,7 @@ class InbreastDataset(Dataset):
         min_size: int = 160, 
         margin: int = 100, 
         final_shape: Tuple[int, int] = (400, 400),
+        conditional_birads: bool = False,
     ):
         assert Path(metadata_path).is_file(), "Metadata not found"
         with open(metadata_path, "r") as metadata_file:
@@ -33,6 +34,7 @@ class InbreastDataset(Dataset):
         self.min_size = min_size
         self.margin = margin
         self.final_shape = final_shape
+        self.conditional_birads = conditional_birads
     
     def __len__(self):
         # metadata contains a list of lesion objects (incl. patient id, bounding box, etc)
@@ -82,6 +84,11 @@ class InbreastDataset(Dataset):
             return image
 
         # sample = {'image': torch.from_numpy(image), 'mask': torch.from_numpy(mask)}
+        
         sample = [torchvision.transforms.functional.to_tensor(image[..., np.newaxis])]
-
+        if self.conditional_birads:
+            #print (f"Integer: {idx}")
+            #print(f"metapoint: {metapoint}")
+            return sample, int(metapoint["birads"][0]) # avoid 4c, 4b, 4a and just truncate them to 4
+        
         return sample
