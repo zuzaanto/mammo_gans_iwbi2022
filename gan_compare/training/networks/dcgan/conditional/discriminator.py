@@ -1,41 +1,44 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-from gan_compare.training.config import ndf, nc
+from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 
-class Discriminator(nn.Module):
-    def __init__(self, ngpu, leakiness: float = 0.2, bias: bool = False):
-        super(Discriminator, self).__init__()
-        self.ngpu = ngpu
-        self.leakiness = leakiness
-        self.bias = bias
+class Discriminator(BaseDiscriminator):
+    def __init__(self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+        super(Discriminator, self).__init__(
+            ndf=ndf,
+            nc=nc,
+            ngpu=ngpu,
+            leakiness=leakiness,
+            bias=bias,
+        )
         self.num_embedding_input = 10
         self.num_embedding_dimensions = 50
         self.main = nn.Sequential(
-            # input is (nc) x 64 x 64
-            nn.Conv2d(nc, ndf, 4, 2, 1, bias=self.bias),
+            # input is (self.nc) x 64 x 64
+            nn.Conv2d(self.nc, self.ndf, 4, 2, 1, bias=self.bias),
             nn.LeakyReLU(leakiness, inplace=True),
-            # state size. (ndf) x 32 x 32
-            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=self.bias),
-            nn.BatchNorm2d(ndf * 2),
+            # state size. (self.ndf) x 32 x 32
+            nn.Conv2d(self.ndf, self.ndf * 2, 4, 2, 1, bias=self.bias),
+            nn.BatchNorm2d(self.ndf * 2),
             nn.LeakyReLU(leakiness, inplace=True),
-            # state size. (ndf*2) x 16 x 16
-            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=self.bias),
-            nn.BatchNorm2d(ndf * 4),
+            # state size. (self.ndf*2) x 16 x 16
+            nn.Conv2d(self.ndf * 2, self.ndf * 4, 4, 2, 1, bias=self.bias),
+            nn.BatchNorm2d(self.ndf * 4),
             nn.LeakyReLU(leakiness, inplace=True),
-            # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=self.bias),
-            nn.BatchNorm2d(ndf * 8),
+            # state size. (self.ndf*4) x 8 x 8
+            nn.Conv2d(self.ndf * 4, self.ndf * 8, 4, 2, 1, bias=self.bias),
+            nn.BatchNorm2d(self.ndf * 8),
             nn.LeakyReLU(leakiness, inplace=True),
-            # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=self.bias),
+            # state size. (self.ndf*8) x 4 x 4
+            nn.Conv2d(self.ndf * 8, 1, 4, 1, 0, bias=self.bias),
             nn.Sigmoid()
         )
         self.embed_nn = nn.Sequential(
             # embedding layer
             nn.Embedding(num_embeddings=self.num_embedding_input, embedding_dim=self.num_embedding_dimensions),
-            # target output dim of dense layer is (nc) x 64 x 64
+            # target output dim of dense layer is (self.nc) x 64 x 64
             # input is dimension of the embedding layer output
             nn.Linear(in_features=self.num_embedding_dimensions, out_features=64*64),
             #nn.BatchNorm2d(2*64),

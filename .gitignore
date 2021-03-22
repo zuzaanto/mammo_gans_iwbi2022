@@ -4,3 +4,5 @@ metadata/
 model_checkpoints/
 visualisation/
 *checkpoint.ipynb
+.ipynb_checkpoints
+*.egg-info

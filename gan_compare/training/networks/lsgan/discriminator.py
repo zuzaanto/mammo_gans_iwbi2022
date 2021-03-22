@@ -5,12 +5,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from gan_compare.training.config import nc, ndf
+from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 
-class Discriminator(nn.Module):
-    def __init__(self):
-        super(Discriminator, self).__init__()
+class Discriminator(BaseDiscriminator):
+    def __init__(self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+        super(Discriminator, self).__init__(
+            ndf=ndf,
+            nc=nc,
+            ngpu=ngpu,
+            leakiness=leakiness,
+            bias=bias,
+        )
         # input : (batch * nc * image width * image height)
         # Discriminator will be consisted with a series of convolution networks
 

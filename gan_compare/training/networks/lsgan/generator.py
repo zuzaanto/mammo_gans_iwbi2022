@@ -4,13 +4,19 @@ Implementation taken from https://github.com/meliketoy/LSGAN.pytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from gan_compare.training.networks.base_generator import BaseGenerator
 
-from gan_compare.training.config import nc, ngf, nz
 
-
-class Generator(nn.Module):
-    def __init__(self):
-        super(Generator, self).__init__()
+class Generator(BaseGenerator):
+    def __init__(self, nz: int, ngf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+        super(Generator, self).__init__(
+            nz=nz,
+            ngf=ngf,
+            nc=nc,
+            ngpu=ngpu,
+            leakiness=leakiness,
+            bias=bias,
+        )
         # input : z
         # Generator will be consisted with a series of deconvolution networks
 
