@@ -19,11 +19,11 @@ class InbreastDataset(Dataset):
     """Inbreast dataset."""
 
     def __init__(
-        self, 
+        self,
         metadata_path: str,
-        crop: bool = True, 
-        min_size: int = 160, 
-        margin: int = 100, 
+        crop: bool = True,
+        min_size: int = 160,
+        margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
         conditional_birads: bool = False,
     ):
@@ -35,12 +35,19 @@ class InbreastDataset(Dataset):
         self.margin = margin
         self.final_shape = final_shape
         self.conditional_birads = conditional_birads
-    
+
     def __len__(self):
         return len(self.metadata)
-    
+
     def _convert_to_uint8(self, image: np.ndarray) -> np.ndarray:
-        img_n = cv2.normalize(src=image, dst=None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        img_n = cv2.normalize(
+            src=image,
+            dst=None,
+            alpha=0,
+            beta=255,
+            norm_type=cv2.NORM_MINMAX,
+            dtype=cv2.CV_8U,
+        )
         return img_n
 
     def _get_crops_around_mask(self, metapoint: dict) -> Tuple[int, int]:
@@ -56,7 +63,7 @@ class InbreastDataset(Dataset):
             w_p = self.min_size
         if h_p < self.min_size:
             y_p = max(0, y - (self.min_size - h_p) // 2)
-            h_p = self.min_size        
+            h_p = self.min_size
         return (x_p, y_p, w_p, h_p)
 
     def __getitem__(self, idx: int, to_save: bool = False):
@@ -72,20 +79,21 @@ class InbreastDataset(Dataset):
         else:
             mask = np.zeros(ds.pixel_array.shape)
         image = self._convert_to_uint8(ds.pixel_array)
-        mask = mask.astype('uint8')
+        mask = mask.astype("uint8")
         x, y, w, h = self._get_crops_around_mask(metapoint)
-        image, mask = image[y:y+h, x:x+w], mask[y:y+h, x:x+w]
+        image, mask = image[y : y + h, x : x + w], mask[y : y + h, x : x + w]
         # scale
-        image = cv2.resize(image, self.final_shape, interpolation = cv2.INTER_AREA)
-        mask = cv2.resize(mask, self.final_shape, interpolation = cv2.INTER_AREA)
+        image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+        mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
         if to_save:
             return image
 
         # sample = {'image': torch.from_numpy(image), 'mask': torch.from_numpy(mask)}
-        
+
         sample = [torchvision.transforms.functional.to_tensor(image[..., np.newaxis])]
         if self.conditional_birads:
-            return sample, int(metapoint["birads"][0]) # avoid 4c, 4b, 4a and just truncate them to 4
-        
+            return sample, int(
+                metapoint["birads"][0]
+            )  # avoid 4c, 4b, 4a and just truncate them to 4
+
         return sample
-    

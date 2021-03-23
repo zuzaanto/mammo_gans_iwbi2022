@@ -14,13 +14,15 @@ import pydicom as dicom
 from matplotlib import pyplot as plt
 import statistics
 
-def parse_args()-> argparse.Namespace:
+
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--metadata_path", required=True, help="Path to json file with metadata."
     )
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -33,13 +35,13 @@ if __name__ == "__main__":
     for j, metapoint in enumerate(metadata):
         # print(metapoint)
         # print(j)
-        widths.append(metapoint["bbox"][2])        
+        widths.append(metapoint["bbox"][2])
         heights.append(metapoint["bbox"][3])
     print(f"Mean (heights): {statistics.mean(heights)}")
-    print(f"Mean (widths): {statistics.mean(widths)}")    
+    print(f"Mean (widths): {statistics.mean(widths)}")
     print(f"Std dev (heights): {statistics.stdev(heights)}")
     print(f"Std dev (widths): {statistics.stdev(widths)}")
-    fig, ax = plt.subplots(figsize =(10, 7)) 
-    ax.hist(widths, bins=1000) 
-    # Show plot 
-    plt.show() 
+    fig, ax = plt.subplots(figsize=(10, 7))
+    ax.hist(widths, bins=1000)
+    # Show plot
+    plt.show()
