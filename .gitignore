@@ -4,5 +4,4 @@ metadata/
 model_checkpoints/
 visualisation/
 *checkpoint.ipynb
-*tests.py
 .idea
