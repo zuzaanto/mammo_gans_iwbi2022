@@ -5,7 +5,9 @@ from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 
 class Discriminator(BaseDiscriminator):
-    def __init__(self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+    def __init__(
+        self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False
+    ):
         super(Discriminator, self).__init__(
             ndf=ndf,
             nc=nc,
@@ -31,9 +33,8 @@ class Discriminator(BaseDiscriminator):
             nn.LeakyReLU(self.leakiness, inplace=True),
             # state size. (ndf*8) x 4 x 4
             nn.Conv2d(self.ndf * 8, 1, 4, 1, 0, bias=self.bias),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(self, input):
         return self.main(input)
-    

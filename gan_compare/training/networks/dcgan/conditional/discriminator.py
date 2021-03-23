@@ -5,7 +5,9 @@ from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 
 class Discriminator(BaseDiscriminator):
-    def __init__(self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+    def __init__(
+        self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False
+    ):
         super(Discriminator, self).__init__(
             ndf=ndf,
             nc=nc,
@@ -33,16 +35,19 @@ class Discriminator(BaseDiscriminator):
             nn.LeakyReLU(leakiness, inplace=True),
             # state size. (self.ndf*8) x 4 x 4
             nn.Conv2d(self.ndf * 8, 1, 4, 1, 0, bias=self.bias),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
         self.embed_nn = nn.Sequential(
             # embedding layer
-            nn.Embedding(num_embeddings=self.num_embedding_input, embedding_dim=self.num_embedding_dimensions),
+            nn.Embedding(
+                num_embeddings=self.num_embedding_input,
+                embedding_dim=self.num_embedding_dimensions,
+            ),
             # target output dim of dense layer is (self.nc) x 64 x 64
             # input is dimension of the embedding layer output
-            nn.Linear(in_features=self.num_embedding_dimensions, out_features=64*64),
-            #nn.BatchNorm2d(2*64),
-            nn.LeakyReLU(self.leakiness, inplace=True)
+            nn.Linear(in_features=self.num_embedding_dimensions, out_features=64 * 64),
+            # nn.BatchNorm2d(2*64),
+            nn.LeakyReLU(self.leakiness, inplace=True),
         )
 
     def forward(self, input_img, labels):

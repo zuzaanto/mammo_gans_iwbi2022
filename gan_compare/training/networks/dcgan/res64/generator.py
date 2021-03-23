@@ -3,8 +3,17 @@ import torch.nn as nn
 import torch.nn.parallel
 from gan_compare.training.networks.base_generator import BaseGenerator
 
+
 class Generator(BaseGenerator):
-    def __init__(self, nz: int, ngf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+    def __init__(
+        self,
+        nz: int,
+        ngf: int,
+        nc: int,
+        ngpu: int,
+        leakiness: float = 0.2,
+        bias: bool = False,
+    ):
         super(Generator, self).__init__(
             nz=nz,
             ngf=ngf,
@@ -15,7 +24,7 @@ class Generator(BaseGenerator):
         )
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d( self.nz, self.ngf * 8, 4, 1, 0, bias=self.bias),
+            nn.ConvTranspose2d(self.nz, self.ngf * 8, 4, 1, 0, bias=self.bias),
             nn.BatchNorm2d(self.ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4

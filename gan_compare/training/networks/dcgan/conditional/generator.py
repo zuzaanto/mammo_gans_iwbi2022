@@ -5,7 +5,15 @@ from gan_compare.training.networks.base_generator import BaseGenerator
 
 
 class Generator(BaseGenerator):
-    def __init__(self, nz: int, ngf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+    def __init__(
+        self,
+        nz: int,
+        ngf: int,
+        nc: int,
+        ngpu: int,
+        leakiness: float = 0.2,
+        bias: bool = False,
+    ):
         super(Generator, self).__init__(
             nz=nz,
             ngf=ngf,
@@ -40,16 +48,19 @@ class Generator(BaseGenerator):
         )
         self.embed_nn = nn.Sequential(
             # embedding layer
-            nn.Embedding(num_embeddings=self.num_embedding_input, embedding_dim=self.num_embedding_dimensions),
+            nn.Embedding(
+                num_embeddings=self.num_embedding_input,
+                embedding_dim=self.num_embedding_dimensions,
+            ),
             # target output dim of dense layer is: nz x 1 x 1
             # input is dimension of the embedding layer output
             nn.Linear(in_features=self.num_embedding_dimensions, out_features=self.nz),
             # nn.BatchNorm2d(10*10),
-            nn.LeakyReLU(self.leakiness, inplace=True)
+            nn.LeakyReLU(self.leakiness, inplace=True),
         )
 
     def forward(self, rand_input, labels):
-        
+
         # combining condition labels and input images via a new image channel
         # e.g. condition -> int -> embedding -> fcl -> feature map -> concat with image -> conv layers..
         # print(rand_input.size())

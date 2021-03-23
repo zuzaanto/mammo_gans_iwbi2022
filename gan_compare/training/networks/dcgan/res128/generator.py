@@ -5,7 +5,15 @@ from gan_compare.training.networks.base_generator import BaseGenerator
 
 
 class Generator(BaseGenerator):
-    def __init__(self, nz: int, ngf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False):
+    def __init__(
+        self,
+        nz: int,
+        ngf: int,
+        nc: int,
+        ngpu: int,
+        leakiness: float = 0.2,
+        bias: bool = False,
+    ):
         super(Generator, self).__init__(
             nz=nz,
             ngf=ngf,
@@ -27,7 +35,7 @@ class Generator(BaseGenerator):
             nn.ConvTranspose2d(self.ngf * 8, self.ngf * 4, 4, 2, 1, bias=self.bias),
             nn.BatchNorm2d(self.ngf * 4),
             nn.ReLU(True),
-            # state size. (ngf*4) x 16 x 16 
+            # state size. (ngf*4) x 16 x 16
             nn.ConvTranspose2d(self.ngf * 4, self.ngf * 2, 4, 2, 1, bias=self.bias),
             nn.BatchNorm2d(self.ngf * 2),
             nn.ReLU(True),

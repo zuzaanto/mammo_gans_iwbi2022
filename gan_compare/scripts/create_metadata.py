@@ -14,13 +14,14 @@ from tqdm import tqdm
 import pydicom as dicom
 
 
-def parse_args()-> argparse.Namespace:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", required=True, help="Path to json file to store metadata in."
     )
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -40,21 +41,23 @@ if __name__ == "__main__":
             mask = np.zeros(ds.pixel_array.shape)
             xml_filepath = ""
         mask = np.ascontiguousarray(mask, dtype=np.uint8)
-        mask2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        mask2, contours, hierarchy = cv2.findContours(
+            mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
         lesion_metapoints = []
         for indx, c in enumerate(contours):
             if c.shape[0] < 2:
                 continue
             metapoint = {
                 "image_id": image_id,
-                "patient_id": patient_id, 
+                "patient_id": patient_id,
                 "ACR": csv_metadata["ACR"],
                 "birads": csv_metadata["Bi-Rads"],
                 "laterality": csv_metadata["Laterality"],
                 "view": csv_metadata["View"],
                 "lesion_id": indx,
                 "bbox": cv2.boundingRect(c),
-                "image_path": str(image_path.resolve()),        
+                "image_path": str(image_path.resolve()),
                 "xml_path": str(xml_filepath.resolve()),
                 # "contour": c.tolist(),
             }

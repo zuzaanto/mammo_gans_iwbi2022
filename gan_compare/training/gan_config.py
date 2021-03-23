@@ -8,7 +8,7 @@ class GANConfig:
     # Birads range
     birads_min: int = 2
     birads_max: int = 6
-    
+
     # Whether to train conditional GAN
     conditional: bool = True
 
@@ -60,4 +60,3 @@ class GANConfig:
     def __post_init__(self):
         if self.conditional:
             self.nc = 2
-            
