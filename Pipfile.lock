@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a5d575bdb9b87afc5e1f7505a78fc4a4c288e6b0a23dfd67cb49cbc37e458494"
+            "sha256": "b2d6cf1559aae104ca5f77be53d62af1f9a3ad62998e250a9ed8022eaf87a165"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.8"
+            "python_version": "3.8.5"
         },
         "sources": [
             {
@@ -374,11 +374,11 @@
         },
         "tifffile": {
             "hashes": [
-                "sha256:0512ce677a508c5e4eca8608092e55b07b681f84c92565ecf49b36ef02aa56bf",
-                "sha256:b4e85d86d27abe54a778c344c422606e2cb82ae843e83ecb3d675040877d8ffc"
+                "sha256:1b72c92ecd2273e52686c0f8792d1d1c4da4109b241dd1723dfe56ef4d1ad612",
+                "sha256:f6092aba910ed52b6087877c9a2f604ba67623a8703fa8079929b62992dcc69c"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==2021.3.16"
+            "version": "==2021.3.17"
         },
         "torch": {
             "hashes": [

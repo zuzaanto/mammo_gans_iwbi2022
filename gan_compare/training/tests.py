@@ -37,18 +37,19 @@ class UnitTests(unittest.TestCase):
                             'start to count the num_embeddings at index 0 --> [0,max+1] --> nn.Embedding(max+1,dim) '
             print(f"{error_message}")
 
-    def test_torch_GPU_availability(self):
-        print('Start test_torch_GPU_availability unit test..')
+    def test_torch_gpu_availability(self):
+        print('Start test_torch_gpu_availability unit test..')
         import torch.cuda as tcuda
-        is_GPU_available: bool = tcuda.is_available()
-        if is_GPU_available:
-            num_GPUs = torch.cuda.device_count()
-            currently_used_GPU = torch.cuda.current_device()
-            for idx in range(num_GPUs):
-                names_of_GPUs += torch.cuda.get_device_name(idx) + ' '
-            print(f'is_GPU_available (?): {is_GPU_available}, currently_used_GPU: {currently_used_GPU}, names_of_GPUs: {names_of_GPUs}')
-        self.assertTrue(is_GPU_available is not None)
-
+        is_gpu_available: bool = tcuda.is_available()
+        if is_gpu_available:
+            num_gpus = torch.cuda.device_count()
+            currently_used_gpu = torch.cuda.current_device()
+            names_of_gpus = ''
+            for idx in range(num_gpus):
+                names_of_gpus += torch.cuda.get_device_name(idx) + ' '
+            print(f'is_gpu_available (?): {is_gpu_available}, currently_used_gpu: {currently_used_gpu}, '
+                  f'names_of_gpus: {names_of_gpus}')
+        self.assertTrue(is_gpu_available is not None)
 
 if __name__ == '__main__':
     unittest.main()
