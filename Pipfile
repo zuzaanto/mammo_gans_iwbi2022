@@ -13,6 +13,7 @@ matplotlib = "*"
 opencv-python = "==4.5.1.48"
 scikit-image = "*"
 tqdm = "*"
+dacite = "*"
 
 [requires]
 python_version = "3.8.5"

@@ -14,13 +14,14 @@ from tqdm import tqdm
 import pydicom as dicom
 
 
-def parse_args()-> argparse.Namespace:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output_path", required=True, help="Path to json file to store metadata in."
     )
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -41,7 +42,9 @@ if __name__ == "__main__":
             xml_filepath = ""
         # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
         mask = np.ascontiguousarray(mask, dtype=np.uint8)
-        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(
+            mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
         lesion_metapoints = []
         # For each contour, generate a metapoint object including the bounding box as rectangle
         for indx, c in enumerate(contours):
@@ -49,14 +52,14 @@ if __name__ == "__main__":
                 continue
             metapoint = {
                 "image_id": image_id,
-                "patient_id": patient_id, 
+                "patient_id": patient_id,
                 "ACR": csv_metadata["ACR"],
                 "birads": csv_metadata["Bi-Rads"],
                 "laterality": csv_metadata["Laterality"],
                 "view": csv_metadata["View"],
                 "lesion_id": indx,
                 "bbox": cv2.boundingRect(c),
-                "image_path": str(image_path.resolve()),        
+                "image_path": str(image_path.resolve()),
                 "xml_path": str(xml_filepath.resolve()),
                 # "contour": c.tolist(),
             }

@@ -19,13 +19,13 @@ class InbreastDataset(Dataset):
     """Inbreast dataset."""
 
     def __init__(
-            self,
-            metadata_path: str,
-            crop: bool = True,
-            min_size: int = 160,
-            margin: int = 100,
-            final_shape: Tuple[int, int] = (400, 400),
-            conditional_birads: bool = False,
+        self,
+        metadata_path: str,
+        crop: bool = True,
+        min_size: int = 160,
+        margin: int = 100,
+        final_shape: Tuple[int, int] = (400, 400),
+        conditional_birads: bool = False,
     ):
         assert Path(metadata_path).is_file(), "Metadata not found"
         with open(metadata_path, "r") as metadata_file:
@@ -42,7 +42,14 @@ class InbreastDataset(Dataset):
 
     def _convert_to_uint8(self, image: np.ndarray) -> np.ndarray:
         # normalize value range between 0 and 255 and convert to 8-bit unsigned integer
-        img_n = cv2.normalize(src=image, dst=None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        img_n = cv2.normalize(
+            src=image,
+            dst=None,
+            alpha=0,
+            beta=255,
+            norm_type=cv2.NORM_MINMAX,
+            dtype=cv2.CV_8U,
+        )
         return img_n
 
     def _get_crops_around_mask(self, metapoint: dict) -> Tuple[int, int]:
@@ -74,9 +81,10 @@ class InbreastDataset(Dataset):
         else:
             mask = np.zeros(ds.pixel_array.shape)
         image = self._convert_to_uint8(ds.pixel_array)
-        mask = mask.astype('uint8')
+        mask = mask.astype("uint8")
         x, y, w, h = self._get_crops_around_mask(metapoint)
-        image, mask = image[y:y + h, x:x + w], mask[y:y + h, x:x + w]
+        image, mask = image[y : y + h, x : x + w], mask[y : y + h, x : x + w]
+
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
@@ -87,8 +95,7 @@ class InbreastDataset(Dataset):
 
         sample = [torchvision.transforms.functional.to_tensor(image[..., np.newaxis])]
         if self.conditional_birads:
-            # print (f"Integer: {idx}")
-            # print(f"metapoint: {metapoint}")
-            return sample, int(metapoint["birads"][0])  # avoid 4c, 4b, 4a and just truncate them to 4
-
+            return sample, int(
+                metapoint["birads"][0]
+            )  # avoid 4c, 4b, 4a and just truncate them to 4
         return sample

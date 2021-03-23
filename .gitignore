@@ -5,3 +5,5 @@ model_checkpoints/
 visualisation/
 *checkpoint.ipynb
 .idea
+.ipynb_checkpoints
+*.egg-info
