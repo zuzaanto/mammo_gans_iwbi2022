@@ -15,6 +15,13 @@ import torchvision.utils as vutils
 import numpy as np
 import cv2
 from pathlib import Path
+try:
+    import tkinter
+except:
+    # Need to use matplotlib without tkinter dependency
+    # tkinter is n.a. in some python distributions
+    import matplotlib
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import argparse
