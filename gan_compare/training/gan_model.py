@@ -411,13 +411,12 @@ class GANModel:
         for ind in range(num_samples):
             fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1)
             if self.config.conditional:
-                fixed_conditon = torch.randint(
+                fixed_condition = torch.randint(
                     self.config.birads_min, self.config.birads_max, (num_samples,)
                 )
-            if self.config.conditional:
-                fake = self.netG(fixed_noise, fixed_conditon).detach().cpu().numpy()
+                fake = self.netG(fixed_noise.to(self.device), fixed_condition.to(self.device)).detach().cpu().numpy()
             else:
-                fake = self.netG(fixed_noise).detach().cpu().numpy()
+                fake = self.netG(fixed_noise.to(self.device)).detach().cpu().numpy()
             for j, img_ in enumerate(fake):
                 img_list.extend(fake)
         return img_list

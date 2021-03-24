@@ -52,7 +52,8 @@ if __name__ == "__main__":
     )
 
     if args.model_checkpoint_path is None:
-        args.model_checkpoint_path = Path(args.model_checkpoint_dir) / "model.pt"
+        args.model_checkpoint_path = next(Path(args.model_checkpoint_dir).rglob("*.pt"))  # i.e. "model.pt"
+
     img_list = model.generate(
         model_checkpoint_path=args.model_checkpoint_path, num_samples=args.num_samples
     )
