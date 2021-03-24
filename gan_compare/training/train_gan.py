@@ -37,6 +37,12 @@ def parse_args() -> argparse.Namespace:
         default="visualisation/inbreast_dataset/",
         help="Directory to save the dataset samples in.",
     )
+    parser.add_argument(
+        "--in_metadata_path",
+        type=str,
+        default="metadata/metadata.json",
+        help="File system location of metadata.json file."
+    )
     args = parser.parse_args()
     return args
 
@@ -52,7 +58,7 @@ if __name__ == "__main__":
         "Loading dataset..."
     )  # When we have more datasets implemented, we can specify which one(s) to load in config.
     inbreast_dataset = InbreastDataset(
-        metadata_path="metadata/metadata.json",
+        metadata_path=args.in_metadata_path,
         final_shape=(config.image_size, config.image_size),
         conditional_birads=config.conditional,
     )

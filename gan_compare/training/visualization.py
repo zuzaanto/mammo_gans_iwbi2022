@@ -5,11 +5,13 @@ Credits: richardosuala (Richard Osuala)
 ## Pypi imports
 import matplotlib
 
-matplotlib.use("agg")
+
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import torchvision.utils as vutils
 from torch.utils.tensorboard import SummaryWriter
 import torch
+
 
 
 class VisualizationUtils:
@@ -28,6 +30,7 @@ class VisualizationUtils:
         self.tensorboard_writer = SummaryWriter(tensorboard_writer_dir)
         self.num_iterations_per_epoch = num_iterations_per_epoch
         self.num_iterations_between_prints = num_iterations_between_prints
+
 
     def generate_tensorboard_network_graph(
         self, neural_network, network_input_1, network_input_2

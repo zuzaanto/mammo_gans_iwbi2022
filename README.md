@@ -20,19 +20,22 @@ Before running any code, remember to:
 #### Generating metadata
 To be able to read the dataset class at training time, you first need to generate a metadata file with all bboxes you will use in training. To do that, run:
 ```
-python gan_compare/scripts/create_metadata.py --output_path where/to/save/metadata.json
+python -m gan_compare.scripts.create_metadata --output_path where/to/save/metadata.json
+
 ```
 
 #### Training
 
 To start your DCGAN training, run:
 ```
-python gan_compare/training/train_gan.py \
---model_name <dcgan or lsgan> \
+python -m gan_compare.training.train_gan \
+--model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
 --config_path CONFIG_PATH \ # Path to a yaml model config file
---save_dataset \ # Whether to save the dataset samples.
---out_dataset_path OUT_DATASET_PATH # Directory to save the dataset samples in.
+--save_dataset SAVE_DATASET \ #Indicating whether to generate and save a synthetic dataset
+--out_dataset_path OUT_DATASET_PATH \ #Directory to save the dataset samples in.
+--in_metadata_path IN_METADATA_PATH \ #Path to metadata json file.
 ```
+
 Note that you can change any parameters you want by passing the correct config yaml file. A sample and default config file can be found in `gan_compare/configs/dcgan_config.py`.
 
 For LSGAN, only 64x64 is supported.
@@ -44,7 +47,7 @@ Note that you can use LS loss with DCGAN - for more details check the `gan_compa
 
 To generate images with your pretrained GAN, run:
 ```
-python gan_compare/training/generate.py \
+python gan_compare.training.generate \
 --model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
 --model_checkpoint_dir MODEL_CHECKPOINT_DIR \ # Path to model checkpoint directory
 --model_checkpoint_path MODEL_CHECKPOINT_PATH \ # Path to model checkpoint .pt file (optional, by default takes model.pt file in model_checkpoint_dir)
@@ -54,11 +57,12 @@ python gan_compare/training/generate.py \
 #### Peek through the dataset
 This script walks through your data directory and shows you InBreast images with overlayed ground-truth masks:
 ```
-python gan_compare/data_utils/read_inbreast_image.py
+python -m gan_compare.data_utils.data_utils.read_inbreast_image
+
 ```
 The following script makes it easier to peek the statistics of a particular metadata file:
 ```
-python gan_compare/scripts/get_metadata_statistics.py --metadata_path path/to/metadata.json
+python -m gan_compare.scripts.get_metadata_statistics --metadata_path path/to/metadata.json
 ```
 There is an additional folder for Jupyter notebooks oriented around better dataset understanding - `gan_compare/data_utils/eda/`
 

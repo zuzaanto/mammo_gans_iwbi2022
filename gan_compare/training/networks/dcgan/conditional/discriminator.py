@@ -6,7 +6,7 @@ from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 class Discriminator(BaseDiscriminator):
     def __init__(
-        self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False
+        self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False, n_cond: int = 6
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,
@@ -15,8 +15,8 @@ class Discriminator(BaseDiscriminator):
             leakiness=leakiness,
             bias=bias,
         )
-        self.num_embedding_input = 10
-        self.num_embedding_dimensions = 50
+        self.num_embedding_input = n_cond # number of possible conditional values
+        self.num_embedding_dimensions = 50  # standard would be dim(z)
         self.main = nn.Sequential(
             # input is (self.nc) x 64 x 64
             nn.Conv2d(self.nc, self.ndf, 4, 2, 1, bias=self.bias),

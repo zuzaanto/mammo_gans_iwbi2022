@@ -15,6 +15,13 @@ import torchvision.utils as vutils
 import numpy as np
 import cv2
 from pathlib import Path
+try:
+    import tkinter
+except:
+    # Need to use matplotlib without tkinter dependency
+    # tkinter is n.a. in some python distributions
+    import matplotlib
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import argparse
@@ -64,6 +71,22 @@ class GANModel:
                     assert (
                         self.config.nc == 2
                     ), "To use conditional input, change number of channels (nc) to 2."
+
+                    self.netG = Generator(
+                        nz=self.config.nz,
+                        ngf=self.config.ngf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        n_cond=self.config.n_cond
+                    ).to(self.device)
+
+                    self.netD = Discriminator(
+                        ndf=self.config.ndf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        n_cond=self.config.n_cond
+                    ).to(self.device)
+
                 else:
                     from gan_compare.training.networks.dcgan.res64.discriminator import (
                         Discriminator,
@@ -72,18 +95,18 @@ class GANModel:
                         Generator,
                     )
 
-                self.netG = Generator(
-                    nz=self.config.nz,
-                    ngf=self.config.ngf,
-                    nc=self.config.nc,
-                    ngpu=self.config.ngpu,
-                ).to(self.device)
+                    self.netG = Generator(
+                        nz=self.config.nz,
+                        ngf=self.config.ngf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                    ).to(self.device)
 
-                self.netD = Discriminator(
-                    ndf=self.config.ndf,
-                    nc=self.config.nc,
-                    ngpu=self.config.ngpu,
-                ).to(self.device)
+                    self.netD = Discriminator(
+                        ndf=self.config.ndf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                    ).to(self.device)
 
             elif self.config.image_size == 128:
                 from gan_compare.training.networks.dcgan.res128.discriminator import (

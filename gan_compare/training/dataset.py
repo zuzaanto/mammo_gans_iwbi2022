@@ -37,9 +37,11 @@ class InbreastDataset(Dataset):
         self.conditional_birads = conditional_birads
 
     def __len__(self):
+        # metadata contains a list of lesion objects (incl. patient id, bounding box, etc)
         return len(self.metadata)
 
     def _convert_to_uint8(self, image: np.ndarray) -> np.ndarray:
+        # normalize value range between 0 and 255 and convert to 8-bit unsigned integer
         img_n = cv2.normalize(
             src=image,
             dst=None,
@@ -82,6 +84,7 @@ class InbreastDataset(Dataset):
         mask = mask.astype("uint8")
         x, y, w, h = self._get_crops_around_mask(metapoint)
         image, mask = image[y : y + h, x : x + w], mask[y : y + h, x : x + w]
+
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
@@ -95,5 +98,4 @@ class InbreastDataset(Dataset):
             return sample, int(
                 metapoint["birads"][0]
             )  # avoid 4c, 4b, 4a and just truncate them to 4
-
         return sample

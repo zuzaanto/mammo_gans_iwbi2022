@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+
 from gan_compare.training.networks.base_generator import BaseGenerator
 
 
@@ -13,6 +14,7 @@ class Generator(BaseGenerator):
         ngpu: int,
         leakiness: float = 0.2,
         bias: bool = False,
+        n_cond: int = 6
     ):
         super(Generator, self).__init__(
             nz=nz,
@@ -22,8 +24,8 @@ class Generator(BaseGenerator):
             leakiness=leakiness,
             bias=bias,
         )
-        self.num_embedding_input = 10
-        self.num_embedding_dimensions = 50
+        self.num_embedding_input = n_cond
+        self.num_embedding_dimensions = 50 # standard would probably be to use same as dim(z).
         self.main = nn.Sequential(
             # input is Z, going into a convolution
             nn.ConvTranspose2d(self.nz * 2, self.ngf * 8, 4, 1, 0, bias=self.bias),

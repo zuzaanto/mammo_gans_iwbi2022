@@ -12,6 +12,9 @@ class GANConfig:
     # Whether to train conditional GAN
     conditional: bool = True
 
+    # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
+    n_cond = birads_max + 1
+
     # l2 regularization in discriminator
     weight_decay: float = 0.5
 
