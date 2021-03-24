@@ -11,6 +11,7 @@ class GANConfig:
 
     # Whether to train conditional GAN
     conditional: bool = True
+    split_birads_fours: bool = True
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
     n_cond = birads_max + 1
@@ -63,3 +64,7 @@ class GANConfig:
     def __post_init__(self):
         if self.conditional:
             self.nc = 2
+        if self.split_birads_fours:
+            self.birads_min = 1
+            self.birads_max = 7
+            self.n_cond = self.birads_max + 1

@@ -189,7 +189,7 @@ class GANModel:
         if self.config.conditional:
             fixed_conditon = torch.randint(
                 self.config.birads_min,
-                self.config.birads_max,
+                self.config.birads_max + 1,
                 (12,),
                 device=self.device,
             )
@@ -266,7 +266,7 @@ class GANModel:
                     # generate fake conditions
                     fake_cond = torch.randint(
                         self.config.birads_min,
-                        self.config.birads_max,
+                        self.config.birads_max + 1,
                         (b_size,),
                         device=self.device,
                     )
@@ -412,7 +412,7 @@ class GANModel:
             fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1)
             if self.config.conditional:
                 fixed_conditon = torch.randint(
-                    self.config.birads_min, self.config.birads_max, (num_samples,)
+                    self.config.birads_min, self.config.birads_max + 1, (num_samples,)
                 )
             if self.config.conditional:
                 fake = self.netG(fixed_noise, fixed_conditon).detach().cpu().numpy()
