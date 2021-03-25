@@ -15,17 +15,20 @@ import torchvision.utils as vutils
 import numpy as np
 import cv2
 from pathlib import Path
+
 try:
     import tkinter
 except:
     # Need to use matplotlib without tkinter dependency
     # tkinter is n.a. in some python distributions
     import matplotlib
+
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import argparse
 from typing import Union
+from gan_compare.training.visualization import VisualizationUtils
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.dcgan.utils import weights_init
 from gan_compare.data_utils.utils import interval_mapping
@@ -34,11 +37,11 @@ from gan_compare.training.io import save_yaml
 
 class GANModel:
     def __init__(
-        self,
-        model_name: str,
-        config: GANConfig,
-        dataloader: DataLoader,
-        out_dataset_path: Union[str, Path] = "visualisation/inbreast_dataset/",
+            self,
+            model_name: str,
+            config: GANConfig,
+            dataloader: DataLoader,
+            out_dataset_path: Union[str, Path] = "visualisation/inbreast_dataset/",
     ):
         self.model_name = model_name
         self.config = config
@@ -69,7 +72,7 @@ class GANModel:
                     )
 
                     assert (
-                        self.config.nc == 2
+                            self.config.nc == 2
                     ), "To use conditional input, change number of channels (nc) to 2."
 
                     self.netG = Generator(
@@ -137,7 +140,7 @@ class GANModel:
         elif self.model_name == "lsgan":
             # only 64x64 image resolution will be supported
             assert (
-                self.config.image_size == 64
+                    self.config.image_size == 64
             ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
 
             from gan_compare.training.networks.lsgan.discriminator import Discriminator
@@ -185,9 +188,11 @@ class GANModel:
 
         # Create batch of latent vectors that we will use to visualize
         #  the progression of the generator
+        # TODO let's make the fixed batch size of 12 a config param(?)
         fixed_noise = torch.randn(12, self.config.nz, 1, 1, device=self.device)
+        fixed_condition = None
         if self.config.conditional:
-            fixed_conditon = torch.randint(
+            fixed_condition = torch.randint(
                 self.config.birads_min,
                 self.config.birads_max,
                 (12,),
@@ -208,8 +213,25 @@ class GANModel:
         optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
+        # define the model storage directory
+        output_model_dir = Path(self.config.output_model_dir)
+        if not output_model_dir.exists():
+            os.makedirs(output_model_dir.resolve())
 
-        # Training Loop
+        # visualize the model
+        # initializing variables needed for visualization
+        running_loss_of_generator = 0.
+        running_loss_of_discriminator = 0.
+        running_real_discriminator_accuracy = 0.
+        running_fake_discriminator_accuracy = 0.
+        # TODO move num_iterations_between_prints to config
+        num_iterations_between_prints = 100
+        # TODO move discriminator_clf_threshold to config (this variable is used to calculate discriminator accuracy
+        discriminator_clf_threshold = 0.5
+        # visualize model in tensorboard and instantiate visualizationUtils class object
+        visualization_utils = self.visualize(output_model_dir=output_model_dir, fixed_noise=fixed_noise,
+                                             fixed_condition=fixed_condition,
+                                             num_iterations_between_prints=num_iterations_between_prints)
 
         # Lists to keep track of progress
         img_list = []
@@ -217,7 +239,8 @@ class GANModel:
         D_losses = []
         iters = 0
 
-        print("Starting Training Loop...")
+        # Training Loop
+        print("Starting Training.. ")
         if self.config.conditional:
             print("Training conditioned on BiRADS")
         # For each epoch
@@ -256,7 +279,7 @@ class GANModel:
                 # Calculate gradients for D in backward pass
                 errD_real.backward()
                 D_x = output.mean().item()
-
+                output_real = output
                 ## Train with all-fake batch
                 # Generate batch of latent vectors
                 noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
@@ -288,6 +311,7 @@ class GANModel:
                 # Calculate the gradients for this batch
                 errD_fake.backward()
                 D_G_z1 = output.mean().item()
+                output_fake1 = output
                 # Add the gradients from the all-real and all-fake batches
                 errD = errD_real + errD_fake
                 # Update D
@@ -311,50 +335,89 @@ class GANModel:
                 # Calculate gradients for G
                 errG.backward()
                 D_G_z2 = output.mean().item()
+                output_fake2 = output
                 # Update G
                 optimizerG.step()
 
-                # Output training stats
-                if i % 50 == 0:
-                    print(
-                        "[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f"
-                        % (
-                            epoch,
-                            self.config.num_epochs,
-                            i,
-                            len(self.dataloader),
-                            errD.item(),
-                            errG.item(),
-                            D_x,
-                            D_G_z1,
-                            D_G_z2,
-                        )
-                    )
+                # Calculate D's accuracy on the real data with real_label being = 1
+                current_real_acc = torch.sum(output_real > discriminator_clf_threshold).item() / \
+                                   list(output_real.size())[0]
+                running_real_discriminator_accuracy += current_real_acc
+                # print("REAL found by D#: " + str(torch.sum(output_real > discriminator_clf_threshold).item()))
+                # print("REAL accuracy %: " + str(torch.sum(output_real > discriminator_clf_threshold).item() / list(output_real.size())[0]))
+
+                # Calculate D's accuracy on the fake data from G with fake_label being = 0
+                current_fake_acc = torch.sum(output_fake1 < discriminator_clf_threshold).item() / \
+                                   list(output_fake1.size())[0]
+                running_fake_discriminator_accuracy += current_fake_acc
+                # print("FAKE found by D #: " + str(torch.sum(output_fake1 < discriminator_clf_threshold).item()))
+                # print("FAKE accuracy %: " + str(torch.sum(output_fake1 < discriminator_clf_threshold).item() / list(output_fake1.size())[0]))
 
                 # Save Losses for plotting later
                 G_losses.append(errG.item())
                 D_losses.append(errD.item())
 
-                # Check how the generator is doing by saving G's output on fixed_noise
-                if (iters % 500 == 0) or (
+                # Update the running loss which is used in visualization
+                running_loss_of_generator += errG.item()
+                running_loss_of_discriminator += errD.item()
+
+                # Output training stats on each iteration length threshold
+                if i % num_iterations_between_prints == 0:
+                    print(
+                        '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
+                        % (epoch, self.config.num_epochs, i, len(self.dataloader),
+                           errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
+
+                    # Add loss scalars to tensorboard
+                    visualization_utils.add_value_to_tensorboard_loss_diagram(epoch=epoch,
+                                                                              iteration=i,
+                                                                              running_loss_of_generator=running_loss_of_generator,
+                                                                              running_loss_of_discriminator=running_loss_of_discriminator)
+                    # Add accuracy scalars to tensorboard
+                    visualization_utils.add_value_to_tensorboard_accuracy_diagram(epoch=epoch,
+                                                                                  iteration=i,
+                                                                                  running_real_discriminator_accuracy=running_real_discriminator_accuracy,
+                                                                                  running_fake_discriminator_accuracy=running_fake_discriminator_accuracy)
+                    # Reset the running losses and accuracies
+                    running_loss_of_generator = 0.
+                    running_loss_of_discriminator = 0.
+                    running_real_discriminator_accuracy = 0.
+                    running_fake_discriminator_accuracy = 0.
+
+                # Visually check how the generator is doing by saving G's output on fixed_noise
+                if (iters % num_iterations_between_prints * 10 == 0) or (
+                        (epoch == self.config.num_epochs - 1) and (i == len(self.dataloader) - 1)):
+                    img_name: str = 'generated fixed-noise images each <' \
+                                    + str(num_iterations_between_prints * 10) \
+                                    + '>th iteration. Epoch=' \
+                                    + str(epoch) \
+                                    + ', iteration=' \
+                                    + str(i)
+                    visualization_utils.add_generated_batch_to_tensorboard(neural_network=self.netG,
+                                                                           network_input_1=fixed_noise,
+                                                                           network_input_2=fixed_condition,
+                                                                           img_name=img_name)
+                iters += 1
+            visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
+
+            # Check how the generator is doing by saving G's output on fixed_noise
+            if (iters % 500 == 0) or (
                     (epoch == self.config.num_epochs - 1)
                     and (i == len(self.dataloader) - 1)
-                ):
-                    with torch.no_grad():
-                        if self.config.conditional:
-                            fake = self.netG(fixed_noise, fixed_conditon).detach().cpu()
-                        else:
-                            fake = self.netG(fixed_noise).detach().cpu()
-                    img_list.append(fake.numpy())
-                    # img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
-                iters += 1
-        output_model_dir = Path(self.config.output_model_dir)
+            ):
+                with torch.no_grad():
+                    if self.config.conditional:
+                        fake = self.netG(fixed_noise, fixed_condition).detach().cpu()
+                    else:
+                        fake = self.netG(fixed_noise).detach().cpu()
+                img_list.append(fake.numpy())
+                # img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+            iters += 1
+
         if self.config.conditional:
             out_path = output_model_dir / f"cond_{self.model_name}.pt"
         else:
             out_path = output_model_dir / f"{self.model_name}.pt"
-        if not output_model_dir.exists():
-            os.makedirs(output_model_dir.resolve())
         torch.save(
             {
                 "discriminator": self.netD.state_dict(),
@@ -368,17 +431,6 @@ class GANModel:
         out_config_path = output_model_dir / f"config.yaml"
         save_yaml(path=out_config_path, data=self.config)
         print(f"Saved model config to {out_config_path.resolve()}")
-
-        fig = plt.figure(figsize=(10, 5))
-        plt.title("Generator and Discriminator Loss During Training")
-        plt.plot(G_losses, label="G")
-        plt.plot(D_losses, label="D")
-        plt.xlabel("iterations")
-        plt.ylabel("Loss")
-        plt.legend()
-        fig.savefig(
-            str((output_model_dir / "training_progress.png").resolve()), dpi=fig.dpi
-        )
 
         for i, image_batch in enumerate(img_list):
             for j, img_ in enumerate(image_batch):
@@ -409,14 +461,46 @@ class GANModel:
 
         img_list = []
         for ind in range(num_samples):
-            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1)
+            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
             if self.config.conditional:
                 fixed_condition = torch.randint(
-                    self.config.birads_min, self.config.birads_max, (num_samples,)
+                    self.config.birads_min, self.config.birads_max, (num_samples,), device=self.device
                 )
-                fake = self.netG(fixed_noise.to(self.device), fixed_condition.to(self.device)).detach().cpu().numpy()
+                fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
-                fake = self.netG(fixed_noise.to(self.device)).detach().cpu().numpy()
+                fake = self.netG(fixed_noise).detach().cpu().numpy()
             for j, img_ in enumerate(fake):
                 img_list.extend(fake)
         return img_list
+
+    def visualize(self, output_model_dir, fixed_noise=None, fixed_condition=None, batch_size: int = 12,
+                  num_iterations_between_prints: int = 100):
+        with torch.no_grad():
+            # we need the number of training iterations per epoch (depending on size of batch and training dataset)
+            num_iterations_per_epoch = len(self.dataloader)
+
+            # Setup visualizaion utilities, which includes tensorboard I/O functions
+            visualization_utils = VisualizationUtils(num_iterations_per_epoch=num_iterations_per_epoch,
+                                                     num_iterations_between_prints=num_iterations_between_prints,
+                                                     output_model_dir=output_model_dir)
+            if fixed_noise is None:
+                fixed_noise = torch.randn(batch_size, self.config.nz, 1, 1, requires_grad=False, device=self.device)
+
+            if self.config.conditional and fixed_condition is None:
+                fixed_condition = torch.randint(
+                    self.config.birads_min,
+                    self.config.birads_max,
+                    (batch_size,),
+                    requires_grad=False,
+                    device=self.device
+                )
+
+            visualization_utils.generate_tensorboard_network_graph(neural_network=self.netG,
+                                                                   network_input_1=fixed_noise,
+                                                                   network_input_2=fixed_condition)
+
+            visualization_utils.generate_tensorboard_network_graph(neural_network=self.netD,
+                                                                   network_input_1=self.netG(fixed_noise,
+                                                                                             fixed_condition),
+                                                                   network_input_2=fixed_condition)
+            return visualization_utils
