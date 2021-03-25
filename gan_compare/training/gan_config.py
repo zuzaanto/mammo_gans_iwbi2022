@@ -16,13 +16,14 @@ class GANConfig:
     n_cond = birads_max + 1
 
     # l2 regularization in discriminator
-    weight_decay: float = 0.5
+    # value taken from here: https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
+    weight_decay: float = 0.0005
 
     # Number of workers for dataloader
     workers: int = 2
 
     # Batch size during training
-    batch_size: int = 8
+    batch_size: int = 16
 
     # Spatial size of training images. All images will be resized to this
     #   size using a transformer.
@@ -32,7 +33,7 @@ class GANConfig:
     use_lsgan_loss: bool = False
 
     # Leakiness for ReLUs
-    leakiness: float = 0.3
+    leakiness: float = 0.2
 
     # Number of channels in the training images. For color images this is 3
     nc: int = 1
