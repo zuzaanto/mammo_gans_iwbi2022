@@ -15,13 +15,15 @@ import torchvision.utils as vutils
 import numpy as np
 import cv2
 from pathlib import Path
+
 try:
     import tkinter
 except:
     # Need to use matplotlib without tkinter dependency
     # tkinter is n.a. in some python distributions
     import matplotlib
-    matplotlib.use('Agg')
+
+    matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import argparse
@@ -59,7 +61,7 @@ class GANModel:
         self.output_model_dir = Path(self.config.output_model_dir)
         if not self.output_model_dir.exists():
             os.makedirs(self.output_model_dir.resolve())
-            
+
     def _save_model(self, epoch_number: Optional[int] = None):
         if epoch_number is None:
             out_path = self.output_model_dir / "model.pt"
@@ -96,14 +98,14 @@ class GANModel:
                         ngf=self.config.ngf,
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond
+                        n_cond=self.config.n_cond,
                     ).to(self.device)
 
                     self.netD = Discriminator(
                         ndf=self.config.ndf,
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond
+                        n_cond=self.config.n_cond,
                     ).to(self.device)
 
                 else:
@@ -380,7 +382,8 @@ class GANModel:
         plt.ylabel("Loss")
         plt.legend()
         fig.savefig(
-            str((self.output_model_dir / "training_progress.png").resolve()), dpi=fig.dpi
+            str((self.output_model_dir / "training_progress.png").resolve()),
+            dpi=fig.dpi,
         )
 
         for i, image_batch in enumerate(img_list):

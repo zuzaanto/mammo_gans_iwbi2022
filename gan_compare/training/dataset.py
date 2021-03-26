@@ -36,7 +36,7 @@ class InbreastDataset(Dataset):
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
         conditional_birads: bool = False,
-        split_birads_fours: bool = False, # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
+        split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         transform: any = None,
     ):
         assert Path(metadata_path).is_file(), "Metadata not found"
@@ -116,10 +116,9 @@ class InbreastDataset(Dataset):
             if self.split_birads_fours:
                 condition = BIRADS_DICT[metapoint["birads"]]
             else:
-                condition = (
-                    metapoint["birads"][0]
-                )  # avoid 4c, 4b, 4a and just truncate them to 4
+                condition = metapoint["birads"][
+                    0
+                ]  # avoid 4c, 4b, 4a and just truncate them to 4
             return sample, int(condition)
 
         return sample
-    

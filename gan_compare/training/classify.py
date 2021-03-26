@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
         "--in_metadata_path",
         type=str,
         default="metadata/metadata.json",
-        help="File system location of metadata.json file."
+        help="File system location of metadata.json file.",
     )
     args = parser.parse_args()
     return args
@@ -42,12 +42,14 @@ if __name__ == "__main__":
     print(
         "Loading dataset..."
     )  # When we have more datasets implemented, we can specify which one(s) to load in config.
-    
-    transform = transforms.Compose([
-        transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.Normalize((0.5), (0.5)),
-    ])
+
+    transform = transforms.Compose(
+        [
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.Normalize((0.5), (0.5)),
+        ]
+    )
 
     inbreast_dataset = InbreastDataset(
         metadata_path=args.in_metadata_path,
@@ -61,12 +63,12 @@ if __name__ == "__main__":
         shuffle=True,
         num_workers=config.workers,
     )
-    
+
     net = Net(num_labels=config.n_cond)
-    
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-    
+
     for epoch in range(2):  # loop over the dataset multiple times
         running_loss = 0.0
         for i, data in enumerate(dataloader, 0):
@@ -84,9 +86,8 @@ if __name__ == "__main__":
 
             # print statistics
             running_loss += loss.item()
-            if i % 2000 == 1999:    # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 2000))
+            if i % 2000 == 1999:  # print every 2000 mini-batches
+                print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
 
-    print('Finished Training')
+    print("Finished Training")
