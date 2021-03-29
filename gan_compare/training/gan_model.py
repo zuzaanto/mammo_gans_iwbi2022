@@ -400,19 +400,6 @@ class GANModel:
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
 
-            # Check how the generator is doing by saving G's output on fixed_noise
-            if (iters % 500 == 0) or (
-                    (epoch == self.config.num_epochs - 1)
-                    and (i == len(self.dataloader) - 1)
-            ):
-                with torch.no_grad():
-                    if self.config.conditional:
-                        fake = self.netG(fixed_noise, fixed_condition).detach().cpu()
-                    else:
-                        fake = self.netG(fixed_noise).detach().cpu()
-                img_list.append(fake.numpy())
-                # img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
-            iters += 1
 
         if self.config.conditional:
             out_path = output_model_dir / f"cond_{self.model_name}.pt"
@@ -432,12 +419,6 @@ class GANModel:
         save_yaml(path=out_config_path, data=self.config)
         print(f"Saved model config to {out_config_path.resolve()}")
 
-        for i, image_batch in enumerate(img_list):
-            for j, img_ in enumerate(image_batch):
-                img_path = output_model_dir / f"{self.model_name}_{i}_{j}.png"
-                img_ = interval_mapping(img_.transpose(1, 2, 0), -1.0, 1.0, 0, 255)
-                img_ = img_.astype("uint8")
-                cv2.imwrite(str(img_path.resolve()), img_)
 
     def generate(self, model_checkpoint_path: Path, num_samples: int = 64) -> list:
         optimizerD = optim.Adam(
@@ -472,6 +453,7 @@ class GANModel:
             for j, img_ in enumerate(fake):
                 img_list.extend(fake)
         return img_list
+
 
     def visualize(self, output_model_dir, fixed_noise=None, fixed_condition=None, batch_size: int = 12,
                   num_iterations_between_prints: int = 100):

@@ -89,7 +89,11 @@ class InbreastDataset(Dataset):
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
         if to_save:
-            return image
+            if self.conditional_birads:
+                condition = f"{metapoint['birads'][0]}"
+                return image, condition
+            else:
+                return image
 
         # sample = {'image': torch.from_numpy(image), 'mask': torch.from_numpy(mask)}
 

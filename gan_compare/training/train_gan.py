@@ -3,6 +3,8 @@ import argparse
 import os
 import random
 import argparse
+from pathlib import Path
+import cv2
 from torch.utils.data import DataLoader
 from dataclasses import asdict
 from gan_compare.training.dataset import InbreastDataset
@@ -74,12 +76,19 @@ if __name__ == "__main__":
         if not output_dataset_dir.exists():
             os.makedirs(output_dataset_dir.resolve())
         for i in range(len(inbreast_dataset)):
-            print(inbreast_dataset[i])
+            # print(inbreast_dataset[i])
             # Plot some training images
-            cv2.imwrite(
-                str(output_dataset_dir / f"{i}.png"),
-                inbreast_dataset.__getitem__(i, to_save=True),
-            )
+            if config.conditional:
+                image, condition = inbreast_dataset.__getitem__(i, to_save=True)
+                cv2.imwrite(
+                    str(output_dataset_dir / f"{i}_birads{condition}.png"),
+                    image,
+                )
+            else:
+                cv2.imwrite(
+                    str(output_dataset_dir / f"{i}.png"),
+                    inbreast_dataset.__getitem__(i, to_save=True),
+                )
 
     print("Loading model...")
     model = GANModel(
