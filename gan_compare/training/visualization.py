@@ -113,7 +113,7 @@ class VisualizationUtils:
         with torch.no_grad():
             if network_input_2 is not None:
                 generated_image = (
-                neural_network(network_input_1, network_input_2).detach().cpu()
+                    neural_network(network_input_1, network_input_2).detach().cpu()
                 )
             else:
                 generated_image = (

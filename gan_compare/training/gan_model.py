@@ -1,20 +1,15 @@
 from __future__ import print_function
-import argparse
+
 import os
 import random
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
 from torch.utils.data import DataLoader
-import torchvision.datasets as dset
-import torchvision.transforms as transforms
-import torchvision.utils as vutils
-import numpy as np
-import cv2
-from pathlib import Path
 
 try:
     import tkinter
@@ -23,15 +18,11 @@ except:
     # tkinter is n.a. in some python distributions
     import matplotlib
 
-    matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import argparse
-from typing import Union
+    matplotlib.use("Agg")
+from typing import Union, Optional
 from gan_compare.training.visualization import VisualizationUtils
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.dcgan.utils import weights_init
-from gan_compare.data_utils.utils import interval_mapping
 from gan_compare.training.io import save_yaml
 
 
@@ -59,6 +50,25 @@ class GANModel:
             "cuda" if (torch.cuda.is_available() and self.config.ngpu > 0) else "cpu"
         )
         self._create_network()
+        self.output_model_dir = Path(self.config.output_model_dir)
+        if not self.output_model_dir.exists():
+            os.makedirs(self.output_model_dir.resolve())
+
+    def _save_model(self, epoch_number: Optional[int] = None):
+        if epoch_number is None:
+            out_path = self.output_model_dir / "model.pt"
+        else:
+            out_path = self.output_model_dir / f"{epoch_number}.pt"
+        torch.save(
+            {
+                "discriminator": self.netD.state_dict(),
+                "generator": self.netG.state_dict(),
+                "optim_discriminator": self.optimizerD.state_dict(),
+                "optim_generator": self.optimizerG.state_dict(),
+            },
+            out_path,
+        )
+        print(f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}")
 
     def _create_network(self):
         if self.model_name == "dcgan":
@@ -80,14 +90,14 @@ class GANModel:
                         ngf=self.config.ngf,
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond
+                        n_cond=self.config.n_cond,
                     ).to(self.device)
 
                     self.netD = Discriminator(
                         ndf=self.config.ndf,
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond
+                        n_cond=self.config.n_cond,
                     ).to(self.device)
 
                 else:
@@ -204,13 +214,13 @@ class GANModel:
         fake_label = 0.0
 
         # Setup Adam optimizers for both G and D
-        optimizerD = optim.Adam(
+        self.optimizerD = optim.Adam(
             self.netD.parameters(),
             lr=self.config.lr,
             betas=(self.config.beta1, 0.999),
             weight_decay=self.config.weight_decay,
         )
-        optimizerG = optim.Adam(
+        self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
         # define the model storage directory
@@ -256,10 +266,9 @@ class GANModel:
 
                 if self.config.conditional:
                     data, condition = data
-                    # print(condition)
 
                 # Format batch
-                real_cpu = data[0].to(self.device)
+                real_cpu = data.to(self.device)
                 if self.config.conditional:
                     real_condition = condition.to(self.device)
                 b_size = real_cpu.size(0)
@@ -315,7 +324,7 @@ class GANModel:
                 # Add the gradients from the all-real and all-fake batches
                 errD = errD_real + errD_fake
                 # Update D
-                optimizerD.step()
+                self.optimizerD.step()
 
                 ############################
                 # (2) Update G network: maximize log(D(G(z)))
@@ -337,7 +346,7 @@ class GANModel:
                 D_G_z2 = output.mean().item()
                 output_fake2 = output
                 # Update G
-                optimizerG.step()
+                self.optimizerG.step()
 
                 # Calculate D's accuracy on the real data with real_label being = 1
                 current_real_acc = torch.sum(output_real > discriminator_clf_threshold).item() / \
@@ -399,41 +408,28 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
-
-        if self.config.conditional:
-            out_path = output_model_dir / f"cond_{self.model_name}.pt"
-        else:
-            out_path = output_model_dir / f"{self.model_name}.pt"
-        torch.save(
-            {
-                "discriminator": self.netD.state_dict(),
-                "generator": self.netG.state_dict(),
-                "optim_discriminator": optimizerD.state_dict(),
-                "optim_generator": optimizerG.state_dict(),
-            },
-            out_path,
-        )
-        print(f"Saved model to {out_path.resolve()}")
-        out_config_path = output_model_dir / f"config.yaml"
+            self._save_model(epoch)
+        self._save_model()
+        out_config_path = self.output_model_dir / f"config.yaml"
         save_yaml(path=out_config_path, data=self.config)
         print(f"Saved model config to {out_config_path.resolve()}")
 
     def generate(self, model_checkpoint_path: Path, num_samples: int = 64) -> list:
-        optimizerD = optim.Adam(
+        self.optimizerD = optim.Adam(
             self.netD.parameters(),
             lr=self.config.lr,
             betas=(self.config.beta1, 0.999),
             weight_decay=self.config.weight_decay,
         )
-        optimizerG = optim.Adam(
+        self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
 
         checkpoint = torch.load(model_checkpoint_path)
         self.netD.load_state_dict(checkpoint["discriminator"])
         self.netG.load_state_dict(checkpoint["generator"])
-        optimizerD.load_state_dict(checkpoint["optim_discriminator"])
-        optimizerG.load_state_dict(checkpoint["optim_generator"])
+        self.optimizerD.load_state_dict(checkpoint["optim_discriminator"])
+        self.optimizerG.load_state_dict(checkpoint["optim_generator"])
 
         self.netG.eval()
         self.netD.eval()
@@ -475,7 +471,8 @@ class GANModel:
                 )
 
             # Visualize the model architecture of the generator
-            visualization_utils.generate_tensorboard_network_graph(neural_network=self.netG,
-                                                                   network_input_1=fixed_noise,
-                                                                   network_input_2=fixed_condition)
+            visualization_utils.generate_tensorboard_network_graph(
+                neural_network=self.netG,
+                network_input_1=fixed_noise,
+                network_input_2=fixed_condition)
             return visualization_utils

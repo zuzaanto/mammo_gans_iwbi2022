@@ -2,8 +2,8 @@ birads_min: 2
 birads_max: 6
 batch_size: 8
 image_size: 64
-use_lsgan_loss: False
+use_lsgan_loss: True
 leakiness: 0.3
-conditional: True
+conditional: False
 num_epochs: 60
 ngpu: 1

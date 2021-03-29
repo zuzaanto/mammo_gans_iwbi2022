@@ -14,6 +14,16 @@ import glob
 import cv2
 import numpy as np
 
+BIRADS_DICT = {
+    "2": 1,
+    "3": 2,
+    "4a": 3,
+    "4b": 4,
+    "4c": 5,
+    "5": 6,
+    "6": 7,
+}
+
 
 class InbreastDataset(Dataset):
     """Inbreast dataset."""
@@ -26,6 +36,8 @@ class InbreastDataset(Dataset):
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
         conditional_birads: bool = False,
+        split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
+        transform: any = None,
     ):
         assert Path(metadata_path).is_file(), "Metadata not found"
         with open(metadata_path, "r") as metadata_file:
@@ -35,6 +47,8 @@ class InbreastDataset(Dataset):
         self.margin = margin
         self.final_shape = final_shape
         self.conditional_birads = conditional_birads
+        self.split_birads_fours = split_birads_fours
+        self.transform = transform
 
     def __len__(self):
         # metadata contains a list of lesion objects (incl. patient id, bounding box, etc)
@@ -97,9 +111,18 @@ class InbreastDataset(Dataset):
 
         # sample = {'image': torch.from_numpy(image), 'mask': torch.from_numpy(mask)}
 
-        sample = [torchvision.transforms.functional.to_tensor(image[..., np.newaxis])]
+        sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        # print(sample)
+        if self.transform:
+            sample = self.transform(sample)
+
         if self.conditional_birads:
-            return sample, int(
-                metapoint["birads"][0]
-            )  # avoid 4c, 4b, 4a and just truncate them to 4
+            if self.split_birads_fours:
+                condition = BIRADS_DICT[metapoint["birads"]]
+            else:
+                condition = metapoint["birads"][
+                    0
+                ]  # avoid 4c, 4b, 4a and just truncate them to 4
+            return sample, int(condition)
+
         return sample

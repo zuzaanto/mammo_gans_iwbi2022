@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
         "--in_metadata_path",
         type=str,
         default="metadata/metadata.json",
-        help="File system location of metadata.json file."
+        help="File system location of metadata.json file.",
     )
     args = parser.parse_args()
     return args
