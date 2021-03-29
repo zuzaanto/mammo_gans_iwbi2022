@@ -31,7 +31,7 @@ class VisualizationUtils:
         self.num_iterations_between_prints = num_iterations_between_prints
 
     def generate_tensorboard_network_graph(
-            self, neural_network, network_input_1, network_input_2
+            self, neural_network, network_input_1, network_input_2=None
     ):
         if network_input_2 is None:
             # Add the unconditional model architecture to tensorboard
@@ -111,9 +111,14 @@ class VisualizationUtils:
             img_name: str = "GAN-generated-img",
     ):
         with torch.no_grad():
-            generated_image = (
+            if network_input_2 is not None:
+                generated_image = (
                 neural_network(network_input_1, network_input_2).detach().cpu()
-            )
+                )
+            else:
+                generated_image = (
+                    neural_network(network_input_1).detach().cpu()
+                )
             img_grid = vutils.make_grid(
                 generated_image, padding=padding, normalize=normalize
             )

@@ -194,7 +194,7 @@ class GANModel:
         if self.config.conditional:
             fixed_condition = torch.randint(
                 self.config.birads_min,
-                self.config.birads_max,
+                self.config.birads_max + 1,
                 (12,),
                 device=self.device,
             )
@@ -289,7 +289,7 @@ class GANModel:
                     # generate fake conditions
                     fake_cond = torch.randint(
                         self.config.birads_min,
-                        self.config.birads_max,
+                        self.config.birads_max + 1,
                         (b_size,),
                         device=self.device,
                     )
@@ -400,7 +400,6 @@ class GANModel:
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
 
-
         if self.config.conditional:
             out_path = output_model_dir / f"cond_{self.model_name}.pt"
         else:
@@ -418,7 +417,6 @@ class GANModel:
         out_config_path = output_model_dir / f"config.yaml"
         save_yaml(path=out_config_path, data=self.config)
         print(f"Saved model config to {out_config_path.resolve()}")
-
 
     def generate(self, model_checkpoint_path: Path, num_samples: int = 64) -> list:
         optimizerD = optim.Adam(
@@ -445,7 +443,7 @@ class GANModel:
             fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
             if self.config.conditional:
                 fixed_condition = torch.randint(
-                    self.config.birads_min, self.config.birads_max, (num_samples,), device=self.device
+                    self.config.birads_min, self.config.birads_max + 1, (num_samples,), device=self.device
                 )
                 fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
@@ -453,7 +451,6 @@ class GANModel:
             for j, img_ in enumerate(fake):
                 img_list.extend(fake)
         return img_list
-
 
     def visualize(self, output_model_dir, fixed_noise=None, fixed_condition=None, batch_size: int = 12,
                   num_iterations_between_prints: int = 100):
@@ -471,18 +468,14 @@ class GANModel:
             if self.config.conditional and fixed_condition is None:
                 fixed_condition = torch.randint(
                     self.config.birads_min,
-                    self.config.birads_max,
+                    self.config.birads_max + 1,
                     (batch_size,),
                     requires_grad=False,
                     device=self.device
                 )
 
+            # Visualize the model architecture of the generator
             visualization_utils.generate_tensorboard_network_graph(neural_network=self.netG,
                                                                    network_input_1=fixed_noise,
-                                                                   network_input_2=fixed_condition)
-
-            visualization_utils.generate_tensorboard_network_graph(neural_network=self.netD,
-                                                                   network_input_1=self.netG(fixed_noise,
-                                                                                             fixed_condition),
                                                                    network_input_2=fixed_condition)
             return visualization_utils
