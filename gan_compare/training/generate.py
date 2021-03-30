@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dont_show_images",
-        action="dont_show_images_true",
+        action="store_true",
         help="Whether to show the generated images in UI.",
     )
     parser.add_argument(

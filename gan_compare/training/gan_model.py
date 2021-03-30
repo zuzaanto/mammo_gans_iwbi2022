@@ -51,17 +51,16 @@ class GANModel:
         )
         self._create_network()
         self.output_model_dir = Path(self.config.output_model_dir)
-        self._save_config()
+
+    def _mkdir_model_dir(self):
+        if not self.output_model_dir.exists():
+            os.makedirs(self.output_model_dir.resolve())
 
     def _save_config(self, config_file_name: str = f"config.yaml"):
         self._mkdir_model_dir()  # validation to make sure model dir exists
         out_config_path = self.output_model_dir / config_file_name
         save_yaml(path=out_config_path, data=self.config)
         print(f"Saved model config to {out_config_path.resolve()}")
-
-    def _mkdir_model_dir(self):
-        if not self.output_model_dir.exists():
-            os.makedirs(self.output_model_dir.resolve())
 
     def _save_model(self, epoch_number: Optional[int] = None):
         self._mkdir_model_dir()  # validation to make sure model dir exists
@@ -286,6 +285,9 @@ class GANModel:
 
     def train(self):
 
+        # As we train a new model (atm no continued checkpoint training), we create new model dir and save config.
+        self._save_config()
+
         # Create batch of latent vectors that we will use to visualize the progression of the generator
         # Fpr convenience, let's use the specified batch size = number of fixed noise random tensors
         fixed_noise = torch.randn(self.config.batch_size, self.config.nz, 1, 1, device=self.device)
@@ -455,24 +457,14 @@ class GANModel:
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
                  num_samples: int = 64) -> list:
-        self.optimizerD = optim.Adam(
-            self.netD.parameters(),
-            lr=self.config.lr,
-            betas=(self.config.beta1, 0.999),
-            weight_decay=self.config.weight_decay,
-        )
+
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
-
         checkpoint = torch.load(model_checkpoint_path)
-        self.netD.load_state_dict(checkpoint["discriminator"])
         self.netG.load_state_dict(checkpoint["generator"])
-        self.optimizerD.load_state_dict(checkpoint["optim_discriminator"])
         self.optimizerG.load_state_dict(checkpoint["optim_generator"])
-
         self.netG.eval()
-        self.netD.eval()
 
         img_list = []
         for ind in range(num_samples):
