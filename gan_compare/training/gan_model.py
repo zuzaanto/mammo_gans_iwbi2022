@@ -51,15 +51,20 @@ class GANModel:
         )
         self._create_network()
         self.output_model_dir = Path(self.config.output_model_dir)
-        if not self.output_model_dir.exists():
-            os.makedirs(self.output_model_dir.resolve())
+        self._save_config()
 
     def _save_config(self, config_file_name: str = f"config.yaml"):
+        self._mkdir_model_dir()  # validation to make sure model dir exists
         out_config_path = self.output_model_dir / config_file_name
         save_yaml(path=out_config_path, data=self.config)
         print(f"Saved model config to {out_config_path.resolve()}")
 
+    def _mkdir_model_dir(self):
+        if not self.output_model_dir.exists():
+            os.makedirs(self.output_model_dir.resolve())
+
     def _save_model(self, epoch_number: Optional[int] = None):
+        self._mkdir_model_dir()  # validation to make sure model dir exists
         if epoch_number is None:
             out_path = self.output_model_dir / "model.pt"
         else:
@@ -309,13 +314,6 @@ class GANModel:
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
-        # define the model storage directory
-        output_model_dir = Path(self.config.output_model_dir)
-        if not output_model_dir.exists():
-            os.makedirs(output_model_dir.resolve())
-
-        # save the model config file.
-        self._save_config()
 
         # initializing variables needed for visualization
         running_loss_of_generator = 0.
@@ -324,8 +322,7 @@ class GANModel:
         running_fake_discriminator_accuracy = 0.
 
         # visualize model in tensorboard and instantiate visualizationUtils class object
-        visualization_utils = self.visualize(output_model_dir=output_model_dir, fixed_noise=fixed_noise,
-                                             fixed_condition=fixed_condition)
+        visualization_utils = self.visualize(fixed_noise=fixed_noise, fixed_condition=fixed_condition)
 
         # Lists to keep track of progress
         G_losses = []
@@ -493,7 +490,7 @@ class GANModel:
                 img_list.extend(fake)
         return img_list
 
-    def visualize(self, output_model_dir, fixed_noise=None, fixed_condition=None):
+    def visualize(self, fixed_noise=None, fixed_condition=None):
         with torch.no_grad():
             # we need the number of training iterations per epoch (depending on size of batch and training dataset)
             num_iterations_per_epoch = len(self.dataloader)
@@ -501,7 +498,7 @@ class GANModel:
             # Setup visualizaion utilities, which includes tensorboard I/O functions
             visualization_utils = VisualizationUtils(num_iterations_per_epoch=num_iterations_per_epoch,
                                                      num_iterations_between_prints=self.config.num_iterations_between_prints,
-                                                     output_model_dir=output_model_dir)
+                                                     output_model_dir=self.output_model_dir)
             if fixed_noise is None:
                 fixed_noise = torch.randn(self.config.batch_size, self.config.nz, 1, 1, requires_grad=False,
                                           device=self.device)
