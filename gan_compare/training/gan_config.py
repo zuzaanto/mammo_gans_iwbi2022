@@ -59,6 +59,12 @@ class GANConfig:
     # Number of GPUs available. Use 0 for CPU mode.
     ngpu: int = 1
 
+    # The number of iterations between: i) prints ii) storage of results in tensorboard
+    num_iterations_between_prints: int = 100
+
+    # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
+    discriminator_clf_threshold: float = 0.5
+
     output_model_dir: str = f"model_checkpoints/training_{time()}/{image_size}/"
 
     def __post_init__(self):
