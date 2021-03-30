@@ -9,33 +9,19 @@ from gan_compare.training.dataset import InbreastDataset
 from gan_compare.training.io import load_yaml
 from dacite import from_dict
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.gan_model import GANModel
+from gan_compare.training.networks.classification.classifier_64 import Net
+import torch.optim as optim
+import torchvision.transforms as transforms
+import torch.nn as nn
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_name",
-        type=str,
-        required=True,
-        help="Model name: supported: dcgan and lsgan",
-    )
-    parser.add_argument(
         "--config_path",
         type=str,
         default="gan_compare/configs/dcgan_config.yaml",
         help="Path to a yaml model config file",
-    )
-    parser.add_argument(
-        "--save_dataset",
-        action="store_true",
-        help="Whether to save the dataset samples.",
-    )
-    parser.add_argument(
-        "--out_dataset_path",
-        type=str,
-        default="visualisation/inbreast_dataset/",
-        help="Directory to save the dataset samples in.",
     )
     parser.add_argument(
         "--in_metadata_path",
@@ -53,14 +39,23 @@ if __name__ == "__main__":
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(GANConfig, config_dict)
     print(asdict(config))
-
     print(
         "Loading dataset..."
     )  # When we have more datasets implemented, we can specify which one(s) to load in config.
+
+    transform = transforms.Compose(
+        [
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.Normalize((0.5), (0.5)),
+        ]
+    )
+
     inbreast_dataset = InbreastDataset(
         metadata_path=args.in_metadata_path,
         final_shape=(config.image_size, config.image_size),
         conditional_birads=config.conditional,
+        transform=transform,
     )
     dataloader = DataLoader(
         inbreast_dataset,
@@ -69,24 +64,30 @@ if __name__ == "__main__":
         num_workers=config.workers,
     )
 
-    if args.save_dataset:
-        output_dataset_dir = Path(args.out_dataset_path)
-        if not output_dataset_dir.exists():
-            os.makedirs(output_dataset_dir.resolve())
-        for i in range(len(inbreast_dataset)):
-            print(inbreast_dataset[i])
-            # Plot some training images
-            cv2.imwrite(
-                str(output_dataset_dir / f"{i}.png"),
-                inbreast_dataset.__getitem__(i, to_save=True),
-            )
+    net = Net(num_labels=config.n_cond)
 
-    print("Loading model...")
-    model = GANModel(
-        model_name=args.model_name,
-        config=config,
-        dataloader=dataloader,
-        out_dataset_path=args.out_dataset_path,
-    )
-    print("Loaded model. Starting training...")
-    model.train()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+
+    for epoch in range(2):  # loop over the dataset multiple times
+        running_loss = 0.0
+        for i, data in enumerate(dataloader, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            running_loss += loss.item()
+            if i % 2000 == 1999:  # print every 2000 mini-batches
+                print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0
+
+    print("Finished Training")
