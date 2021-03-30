@@ -61,6 +61,9 @@ class GANModel:
         self.output_model_dir = Path(self.config.output_model_dir)
         if not self.output_model_dir.exists():
             os.makedirs(self.output_model_dir.resolve())
+        out_config_path = self.output_model_dir / f"config.yaml"
+        save_yaml(path=out_config_path, data=self.config)
+        print(f"Saved model config to {out_config_path.resolve()}")
 
     def _save_model(self, epoch_number: Optional[int] = None):
         if epoch_number is None:
@@ -370,9 +373,6 @@ class GANModel:
                 iters += 1
             self._save_model(epoch)
         self._save_model()
-        out_config_path = self.output_model_dir / f"config.yaml"
-        save_yaml(path=out_config_path, data=self.config)
-        print(f"Saved model config to {out_config_path.resolve()}")
 
         fig = plt.figure(figsize=(10, 5))
         plt.title("Generator and Discriminator Loss During Training")
