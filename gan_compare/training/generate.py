@@ -1,16 +1,15 @@
-import torch.optim as optim
 import argparse
-import cv2
-import torch
-from pathlib import Path
-from gan_compare.data_utils.utils import interval_mapping
-from gan_compare.training.gan_model import GANModel
-from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.io import load_yaml
-from dacite import from_dict
 from dataclasses import asdict
+from pathlib import Path
 from time import time
 
+import cv2
+from dacite import from_dict
+
+from gan_compare.data_utils.utils import interval_mapping
+from gan_compare.training.gan_config import GANConfig
+from gan_compare.training.gan_model import GANModel
+from gan_compare.training.io import load_yaml
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +54,7 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     return args
 
+
 if __name__ == "__main__":
     args = parse_args()
     # Load model and config
@@ -98,4 +98,3 @@ if __name__ == "__main__":
             img_ = img_.astype("uint8")
             cv2.imwrite(str(args.out_images_path.resolve()), img_)
         print(f"Saved generated images to {args.out_images_path.resolve()}")
-
