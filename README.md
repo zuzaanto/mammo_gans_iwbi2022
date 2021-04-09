@@ -11,10 +11,14 @@ And then install the requirements as follows:
 ```
 pip install -r requirements.txt
 ```
+Or, if you use pipenv, you can create an environment and install requirements from Pipfile using:
+```
+pipenv install
+```
 
 ## Usage
 Before running any code, remember to:
-- install dependencies from `requirements.txt` and
+- install dependencies from `requirements.txt` using pip or from `Pipfile` using pipenv and
 - specify correct data paths in `gan_compare/paths.py`.
 
 #### Generating metadata
@@ -65,6 +69,16 @@ The following script makes it easier to peek the statistics of a particular meta
 python -m gan_compare.scripts.get_metadata_statistics --metadata_path path/to/metadata.json
 ```
 There is an additional folder for Jupyter notebooks oriented around better dataset understanding - `gan_compare/data_utils/eda/`
+
+#### Visualize training on tensorboard
+Tensorboard is integrated to facilitate visual analysis of GAN losses, discriminator accuracy and model architecture. 
+During training, tensorboard writes some event logs that will later be used to generate the tensorboard visualizations. 
+By default, these logs are stored in `gan_compare/model_checkpoint/training_{TIMESTAMP}/{DIM}/visualization`
+
+To run tensorboard on localhost, adjust and run the following command:
+```
+tensorboard --logdir=gan_compare/model_checkpoint/training_{TIMESTAMP}/{DIM}/visualization
+```
 
 ## Future work
 

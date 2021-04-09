@@ -13,7 +13,7 @@ if __name__ == "__main__":
         print(image_path)
         ds = dicom.dcmread(image_path)
         patient_id = Path(image_path).stem.split("_")[0]
-        print(patient_id)s
+        print(patient_id)
         xml_filepath = Path(INBREAST_XML_PATH) / f"{patient_id}.xml"
         if xml_filepath.is_file():
             with open(xml_filepath, "rb") as patient_xml:

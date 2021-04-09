@@ -1,20 +1,15 @@
 from __future__ import print_function
-import argparse
+
 import os
 import random
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
 from torch.utils.data import DataLoader
-import torchvision.datasets as dset
-import torchvision.transforms as transforms
-import torchvision.utils as vutils
-import numpy as np
-import cv2
-from pathlib import Path
 
 try:
     import tkinter
@@ -24,23 +19,20 @@ except:
     import matplotlib
 
     matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import argparse
 from typing import Union, Optional
+from gan_compare.training.visualization import VisualizationUtils
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.dcgan.utils import weights_init
-from gan_compare.data_utils.utils import interval_mapping
 from gan_compare.training.io import save_yaml
 
 
 class GANModel:
     def __init__(
-        self,
-        model_name: str,
-        config: GANConfig,
-        dataloader: DataLoader,
-        out_dataset_path: Union[str, Path] = "visualisation/inbreast_dataset/",
+            self,
+            model_name: str,
+            config: GANConfig,
+            dataloader: DataLoader,
+            out_dataset_path: Union[str, Path] = "visualisation/inbreast_dataset/",
     ):
         self.model_name = model_name
         self.config = config
@@ -59,13 +51,19 @@ class GANModel:
         )
         self._create_network()
         self.output_model_dir = Path(self.config.output_model_dir)
+
+    def _mkdir_model_dir(self):
         if not self.output_model_dir.exists():
             os.makedirs(self.output_model_dir.resolve())
-        out_config_path = self.output_model_dir / f"config.yaml"
+
+    def _save_config(self, config_file_name: str = f"config.yaml"):
+        self._mkdir_model_dir()  # validation to make sure model dir exists
+        out_config_path = self.output_model_dir / config_file_name
         save_yaml(path=out_config_path, data=self.config)
         print(f"Saved model config to {out_config_path.resolve()}")
 
     def _save_model(self, epoch_number: Optional[int] = None):
+        self._mkdir_model_dir()  # validation to make sure model dir exists
         if epoch_number is None:
             out_path = self.output_model_dir / "model.pt"
         else:
@@ -79,7 +77,7 @@ class GANModel:
             },
             out_path,
         )
-        print(f"Saved model to {out_path.resolve()}")
+        print(f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}")
 
     def _create_network(self):
         if self.model_name == "dcgan":
@@ -93,7 +91,7 @@ class GANModel:
                     )
 
                     assert (
-                        self.config.nc == 2
+                            self.config.nc == 2
                     ), "To use conditional input, change number of channels (nc) to 2."
 
                     self.netG = Generator(
@@ -161,7 +159,7 @@ class GANModel:
         elif self.model_name == "lsgan":
             # only 64x64 image resolution will be supported
             assert (
-                self.config.image_size == 64
+                    self.config.image_size == 64
             ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
 
             from gan_compare.training.networks.lsgan.discriminator import Discriminator
@@ -194,7 +192,7 @@ class GANModel:
 
         # Handle multi-gpu if desired
         if (self.device.type == "cuda") and (self.config.ngpu > 1):
-            self.netD = nn.DataParallel(netD, list(range(self.config.ngpu)))
+            self.netD = nn.DataParallel(self.netD, list(range(self.config.ngpu)))
 
         # Apply the weights_init function to randomly initialize all weights
         #  to mean=0, stdev=0.2.
@@ -203,24 +201,110 @@ class GANModel:
         # Print the model
         print(self.netD)
 
-    def train(self):
-        # Initialize BCELoss function
-        self.criterion = nn.BCELoss()
+    def _netG_update(self, fake_images, fake_conditions):
+        ''' Update Generator network: maximize log(D(G(z))) '''
 
-        # Create batch of latent vectors that we will use to visualize
-        #  the progression of the generator
-        fixed_noise = torch.randn(12, self.config.nz, 1, 1, device=self.device)
+        # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
+        # Here, the "real" label is needed, as the fake labels are "real" for generator cost
+        labels = torch.full((fake_images.size(0),), self.real_label_float, dtype=torch.float, device=self.device)
+
+        # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
+        # The generator loss of the updated discriminator should be higher than the previous one.
         if self.config.conditional:
-            fixed_conditon = torch.randint(
+            output = self.netD(fake_images, fake_conditions).view(-1)
+        else:
+            output = self.netD(fake_images).view(-1)
+
+        # Calculate G's loss based on this output
+        errG = self._compute_loss(output, labels)
+
+        # Calculate gradients for G
+        errG.backward()
+
+        # D output mean on the second generator input
+        D_G_z2 = output.mean().item()
+
+        # Update G
+        self.optimizerG.step()
+
+        return output, D_G_z2, errG
+
+    def _netD_update(self, real_images, fake_images, real_conditions=None, fake_conditions=None):
+        ''' Update Discriminator network on real AND fake data. '''
+
+        # Forward pass real batch through D
+        output_real, errD_real, D_x = self._netD_forward_backward_pass(real_images, self.real_label_float,
+                                                                       real_conditions, )
+        # remove gradient only if fake_conditions is a torch tensor
+        if fake_conditions is not None:
+            fake_conditions = fake_conditions.detach()
+
+        # Forward pass fake batch through D
+        output_fake, errD_fake, D_G_z1 = self._netD_forward_backward_pass(fake_images.detach(), self.fake_label_float,
+                                                                          fake_conditions, )
+
+        # Add the gradients from the all-real and all-fake batches
+        errD = errD_real + errD_fake
+
+        # Update D
+        self.optimizerD.step()
+
+        return output_real, errD_real, D_x, output_fake, errD_fake, D_G_z1, errD
+
+    def _netD_forward_backward_pass(self, images, label_as_float, conditions):
+        ''' Forward and backward pass through discriminator network '''
+        # Forward pass batch through D
+        output = None
+        if self.config.conditional:
+            output = self.netD(images, conditions).view(-1)
+        else:
+            output = self.netD(images).view(-1)
+
+        # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
+        labels = torch.full((images.size(0),), label_as_float, dtype=torch.float, device=self.device)
+
+        # Calculate loss on all-real batch
+        errD = self._compute_loss(output, labels)
+
+        # Calculate gradients for D in backward pass of real data batch
+        errD.backward()
+        D_input = output.mean().item()
+
+        return output, errD, D_input
+
+    def _compute_loss(self, output, label):
+        if not hasattr(self, 'criterion') or self.criterion is None:
+            # Initialize standard criterion. Note: Could be moved to config.
+            self.criterion = nn.BCELoss()
+        if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
+            # Standard criterion defined above - i.e. Vanilla GAN's binary cross entropy (BCE) loss
+            return self.criterion(output, label)
+        else:
+            # Least Square Loss - https://arxiv.org/abs/1611.04076
+            return 0.5 * torch.mean((output - label) ** 2)
+
+    def train(self):
+
+        # As we train a new model (atm no continued checkpoint training), we create new model dir and save config.
+        self._save_config()
+
+        # Create batch of latent vectors that we will use to visualize the progression of the generator
+        # Fpr convenience, let's use the specified batch size = number of fixed noise random tensors
+        fixed_noise = torch.randn(self.config.batch_size, self.config.nz, 1, 1, device=self.device)
+
+        # Create batch of fixed conditions that we will use to visualize the progression of the generator
+        fixed_condition = None
+        if self.config.conditional:
+            fixed_condition = torch.randint(
                 self.config.birads_min,
                 self.config.birads_max + 1,
-                (12,),
+                (self.config.batch_size,),
                 device=self.device,
             )
 
         # Establish convention for real and fake labels during training
-        real_label = 1.0
-        fake_label = 0.0
+        self.real_label_float: float = 1.0
+        self.fake_label_float: float = 0.0
 
         # Setup Adam optimizers for both G and D
         self.optimizerD = optim.Adam(
@@ -233,15 +317,22 @@ class GANModel:
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
 
-        # Training Loop
+        # initializing variables needed for visualization
+        running_loss_of_generator = 0.
+        running_loss_of_discriminator = 0.
+        running_real_discriminator_accuracy = 0.
+        running_fake_discriminator_accuracy = 0.
+
+        # visualize model in tensorboard and instantiate visualizationUtils class object
+        visualization_utils = self.visualize(fixed_noise=fixed_noise, fixed_condition=fixed_condition)
 
         # Lists to keep track of progress
-        img_list = []
         G_losses = []
         D_losses = []
         iters = 0
 
-        print("Starting Training Loop...")
+        # Training Loop
+        print("Starting Training.. ")
         if self.config.conditional:
             print("Training conditioned on BiRADS")
         # For each epoch
@@ -249,181 +340,173 @@ class GANModel:
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
 
-                ############################
-                # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
-                ###########################
-                ## Train with all-real batch
+                # We start by updating the discriminator
+                # Reset the gradient of the discriminator of previous training iterations
                 self.netD.zero_grad()
 
+                # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
                 if self.config.conditional:
                     data, condition = data
 
-                # Format batch
-                real_cpu = data.to(self.device)
-                if self.config.conditional:
-                    real_condition = condition.to(self.device)
-                b_size = real_cpu.size(0)
-                label = torch.full(
-                    (b_size,), real_label, dtype=torch.float, device=self.device
-                )
-                # Forward pass real batch through D
-                if self.config.conditional:
-                    output = self.netD(real_cpu, real_condition).view(-1)
-                else:
-                    output = self.netD(real_cpu).view(-1)
-                # Calculate loss on all-real batch
-                if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
-                    errD_real = self.criterion(output, label)
-                else:
-                    errD_real = 0.5 * torch.mean((output - label) ** 2)
-                # Calculate gradients for D in backward pass
-                errD_real.backward()
-                D_x = output.mean().item()
+                # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
+                real_images = data.to(self.device)
 
-                ## Train with all-fake batch
-                # Generate batch of latent vectors
+                # Compute the actual batch size (not from config!) for convenience
+                b_size = real_images.size(0)
+
+                # Generate batch of latent vectors as input into generator to generate fake images
                 noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
 
-                # Generate fake image batch with G
+                real_conditions = None
+                fake_conditions = None
                 if self.config.conditional:
+                    real_conditions = condition.to(self.device)
                     # generate fake conditions
-                    fake_cond = torch.randint(
+                    fake_conditions = torch.randint(
                         self.config.birads_min,
                         self.config.birads_max + 1,
                         (b_size,),
                         device=self.device,
                     )
-                    fake = self.netG(noise, fake_cond)
+                    # Generate fake image batch with G (conditional)
+                    fake_images = self.netG(noise, fake_conditions)
                 else:
-                    fake = self.netG(noise)
-                label.fill_(fake_label)
+                    # Generate fake image batch with G (without condition)
+                    fake_images = self.netG(noise)
 
-                # Classify all fake batch with D
-                if self.config.conditional:
-                    output = self.netD(fake.detach(), fake_cond.detach()).view(-1)
-                else:
-                    output = self.netD(fake.detach()).view(-1)
-                # Calculate D's loss on the all-fake batch
-                if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
-                    errD_fake = self.criterion(output, label)
-                else:
-                    errD_fake = 0.5 * torch.mean((output - label) ** 2)
-                # Calculate the gradients for this batch
-                errD_fake.backward()
-                D_G_z1 = output.mean().item()
-                # Add the gradients from the all-real and all-fake batches
-                errD = errD_real + errD_fake
-                # Update D
-                self.optimizerD.step()
+                # Perform a forward backward training step for D with optimizer weight update for real and fake data
+                output_real, errD_real, D_x, output_fake_1, errD_fake, D_G_z1, errD = self._netD_update(
+                    real_images,
+                    fake_images,
+                    real_conditions,
+                    fake_conditions,
+                )
 
-                ############################
-                # (2) Update G network: maximize log(D(G(z)))
-                ###########################
+                # After updating the discriminator, we now update the generator
+                # Reset to zero as previous gradient should have already been used to update the generator network
                 self.netG.zero_grad()
-                label.fill_(real_label)  # fake labels are real for generator cost
-                # Since we just updated D, perform another forward pass of all-fake batch through D
-                if self.config.conditional:
-                    output = self.netD(fake, fake_cond).view(-1)
-                else:
-                    output = self.netD(fake).view(-1)
-                # Calculate G's loss based on this output
-                if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
-                    errG = self.criterion(output, label)
-                else:
-                    errG = 0.5 * torch.mean((output - label) ** 2)
-                # Calculate gradients for G
-                errG.backward()
-                D_G_z2 = output.mean().item()
-                # Update G
-                self.optimizerG.step()
 
-                # Output training stats
-                if i % 50 == 0:
-                    print(
-                        "[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f"
-                        % (
-                            epoch,
-                            self.config.num_epochs,
-                            i,
-                            len(self.dataloader),
-                            errD.item(),
-                            errG.item(),
-                            D_x,
-                            D_G_z1,
-                            D_G_z2,
-                        )
-                    )
+                # Perform a forward backward training step for G with optimizer weight update including a second
+                # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
+                output_fake_2, D_G_z2, errG = self._netG_update(fake_images, fake_conditions)
+
+                # Calculate D's accuracy on the real data with real_label being = 1.
+                current_real_acc = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
+                                   list(output_real.size())[0]
+                running_real_discriminator_accuracy += current_real_acc
+                # print("REAL found by D#: " + str(torch.sum(output_real > self.config.discriminator_clf_threshold).item()))
+                # print("REAL accuracy %: " + str(torch.sum(output_real > self.config.discriminator_clf_threshold).item() / list(output_real.size())[0]))
+
+                # Calculate D's accuracy on the fake data from G with fake_label being = 0.
+                # Note that we use the output_fake_1 and not output_fake_2, as 2 would be unfair,
+                # as the discriminator has already received a weight update for the training batch
+                current_fake_acc = torch.sum(output_fake_1 < self.config.discriminator_clf_threshold).item() / \
+                                   list(output_fake_1.size())[0]
+                running_fake_discriminator_accuracy += current_fake_acc
+                # print("FAKE found by D #: " + str(torch.sum(output_fake1 < self.config.discriminator_clf_threshold).item()))
+                # print("FAKE accuracy %: " + str(torch.sum(output_fake1 < self.config.discriminator_clf_threshold).item() / list(output_fake1.size())[0]))
 
                 # Save Losses for plotting later
                 G_losses.append(errG.item())
                 D_losses.append(errD.item())
 
-                # Check how the generator is doing by saving G's output on fixed_noise
-                if (iters % 500 == 0) or (
-                    (epoch == self.config.num_epochs - 1)
-                    and (i == len(self.dataloader) - 1)
-                ):
-                    with torch.no_grad():
-                        if self.config.conditional:
-                            fake = self.netG(fixed_noise, fixed_conditon).detach().cpu()
-                        else:
-                            fake = self.netG(fixed_noise).detach().cpu()
-                    img_list.append(fake.numpy())
-                    # img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
+                # Update the running loss which is used in visualization
+                running_loss_of_generator += errG.item()
+                running_loss_of_discriminator += errD.item()
+
+                # Output training stats on each iteration length threshold
+                if i % self.config.num_iterations_between_prints == 0:
+                    print(
+                        '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
+                        % (epoch, self.config.num_epochs, i, len(self.dataloader),
+                           errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
+
+                    # Add loss scalars to tensorboard
+                    visualization_utils.add_value_to_tensorboard_loss_diagram(epoch=epoch,
+                                                                              iteration=i,
+                                                                              running_loss_of_generator=running_loss_of_generator,
+                                                                              running_loss_of_discriminator=running_loss_of_discriminator)
+                    # Add accuracy scalars to tensorboard
+                    visualization_utils.add_value_to_tensorboard_accuracy_diagram(epoch=epoch,
+                                                                                  iteration=i,
+                                                                                  running_real_discriminator_accuracy=running_real_discriminator_accuracy,
+                                                                                  running_fake_discriminator_accuracy=running_fake_discriminator_accuracy)
+                    # Reset the running losses and accuracies
+                    running_loss_of_generator = 0.
+                    running_loss_of_discriminator = 0.
+                    running_real_discriminator_accuracy = 0.
+                    running_fake_discriminator_accuracy = 0.
+
+                # Visually check how the generator is doing by saving G's output on fixed_noise
+                if (iters % self.config.num_iterations_between_prints * 10 == 0) or (
+                        (epoch == self.config.num_epochs - 1) and (i == len(self.dataloader) - 1)):
+                    img_name: str = 'generated fixed-noise images each <' \
+                                    + str(self.config.num_iterations_between_prints * 10) \
+                                    + '>th iteration. Epoch=' \
+                                    + str(epoch) \
+                                    + ', iteration=' \
+                                    + str(i)
+                    visualization_utils.add_generated_batch_to_tensorboard(neural_network=self.netG,
+                                                                           network_input_1=fixed_noise,
+                                                                           network_input_2=fixed_condition,
+                                                                           img_name=img_name)
                 iters += 1
+            visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
             self._save_model(epoch)
         self._save_model()
 
-        fig = plt.figure(figsize=(10, 5))
-        plt.title("Generator and Discriminator Loss During Training")
-        plt.plot(G_losses, label="G")
-        plt.plot(D_losses, label="D")
-        plt.xlabel("iterations")
-        plt.ylabel("Loss")
-        plt.legend()
-        fig.savefig(
-            str((self.output_model_dir / "training_progress.png").resolve()),
-            dpi=fig.dpi,
-        )
+    def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
+                 num_samples: int = 64) -> list:
 
-        for i, image_batch in enumerate(img_list):
-            for j, img_ in enumerate(image_batch):
-                img_path = self.output_model_dir / f"{self.model_name}_{i}_{j}.png"
-                img_ = interval_mapping(img_.transpose(1, 2, 0), -1.0, 1.0, 0, 255)
-                img_ = img_.astype("uint8")
-                cv2.imwrite(str(img_path.resolve()), img_)
-
-    def generate(self, model_checkpoint_path: Path, num_samples: int = 64) -> list:
-        self.optimizerD = optim.Adam(
-            self.netD.parameters(),
-            lr=self.config.lr,
-            betas=(self.config.beta1, 0.999),
-            weight_decay=self.config.weight_decay,
-        )
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
-
         checkpoint = torch.load(model_checkpoint_path)
-        self.netD.load_state_dict(checkpoint["discriminator"])
         self.netG.load_state_dict(checkpoint["generator"])
-        self.optimizerD.load_state_dict(checkpoint["optim_discriminator"])
         self.optimizerG.load_state_dict(checkpoint["optim_generator"])
-
         self.netG.eval()
-        self.netD.eval()
 
         img_list = []
         for ind in range(num_samples):
-            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1)
+            if fixed_noise is None:
+                fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
             if self.config.conditional:
-                fixed_conditon = torch.randint(
-                    self.config.birads_min, self.config.birads_max + 1, (num_samples,)
-                )
-            if self.config.conditional:
-                fake = self.netG(fixed_noise, fixed_conditon).detach().cpu().numpy()
+                if fixed_condition is None:
+                    fixed_condition = torch.randint(
+                        self.config.birads_min, self.config.birads_max + 1, (num_samples,), device=self.device
+                    )
+                fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
                 fake = self.netG(fixed_noise).detach().cpu().numpy()
             for j, img_ in enumerate(fake):
                 img_list.extend(fake)
         return img_list
+
+    def visualize(self, fixed_noise=None, fixed_condition=None):
+        with torch.no_grad():
+            # we need the number of training iterations per epoch (depending on size of batch and training dataset)
+            num_iterations_per_epoch = len(self.dataloader)
+
+            # Setup visualizaion utilities, which includes tensorboard I/O functions
+            visualization_utils = VisualizationUtils(num_iterations_per_epoch=num_iterations_per_epoch,
+                                                     num_iterations_between_prints=self.config.num_iterations_between_prints,
+                                                     output_model_dir=self.output_model_dir)
+            if fixed_noise is None:
+                fixed_noise = torch.randn(self.config.batch_size, self.config.nz, 1, 1, requires_grad=False,
+                                          device=self.device)
+
+            if self.config.conditional and fixed_condition is None:
+                fixed_condition = torch.randint(
+                    self.config.birads_min,
+                    self.config.birads_max + 1,
+                    (self.config.batch_size,),
+                    requires_grad=False,
+                    device=self.device
+                )
+
+            # Visualize the model architecture of the generator
+            visualization_utils.generate_tensorboard_network_graph(
+                neural_network=self.netG,
+                network_input_1=fixed_noise,
+                network_input_2=fixed_condition)
+            return visualization_utils

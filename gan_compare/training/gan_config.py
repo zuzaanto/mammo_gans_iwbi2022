@@ -1,10 +1,9 @@
-from time import time
 from dataclasses import dataclass
+from time import time
 
 
 @dataclass
 class GANConfig:
-
     # Birads range
     birads_min: int = 2
     birads_max: int = 6
@@ -17,13 +16,14 @@ class GANConfig:
     n_cond = birads_max + 1
 
     # l2 regularization in discriminator
-    weight_decay: float = 0.5
+    # value taken from here: https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
+    weight_decay: float = 0.0005
 
     # Number of workers for dataloader
     workers: int = 2
 
     # Batch size during training
-    batch_size: int = 8
+    batch_size: int = 16
 
     # Spatial size of training images. All images will be resized to this
     #   size using a transformer.
@@ -33,7 +33,7 @@ class GANConfig:
     use_lsgan_loss: bool = False
 
     # Leakiness for ReLUs
-    leakiness: float = 0.3
+    leakiness: float = 0.2
 
     # Number of channels in the training images. For color images this is 3
     nc: int = 1
@@ -58,6 +58,12 @@ class GANConfig:
 
     # Number of GPUs available. Use 0 for CPU mode.
     ngpu: int = 1
+
+    # The number of iterations between: i) prints ii) storage of results in tensorboard
+    num_iterations_between_prints: int = 100
+
+    # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
+    discriminator_clf_threshold: float = 0.5
 
     output_model_dir: str = f"model_checkpoints/training_{time()}/{image_size}/"
 
