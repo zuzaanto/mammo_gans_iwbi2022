@@ -1,7 +1,7 @@
 birads_min: 2
 birads_max: 6
 batch_size: 8
-image_size: 64
+image_size: 128
 use_lsgan_loss: True
 leakiness: 0.3
 conditional: True

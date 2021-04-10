@@ -40,7 +40,7 @@ class Generator(BaseGenerator):
             nn.BatchNorm2d(self.ngf),
             nn.ReLU(True),
             # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d(self.ngf, self.nc, 4, 2, 1, bias=self.bias),
+            nn.ConvTranspose2d(in_channels=self.ngf, out_channels=self.nc, kernel_size=4, stride=2, padding=1, bias=self.bias),
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )

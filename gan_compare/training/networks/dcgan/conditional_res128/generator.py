@@ -25,28 +25,36 @@ class Generator(BaseGenerator):
             bias=bias,
         )
         self.num_embedding_input = n_cond
-        self.num_embedding_dimensions = 50 # standard would probably be to use same as dim(z).
+        self.num_embedding_dimensions = 50 # standard would be dim(z), but we have atm a nn.Linear after
+        # nn.Embedding that upscales the dimension to self.nz. Using same value of num_embedding_dimensions in D and G.
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(self.nz * 2, self.ngf * 8, 4, 1, 0, bias=self.bias),
+            nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 16, 4, 1, 0, bias=self.bias),
+            nn.BatchNorm2d(self.ngf * 16),
+            nn.ReLU(True),
+            # state size. (ngf*16) x 4 x 4
+            nn.ConvTranspose2d(self.ngf * 16, self.ngf * 8, 4, 2, 1, bias=self.bias),
             nn.BatchNorm2d(self.ngf * 8),
             nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
+            # state size. (ngf*8) x 8 x 8
             nn.ConvTranspose2d(self.ngf * 8, self.ngf * 4, 4, 2, 1, bias=self.bias),
             nn.BatchNorm2d(self.ngf * 4),
             nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
+            # state size. (ngf*4) x 16 x 16
             nn.ConvTranspose2d(self.ngf * 4, self.ngf * 2, 4, 2, 1, bias=self.bias),
             nn.BatchNorm2d(self.ngf * 2),
             nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
+            # state size. (ngf*2) x 32 x 32
             nn.ConvTranspose2d(self.ngf * 2, self.ngf, 4, 2, 1, bias=self.bias),
             nn.BatchNorm2d(self.ngf),
             nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d(self.ngf, 1, 4, 2, 1, bias=self.bias),
+            # state size. (ngf) x 64 x 64
+            # Note that out_channels=1 instead of out_channels=self.nc.
+            # This is due to conditional input channel of our grayscale images
+            nn.ConvTranspose2d(in_channels=self.ngf, out_channels=1, kernel_size=4, stride=2, padding=1,
+                               bias=self.bias),
             nn.Tanh()
-            # state size. (nc) x 64 x 64
+            # state size. (nc) x 128 x 128
         )
         self.embed_nn = nn.Sequential(
             # embedding layer

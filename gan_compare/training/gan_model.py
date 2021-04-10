@@ -83,10 +83,10 @@ class GANModel:
         if self.model_name == "dcgan":
             if self.config.image_size == 64:
                 if self.config.conditional:
-                    from gan_compare.training.networks.dcgan.conditional.discriminator import (
+                    from gan_compare.training.networks.dcgan.conditional_res64.discriminator import (
                         Discriminator,
                     )
-                    from gan_compare.training.networks.dcgan.conditional.generator import (
+                    from gan_compare.training.networks.dcgan.conditional_res64.generator import (
                         Generator,
                     )
 
@@ -131,27 +131,54 @@ class GANModel:
                     ).to(self.device)
 
             elif self.config.image_size == 128:
-                from gan_compare.training.networks.dcgan.res128.discriminator import (
-                    Discriminator,
-                )
-                from gan_compare.training.networks.dcgan.res128.generator import (
-                    Generator,
-                )
+                if self.config.conditional:
+                    from gan_compare.training.networks.dcgan.conditional_res128.discriminator import (
+                        Discriminator,
+                    )
+                    from gan_compare.training.networks.dcgan.conditional_res128.generator import (
+                        Generator,
+                    )
 
-                self.netD = Discriminator(
-                    ndf=self.config.ndf,
-                    nc=self.config.nc,
-                    ngpu=self.config.ngpu,
-                    leakiness=self.config.leakiness,
-                    bias=False,
-                ).to(self.device)
+                    assert (
+                            self.config.nc == 2
+                    ), "To use conditional input, change number of channels (nc) to 2."
 
-                self.netG = Generator(
-                    nz=self.config.nz,
-                    ngf=self.config.ngf,
-                    nc=self.config.nc,
-                    ngpu=self.config.ngpu,
-                ).to(self.device)
+                    self.netG = Generator(
+                        nz=self.config.nz,
+                        ngf=self.config.ngf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        n_cond=self.config.n_cond,
+                    ).to(self.device)
+
+                    self.netD = Discriminator(
+                        ndf=self.config.ndf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        n_cond=self.config.n_cond,
+                    ).to(self.device)
+
+                else:
+                    from gan_compare.training.networks.dcgan.res128.discriminator import (
+                        Discriminator,
+                    )
+                    from gan_compare.training.networks.dcgan.res128.generator import (
+                        Generator,
+                    )
+                    self.netD = Discriminator(
+                        ndf=self.config.ndf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        leakiness=self.config.leakiness,
+                        bias=False,
+                    ).to(self.device)
+
+                    self.netG = Generator(
+                        nz=self.config.nz,
+                        ngf=self.config.ngf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                    ).to(self.device)
             else:
                 raise ValueError(
                     "Unsupported image size. Supported sizes are 128 and 64."
@@ -161,6 +188,9 @@ class GANModel:
             assert (
                     self.config.image_size == 64
             ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
+            assert (
+                self.config.conditional
+            ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
 
             from gan_compare.training.networks.lsgan.discriminator import Discriminator
             from gan_compare.training.networks.lsgan.generator import Generator
@@ -180,7 +210,8 @@ class GANModel:
             ).to(self.device)
         else:
             raise ValueError(f"Unknown model name: {self.model_name}")
-            # Handle multi-gpu if desired
+
+        # Handle multi-gpu if desired
         if (self.device.type == "cuda") and (self.config.ngpu > 1):
             self.netG = nn.DataParallel(self.netG, list(range(self.config.ngpu)))
         # Apply the weights_init function to randomly initialize all weights
@@ -344,11 +375,11 @@ class GANModel:
                 # Reset the gradient of the discriminator of previous training iterations
                 self.netD.zero_grad()
 
-                # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
+                # If the GAN has a conditional_res64 input, get condition (i.e. birads number) alongside data (=image batch)
                 if self.config.conditional:
                     data, condition = data
 
-                # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
+                # Format batch (fake and real), get images and, optionally, corresponding conditional_res64 GAN inputs
                 real_images = data.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
@@ -368,7 +399,7 @@ class GANModel:
                         (b_size,),
                         device=self.device,
                     )
-                    # Generate fake image batch with G (conditional)
+                    # Generate fake image batch with G (conditional_res64)
                     fake_images = self.netG(noise, fake_conditions)
                 else:
                     # Generate fake image batch with G (without condition)
@@ -479,7 +510,7 @@ class GANModel:
                     fixed_condition = torch.randint(
                         fixed_condition, fixed_condition + 1, (num_samples,), device=self.device
                     )
-                #print(f'Tensor with batch of BIRADS conditions = {fixed_condition}')
+                # print(f'Tensor with batch of BIRADS conditions = {fixed_condition}')
                 fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
                 fake = self.netG(fixed_noise).detach().cpu().numpy()

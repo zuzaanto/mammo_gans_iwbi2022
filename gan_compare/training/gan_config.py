@@ -65,7 +65,7 @@ class GANConfig:
     # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
     discriminator_clf_threshold: float = 0.5
 
-    output_model_dir: str = f"model_checkpoints/training_{time()}/{image_size}/"
+    output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
     def __post_init__(self):
         if self.conditional:

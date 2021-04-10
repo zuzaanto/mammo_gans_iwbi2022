@@ -15,7 +15,7 @@ class Discriminator(BaseDiscriminator):
             leakiness=leakiness,
             bias=bias,
         )
-        self.num_embedding_input = n_cond # number of possible conditional values
+        self.num_embedding_input = n_cond # number of possible conditional_res64 values
         self.num_embedding_dimensions = 50  # standard would be dim(z)
         self.main = nn.Sequential(
             # input is (self.nc) x 64 x 64
@@ -43,7 +43,7 @@ class Discriminator(BaseDiscriminator):
                 num_embeddings=self.num_embedding_input,
                 embedding_dim=self.num_embedding_dimensions,
             ),
-            # target output dim of dense layer is (self.nc) x 64 x 64
+            # target output dim of dense layer is batch_size x self.nc x 64 x 64
             # input is dimension of the embedding layer output
             nn.Linear(in_features=self.num_embedding_dimensions, out_features=64 * 64),
             # nn.BatchNorm2d(2*64),
