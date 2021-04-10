@@ -55,7 +55,8 @@ python gan_compare.training.generate \
 --model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
 --model_checkpoint_dir MODEL_CHECKPOINT_DIR \ # Path to model checkpoint directory
 --model_checkpoint_path MODEL_CHECKPOINT_PATH \ # Path to model checkpoint .pt file (optional, by default takes model.pt file in model_checkpoint_dir)
---num_samples NUM_SAMPLES \ #How many samples to generate
+--num_samples NUM_SAMPLES \ #Number of samples to be generated
+--birads BIRADS \ #The BIRADS risk status (int, 1-6). Control sample generation using a cGAN conditioned on BIRADS.
 ```
 
 #### Peek through the dataset
