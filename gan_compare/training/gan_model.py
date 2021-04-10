@@ -456,7 +456,7 @@ class GANModel:
         self._save_model()
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
-                 num_samples: int = 64) -> list:
+                 num_samples: int = 64, birads: int = None) -> list:
 
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
@@ -475,6 +475,11 @@ class GANModel:
                     fixed_condition = torch.randint(
                         self.config.birads_min, self.config.birads_max + 1, (num_samples,), device=self.device
                     )
+                elif isinstance(fixed_condition, int):
+                    fixed_condition = torch.randint(
+                        fixed_condition, fixed_condition + 1, (num_samples,), device=self.device
+                    )
+                #print(f'Tensor with batch of BIRADS conditions = {fixed_condition}')
                 fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
                 fake = self.netG(fixed_noise).detach().cpu().numpy()
