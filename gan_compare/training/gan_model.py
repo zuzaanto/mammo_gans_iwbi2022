@@ -232,7 +232,7 @@ class GANModel:
         # Print the model
         print(self.netD)
 
-    def _netG_update(self, fake_images, fake_conditions):
+    def _netG_update(self, fake_images, fake_conditions, epoch: int):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
@@ -247,7 +247,7 @@ class GANModel:
             output = self.netD(fake_images).view(-1)
 
         # Calculate G's loss based on this output
-        errG = self._compute_loss(output, labels)
+        errG = self._compute_loss(output=output, label=labels, epoch=epoch)
 
         # Calculate gradients for G
         errG.backward()
@@ -260,19 +260,27 @@ class GANModel:
 
         return output, D_G_z2, errG
 
-    def _netD_update(self, real_images, fake_images, real_conditions=None, fake_conditions=None):
+    def _netD_update(self, real_images, fake_images, epoch: int, real_conditions=None, fake_conditions=None):
         ''' Update Discriminator network on real AND fake data. '''
 
         # Forward pass real batch through D
-        output_real, errD_real, D_x = self._netD_forward_backward_pass(real_images, self.real_label_float,
-                                                                       real_conditions, )
+        output_real, errD_real, D_x = self._netD_forward_backward_pass(
+            real_images,
+            self.real_label_float,
+            real_conditions,
+            epoch=epoch,
+        )
         # remove gradient only if fake_conditions is a torch tensor
         if fake_conditions is not None:
             fake_conditions = fake_conditions.detach()
 
         # Forward pass fake batch through D
-        output_fake, errD_fake, D_G_z1 = self._netD_forward_backward_pass(fake_images.detach(), self.fake_label_float,
-                                                                          fake_conditions, )
+        output_fake, errD_fake, D_G_z1 = self._netD_forward_backward_pass(
+            fake_images.detach(),
+            self.fake_label_float,
+            fake_conditions,
+            epoch=epoch,
+        )
 
         # Add the gradients from the all-real and all-fake batches
         errD = errD_real + errD_fake
@@ -282,7 +290,7 @@ class GANModel:
 
         return output_real, errD_real, D_x, output_fake, errD_fake, D_G_z1, errD
 
-    def _netD_forward_backward_pass(self, images, label_as_float, conditions):
+    def _netD_forward_backward_pass(self, images, label_as_float, conditions, epoch: int):
         ''' Forward and backward pass through discriminator network '''
         # Forward pass batch through D
         output = None
@@ -295,7 +303,7 @@ class GANModel:
         labels = torch.full((images.size(0),), label_as_float, dtype=torch.float, device=self.device)
 
         # Calculate loss on all-real batch
-        errD = self._compute_loss(output, labels)
+        errD = self._compute_loss(output=output, label=labels, epoch=epoch)
 
         # Calculate gradients for D in backward pass of real data batch
         errD.backward()
@@ -303,16 +311,28 @@ class GANModel:
 
         return output, errD, D_input
 
-    def _compute_loss(self, output, label):
+    def _compute_loss(self, output, label, epoch: int):
         if not hasattr(self, 'criterion') or self.criterion is None:
             # Initialize standard criterion. Note: Could be moved to config.
             self.criterion = nn.BCELoss()
-        if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
-            # Standard criterion defined above - i.e. Vanilla GAN's binary cross entropy (BCE) loss
-            return self.criterion(output, label)
+        if self.config.switch_loss_each_epoch:
+            # Note this design decision: switch_loss_each_epoch:bool=True overwrites use_lsgan_loss:bool=False
+            if epoch % 2 == 0:
+                # if epoch is even, we use BCE loss, if it is uneven, we use least square loss.
+                #print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} == 0 '
+                #      f'-> BCE loss.')
+                return self.criterion(output, label)
+            else:
+                #print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} != 0 '
+                #      f'-> LS loss.')
+                return 0.5 * torch.mean((output - label) ** 2)
         else:
-            # Least Square Loss - https://arxiv.org/abs/1611.04076
-            return 0.5 * torch.mean((output - label) ** 2)
+            if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
+                # Standard criterion defined above - i.e. Vanilla GAN's binary cross entropy (BCE) loss
+                return self.criterion(output, label)
+            else:
+                # Least Square Loss - https://arxiv.org/abs/1611.04076
+                return 0.5 * torch.mean((output - label) ** 2)
 
     def train(self):
 
@@ -407,10 +427,11 @@ class GANModel:
 
                 # Perform a forward backward training step for D with optimizer weight update for real and fake data
                 output_real, errD_real, D_x, output_fake_1, errD_fake, D_G_z1, errD = self._netD_update(
-                    real_images,
-                    fake_images,
-                    real_conditions,
-                    fake_conditions,
+                    real_images=real_images,
+                    fake_images=fake_images,
+                    epoch=epoch,
+                    real_conditions=real_conditions,
+                    fake_conditions=fake_conditions,
                 )
 
                 # After updating the discriminator, we now update the generator
@@ -419,7 +440,11 @@ class GANModel:
 
                 # Perform a forward backward training step for G with optimizer weight update including a second
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
-                output_fake_2, D_G_z2, errG = self._netG_update(fake_images, fake_conditions)
+                output_fake_2, D_G_z2, errG = self._netG_update(
+                    fake_images=fake_images,
+                    fake_conditions=fake_conditions,
+                    epoch=epoch,
+                )
 
                 # Calculate D's accuracy on the real data with real_label being = 1.
                 current_real_acc = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \

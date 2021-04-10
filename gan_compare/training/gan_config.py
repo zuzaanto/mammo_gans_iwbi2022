@@ -32,6 +32,9 @@ class GANConfig:
     # Whether to use least square loss
     use_lsgan_loss: bool = False
 
+    # Whether to switch the loss function (i.e. from ls to bce) on each epoch.
+    switch_loss_each_epoch: bool = False
+
     # Leakiness for ReLUs
     leakiness: float = 0.2
 
