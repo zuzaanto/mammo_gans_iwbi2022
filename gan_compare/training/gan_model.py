@@ -83,16 +83,17 @@ class GANModel:
         if self.model_name == "dcgan":
             if self.config.image_size == 64:
                 if self.config.conditional:
-                    from gan_compare.training.networks.dcgan.conditional_res64.discriminator import (
-                        Discriminator,
-                    )
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.conditional_res64.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.conditional_res64.discriminator import (
+                            Discriminator
+                        )
                     from gan_compare.training.networks.dcgan.conditional_res64.generator import (
                         Generator,
                     )
-
-                    assert (
-                            self.config.nc == 2
-                    ), "To use conditional input, change number of channels (nc) to 2."
 
                     self.netG = Generator(
                         nz=self.config.nz,
@@ -110,9 +111,15 @@ class GANModel:
                     ).to(self.device)
 
                 else:
-                    from gan_compare.training.networks.dcgan.res64.discriminator import (
-                        Discriminator,
-                    )
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.res64.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.res64.discriminator import (
+                            Discriminator,
+                        )
+
                     from gan_compare.training.networks.dcgan.res64.generator import (
                         Generator,
                     )
@@ -132,16 +139,18 @@ class GANModel:
 
             elif self.config.image_size == 128:
                 if self.config.conditional:
-                    from gan_compare.training.networks.dcgan.conditional_res128.discriminator import (
-                        Discriminator,
-                    )
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.conditional_res128.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.conditional_res128.discriminator import (
+                            Discriminator,
+                        )
+
                     from gan_compare.training.networks.dcgan.conditional_res128.generator import (
                         Generator,
                     )
-
-                    assert (
-                            self.config.nc == 2
-                    ), "To use conditional input, change number of channels (nc) to 2."
 
                     self.netG = Generator(
                         nz=self.config.nz,
@@ -159,9 +168,15 @@ class GANModel:
                     ).to(self.device)
 
                 else:
-                    from gan_compare.training.networks.dcgan.res128.discriminator import (
-                        Discriminator,
-                    )
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.res128.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.res128.discriminator import (
+                            Discriminator
+                        )
+
                     from gan_compare.training.networks.dcgan.res128.generator import (
                         Generator,
                     )
@@ -210,6 +225,16 @@ class GANModel:
             ).to(self.device)
         else:
             raise ValueError(f"Unknown model name: {self.model_name}")
+
+        # Check if channel size is correct
+        if self.config.conditional:
+            assert (
+                    self.config.nc == 2
+            ), "To use conditional input, change number of channels (nc) to 2."
+        else:
+            assert (
+                    self.config.nc == 1
+            ), "Without conditional input into GAN, change number of channels (nc) to 1."
 
         # Handle multi-gpu if desired
         if (self.device.type == "cuda") and (self.config.ngpu > 1):
