@@ -261,8 +261,8 @@ class GANModel:
         ''' Update Generator network: maximize log(D(G(z))) '''
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
-        # Here, the "real" label is needed, as the fake labels are "real" for generator cost
-        labels = torch.full((fake_images.size(0),), self.real_label_float, dtype=torch.float, device=self.device)
+        # Here, the "real" label is needed, as the fake labels are "real" for generator cost. label smoothing is False, as this option would penalize the generator less  the generator to
+        labels = torch.full((fake_images.size(0),), self._get_labels(smoothing=False).get('real'), dtype=torch.float, device=self.device)
 
         # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
         # The generator loss of the updated discriminator should be higher than the previous one.
@@ -291,7 +291,7 @@ class GANModel:
         # Forward pass real batch through D
         output_real, errD_real, D_x = self._netD_forward_backward_pass(
             real_images,
-            self.real_label_float,
+            self._get_labels().get('real'),
             real_conditions,
             epoch=epoch,
         )
@@ -302,7 +302,7 @@ class GANModel:
         # Forward pass fake batch through D
         output_fake, errD_fake, D_G_z1 = self._netD_forward_backward_pass(
             fake_images.detach(),
-            self.fake_label_float,
+            self._get_labels().get('fake'),
             fake_conditions,
             epoch=epoch,
         )
@@ -344,11 +344,11 @@ class GANModel:
             # Note this design decision: switch_loss_each_epoch:bool=True overwrites use_lsgan_loss:bool=False
             if epoch % 2 == 0:
                 # if epoch is even, we use BCE loss, if it is uneven, we use least square loss.
-                #print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} == 0 '
+                # print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} == 0 '
                 #      f'-> BCE loss.')
                 return self.criterion(output, label)
             else:
-                #print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} != 0 '
+                # print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} != 0 '
                 #      f'-> LS loss.')
                 return 0.5 * torch.mean((output - label) ** 2)
         else:
@@ -358,6 +358,16 @@ class GANModel:
             else:
                 # Least Square Loss - https://arxiv.org/abs/1611.04076
                 return 0.5 * torch.mean((output - label) ** 2)
+
+    def _get_labels(self, smoothing: bool = True):
+        # if enabled, let's smooth the labels for "real" (=1)
+        if self.config.use_one_sided_label_smoothing and smoothing:
+            smoothed_real_label: float = random.uniform(self.config.label_smoothing_start,
+                                                        self.config.label_smoothing_end)
+
+            print(f"smoothed_real_label = {smoothed_real_label}")
+            return {"real": smoothed_real_label, "fake": 0.0}
+        return {"real": 1.0, "fake": 0.0}
 
     def train(self):
 
@@ -377,10 +387,6 @@ class GANModel:
                 (self.config.batch_size,),
                 device=self.device,
             )
-
-        # Establish convention for real and fake labels during training
-        self.real_label_float: float = 1.0
-        self.fake_label_float: float = 0.0
 
         # Setup Adam optimizers for both G and D
         self.optimizerD = optim.Adam(

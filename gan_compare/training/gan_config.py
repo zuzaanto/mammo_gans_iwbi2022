@@ -15,8 +15,10 @@ class GANConfig:
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
     n_cond = birads_max + 1
 
-    # l2 regularization in discriminator
-    # value taken from here: https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
+    # l2 regularization in discriminator value taken from here:
+    # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
+    # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
+    # - https://arxiv.org/pdf/1701.00160.pdf
     weight_decay: float = 0.000005
 
     # Number of workers for dataloader
@@ -39,6 +41,15 @@ class GANConfig:
     # symmetry between discriminator and generator kernel size (=4). This symmetry can cause checkerboard effects as
     # it introduces blind spots for the discriminator as described in https://arxiv.org/pdf/1909.02062.pdf
     use_discriminator_kernel_size_6: bool = True
+
+    # Reduce the overconfidence of predictions of the discriminator for positive labels by replacing only the label
+    # for real images(=1) with a value smaller than 1 (described in https://arxiv.org/pdf/1701.00160.pdf) or with a
+    # value randomly drawn from an interval surrounding 1, e.g. (0.7,1.2) (described in
+    # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
+    use_one_sided_label_smoothing: bool = True
+    # Define the one-sided label smoothing interval for positive labels (real images) for D.
+    label_smoothing_start:float = 0.7
+    label_smoothing_end:float = 1.2
 
     # Leakiness for ReLUs
     leakiness: float = 0.2
