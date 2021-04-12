@@ -17,7 +17,7 @@ class GANConfig:
 
     # l2 regularization in discriminator
     # value taken from here: https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
-    weight_decay: float = 0.0005
+    weight_decay: float = 0.000005
 
     # Number of workers for dataloader
     workers: int = 2
@@ -26,7 +26,7 @@ class GANConfig:
     batch_size: int = 16
 
     # Spatial size of training images. All images will be resized to this
-    #   size using a transformer.
+    # size using a transformer.
     image_size: int = 64
 
     # Whether to use least square loss
@@ -34,6 +34,11 @@ class GANConfig:
 
     # Whether to switch the loss function (i.e. from ls to bce) on each epoch.
     switch_loss_each_epoch: bool = False
+
+    # Whether the discriminator kernel size should be changed from 4 to 6. D's kernel size of 6 does away with the
+    # symmetry between discriminator and generator kernel size (=4). This symmetry can cause checkerboard effects as
+    # it introduces blind spots for the discriminator as described in https://arxiv.org/pdf/1909.02062.pdf
+    use_discriminator_kernel_size_6: bool = True
 
     # Leakiness for ReLUs
     leakiness: float = 0.2

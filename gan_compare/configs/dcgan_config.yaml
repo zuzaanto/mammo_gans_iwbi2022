@@ -4,6 +4,7 @@ batch_size: 16
 image_size: 64
 use_lsgan_loss: False
 switch_loss_each_epoch: True
+use_discriminator_kernel_size_6: True
 leakiness: 0.2
 conditional: True
 num_epochs: 60
