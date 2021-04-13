@@ -14,7 +14,8 @@ class Generator(BaseGenerator):
         ngpu: int,
         leakiness: float = 0.2,
         bias: bool = False,
-        n_cond: int = 6
+        n_cond: int = 10,
+        is_condition_categorical: bool = False,
     ):
         super(Generator, self).__init__(
             nz=nz,
@@ -24,9 +25,17 @@ class Generator(BaseGenerator):
             leakiness=leakiness,
             bias=bias,
         )
+        # if is_condition_categorical is False, we model the condition as continous input to the network
+        self.is_condition_categorical = is_condition_categorical
+
+        # n_cond is only used if is_condition_categorical is True.
         self.num_embedding_input = n_cond
-        self.num_embedding_dimensions = 50 # standard would be dim(z), but we have atm a nn.Linear after
-        # nn.Embedding that upscales the dimension to self.nz. Using same value of num_embedding_dimensions in D and G.
+
+        # num_embedding_dimensions is only used if is_condition_categorical is True.
+        # num_embedding_dimensions standard would be dim(z), but atm we have a nn.Linear after
+        # nn.Embedding that upscales the dimension to self.nz. Using same value of num_embedding_dims in D and G.
+        self.num_embedding_dimensions = 50
+
         self.main = nn.Sequential(
             # input is Z, going into a convolution
             nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 16, 4, 1, 0, bias=self.bias),
@@ -65,19 +74,33 @@ class Generator(BaseGenerator):
             # target output dim of dense layer is: nz x 1 x 1
             # input is dimension of the embedding layer output
             nn.Linear(in_features=self.num_embedding_dimensions, out_features=self.nz),
-            # nn.BatchNorm2d(10*10),
+            # nn.BatchNorm1d(10*10),
+            nn.LeakyReLU(self.leakiness, inplace=True),
+        )
+        self.embed_nn_only_linear = nn.Sequential(
+            # target output dim of dense layer is: nz x 1 x 1
+            # input is dimension of the numbers of embedding
+            nn.Linear(in_features=1, out_features=self.nz),
+            # TODO Ablation: Test impact of BatchNorm1d here - how does it affect the conditional model performance?
+            nn.BatchNorm1d(self.nz),
             nn.LeakyReLU(self.leakiness, inplace=True),
         )
 
     def forward(self, rand_input, labels):
 
         # combining condition labels and input images via a new image channel
-        # e.g. condition -> int -> embedding -> fcl -> feature map -> concat with image -> conv layers..
-        # print(rand_input.size())
-        # print(labels.size())
-        embedded_labels = self.embed_nn(labels)
-        # print(embedded_labels.size())
+        if self.is_condition_categorical:
+            # e.g. condition -> int -> embedding -> fcl -> feature map -> concat with image -> conv layers..
+            embedded_labels = self.embed_nn(labels)
+        else:
+            # e.g. condition -> float -> fcl -> concat with image -> conv layers..
+            # If labels are continuous (not modelled as categorical), use floats instead of integers for labels.
+            # Also adjust dimensions to (16 x 1) as needed for input into linear layer
+            labels = labels.view(labels.size(0), -1).float()
+
+            # Embed the labels using only a linear layer and passing them as float i.e. continuous conditional input
+            embedded_labels = self.embed_nn_only_linear(labels)
+
         embedded_labels_with_random_noise_dim = embedded_labels.view(-1, 100, 1, 1)
-        # print(embedded_labels_with_random_noise_dim.size())
         x = torch.cat([rand_input, embedded_labels_with_random_noise_dim], 1)
         return self.main(x)

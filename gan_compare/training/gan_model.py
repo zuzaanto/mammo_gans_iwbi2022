@@ -101,6 +101,7 @@ class GANModel:
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
                         n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
                     ).to(self.device)
 
                     self.netD = Discriminator(
@@ -108,6 +109,7 @@ class GANModel:
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
                         n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
                     ).to(self.device)
 
                 else:
@@ -158,6 +160,7 @@ class GANModel:
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
                         n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
                     ).to(self.device)
 
                     self.netD = Discriminator(
@@ -165,6 +168,7 @@ class GANModel:
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
                         n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
                     ).to(self.device)
 
                 else:
@@ -262,7 +266,8 @@ class GANModel:
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
         # Here, the "real" label is needed, as the fake labels are "real" for generator cost. label smoothing is False, as this option would penalize the generator less  the generator to
-        labels = torch.full((fake_images.size(0),), self._get_labels(smoothing=False).get('real'), dtype=torch.float, device=self.device)
+        labels = torch.full((fake_images.size(0),), self._get_labels(smoothing=False).get('real'), dtype=torch.float,
+                            device=self.device)
 
         # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
         # The generator loss of the updated discriminator should be higher than the previous one.
@@ -360,12 +365,11 @@ class GANModel:
                 return 0.5 * torch.mean((output - label) ** 2)
 
     def _get_labels(self, smoothing: bool = True):
-        # if enabled, let's smooth the labels for "real" (=1)
+        # if enabled, let's smooth the labels for "real" (--> real !=1)
         if self.config.use_one_sided_label_smoothing and smoothing:
             smoothed_real_label: float = random.uniform(self.config.label_smoothing_start,
                                                         self.config.label_smoothing_end)
-
-            print(f"smoothed_real_label = {smoothed_real_label}")
+            # print(f"smoothed_real_label = {smoothed_real_label}")
             return {"real": smoothed_real_label, "fake": 0.0}
         return {"real": 1.0, "fake": 0.0}
 
@@ -416,7 +420,7 @@ class GANModel:
         # Training Loop
         print("Starting Training.. ")
         if self.config.conditional:
-            print("Training conditioned on BiRADS")
+            print(f"Training conditioned on BiRADS, as categorical variable(?):{self.config.is_condition_categorical}")
         # For each epoch
         for epoch in range(self.config.num_epochs):
             # For each batch in the dataloader

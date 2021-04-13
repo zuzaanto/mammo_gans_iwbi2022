@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+
 from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 
 class Discriminator(BaseDiscriminator):
     def __init__(
-        self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False, n_cond: int = 6
+            self, ndf: int, nc: int, ngpu: int, leakiness: float = 0.2, bias: bool = False, n_cond: int = 10,
+            is_condition_categorical: bool = False,
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,
@@ -15,8 +17,15 @@ class Discriminator(BaseDiscriminator):
             leakiness=leakiness,
             bias=bias,
         )
-        self.num_embedding_input = n_cond  # number of possible conditional values
-        self.num_embedding_dimensions = 50  # standard would probably be dim(z). Using same value in D and G.
+        # if is_condition_categorical is False, we model the condition as continuous input to the network
+        self.is_condition_categorical = is_condition_categorical
+
+        # n_cond is only used if is_condition_categorical is True.
+        self.num_embedding_input = n_cond
+
+        # num_embedding_dimensions is only used if is_condition_categorical is True.
+        self.num_embedding_dimensions = 50
+
         self.main = nn.Sequential(
             # input is (nc) x 128 x 128
             nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=6, stride=2, padding=2, bias=self.bias),

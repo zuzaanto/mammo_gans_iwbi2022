@@ -13,13 +13,16 @@ class GANConfig:
     split_birads_fours: bool = True
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
-    n_cond = birads_max + 1
+    n_cond: int = birads_max + 1
+
+    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
+    is_condition_categorical: bool = False
 
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
     # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
     # - https://arxiv.org/pdf/1701.00160.pdf
-    weight_decay: float = 0.000005
+    weight_decay: float = 5e-06 # 0.000005
 
     # Number of workers for dataloader
     workers: int = 2

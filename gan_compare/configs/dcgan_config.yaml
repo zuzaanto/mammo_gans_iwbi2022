@@ -4,10 +4,10 @@ batch_size: 16
 image_size: 128
 use_lsgan_loss: False
 switch_loss_each_epoch: False
-use_discriminator_kernel_size_6: True
+use_discriminator_kernel_size_6: False
 use_one_sided_label_smoothing: True
-split_birads_fours: False
+split_birads_fours: True
 leakiness: 0.2
-conditional: False
+conditional: True
 num_epochs: 60
 ngpu: 1
