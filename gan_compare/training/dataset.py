@@ -1,18 +1,15 @@
-from torch.utils.data import Dataset
-import torchvision.datasets as dset
-import torchvision
-import torch
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
-from gan_compare.data_utils.utils import load_inbreast_mask
-
-import pydicom as dicom
-from typing import Tuple
-from pathlib import Path
 import json
-import os.path
-import glob
+from pathlib import Path
+from typing import Tuple
+
 import cv2
 import numpy as np
+import pydicom as dicom
+import torch
+import torchvision
+from torch.utils.data import Dataset
+
+from gan_compare.data_utils.utils import load_inbreast_mask
 
 BIRADS_DICT = {
     "2": 1,
@@ -29,19 +26,42 @@ class InbreastDataset(Dataset):
     """Inbreast dataset."""
 
     def __init__(
-        self,
-        metadata_path: str,
-        crop: bool = True,
-        min_size: int = 160,
-        margin: int = 100,
-        final_shape: Tuple[int, int] = (400, 400),
-        conditional_birads: bool = False,
-        split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-        transform: any = None,
+            self,
+            metadata_path: str,
+            crop: bool = True,
+            min_size: int = 160,
+            margin: int = 100,
+            final_shape: Tuple[int, int] = (400, 400),
+            conditional_birads: bool = False,
+            split_birads_fours: bool = False,
+            # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
+            is_trained_on_calcifications: bool = False,
+            is_trained_on_masses: bool = True,
+            is_trained_on_other_roi_types: bool = False,
+            transform: any = None,
     ):
-        assert Path(metadata_path).is_file(), "Metadata not found"
+        assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
+        self.metadata = []
         with open(metadata_path, "r") as metadata_file:
-            self.metadata = json.load(metadata_file)
+            metadata_unfiltered = json.load(metadata_file)
+        assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
+            f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
+            f"at least one roi type. "
+        if is_trained_on_masses:
+            self.metadata.extend(
+                [metapoint for metapoint in metadata_unfiltered if metapoint['roi_type'] == 'Mass'])
+            print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+
+        if is_trained_on_calcifications:
+            self.metadata.extend(
+                [metapoint for metapoint in metadata_unfiltered if metapoint['roi_type'] == 'Calcification'])
+            print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+
+        if is_trained_on_other_roi_types:
+            self.metadata.extend(
+                [metapoint for metapoint in metadata_unfiltered if metapoint['roi_type'] == 'Other'])
+            print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
@@ -89,15 +109,22 @@ class InbreastDataset(Dataset):
         image_path = metapoint["image_path"]
         ds = dicom.dcmread(image_path)
         xml_filepath = metapoint["xml_path"]
+        expected_roi_type = metapoint["roi_type"]
         if xml_filepath != "":
             with open(xml_filepath, "rb") as patient_xml:
-                mask = load_inbreast_mask(patient_xml, ds.pixel_array.shape)
+                mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape, expected_roi_type=expected_roi_type)
+                try:
+                    mask = mask_list[0].get('mask')
+                except:
+                    print(
+                        f"Error when trying to mask_list[0].get('mask'). mask_list: {mask_list}, metapoint: {metapoint}")
         else:
             mask = np.zeros(ds.pixel_array.shape)
+            print(f"xml_filepath Error for metapoint: {metapoint}")
         image = self._convert_to_uint8(ds.pixel_array)
         mask = mask.astype("uint8")
         x, y, w, h = self._get_crops_around_mask(metapoint)
-        image, mask = image[y : y + h, x : x + w], mask[y : y + h, x : x + w]
+        image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
 
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)

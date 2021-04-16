@@ -63,6 +63,9 @@ if __name__ == "__main__":
         metadata_path=args.in_metadata_path,
         final_shape=(config.image_size, config.image_size),
         conditional_birads=config.conditional,
+        is_trained_on_masses= config.is_trained_on_masses,
+        is_trained_on_calcifications= config.is_trained_on_calcifications,
+        is_trained_on_other_roi_types= config.is_trained_on_other_roi_types,
     )
     dataloader = DataLoader(
         inbreast_dataset,

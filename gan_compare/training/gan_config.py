@@ -87,6 +87,15 @@ class GANConfig:
     # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
     discriminator_clf_threshold: float = 0.5
 
+    # Specify whether ROIs of masses should be included into GAN training
+    is_trained_on_masses: bool = True
+
+    # Specify whether ROIs of calcifications should be included into GAN training
+    is_trained_on_calcifications: bool = False
+
+    # Specify whether other ROI types (e.g. Assymetry, Distortion, etc) should be included into GAN training
+    is_trained_on_other_roi_types: bool = False
+
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
     def __post_init__(self):

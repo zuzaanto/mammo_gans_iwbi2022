@@ -1,17 +1,12 @@
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH
-from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list, read_csv
-
-from typing import Tuple
-from pathlib import Path
-import os.path
-import glob
-import cv2
-import numpy as np
-import pandas as pd
-import json
 import argparse
-from tqdm import tqdm
+import json
+
+import numpy as np
 import pydicom as dicom
+from tqdm import tqdm
+
+from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list, read_csv, generate_metapoints
+from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,36 +31,25 @@ if __name__ == "__main__":
         xml_filepath = INBREAST_XML_PATH / f"{image_id}.xml"
         if xml_filepath.is_file():
             with open(xml_filepath, "rb") as patient_xml:
-                mask = load_inbreast_mask(patient_xml, ds.pixel_array.shape)
+                # returns list of dictionaries, e.g. [{mask:mask1, roi_type:type1}, {mask:mask2, roi_type:type2}]
+                mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape)
         else:
-            mask = np.zeros(ds.pixel_array.shape)
+            mask_list = [{'mask': np.zeros(ds.pixel_array.shape), 'roi_type': ""}]
+            print(f'No xml file found. Please review why. Path: {xml_filepath}')
             xml_filepath = ""
-        # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
-        mask = np.ascontiguousarray(mask, dtype=np.uint8)
-        contours, hierarchy = cv2.findContours(
-            mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-        )
-        lesion_metapoints = []
-        # For each contour, generate a metapoint object including the bounding box as rectangle
-        for indx, c in enumerate(contours):
-            if c.shape[0] < 2:
-                continue
-            metapoint = {
-                "image_id": image_id,
-                "patient_id": patient_id,
-                "ACR": csv_metadata["ACR"],
-                "birads": csv_metadata["Bi-Rads"],
-                "laterality": csv_metadata["Laterality"],
-                "view": csv_metadata["View"],
-                "lesion_id": indx,
-                "bbox": cv2.boundingRect(c),
-                "image_path": str(image_path.resolve()),
-                "xml_path": str(xml_filepath.resolve()),
-                # "contour": c.tolist(),
-            }
-            lesion_metapoints.append(metapoint)
-        # Add the metapoint objects of each contour to our metadata list
-        metadata.extend(lesion_metapoints)
+
+        start_index: int = 0
+        for mask_dict in mask_list:
+            lesion_metapoints, idx = generate_metapoints(mask=mask_dict.get('mask'), image_id=image_id,
+                                                         patient_id=patient_id, csv_metadata=csv_metadata,
+                                                         image_path=image_path, xml_filepath=xml_filepath,
+                                                         roi_type=mask_dict.get('roi_type'),
+                                                         start_index=start_index,
+                                                         )
+            start_index = idx
+            # Add the metapoint objects of each contour to our metadata list
+            metadata.extend(lesion_metapoints)
+
     # Output metadata as json file to specified location on disk
     with open(args.output_path, "w") as outfile:
         json.dump(metadata, outfile, indent=4)

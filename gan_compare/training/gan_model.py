@@ -430,7 +430,7 @@ class GANModel:
                 # Reset the gradient of the discriminator of previous training iterations
                 self.netD.zero_grad()
 
-                # If the GAN has a conditional_res64 input, get condition (i.e. birads number) alongside data (=image batch)
+                # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
                 if self.config.conditional:
                     data, condition = data
 

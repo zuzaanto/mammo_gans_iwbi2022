@@ -7,6 +7,9 @@ switch_loss_each_epoch: False
 use_discriminator_kernel_size_6: False
 use_one_sided_label_smoothing: True
 split_birads_fours: True
+is_trained_on_masses: True
+is_trained_on_calcifications: True
+is_trained_on_other_roi_types: True
 leakiness: 0.2
 conditional: True
 num_epochs: 60
