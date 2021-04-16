@@ -67,6 +67,7 @@ if __name__ == "__main__":
             is_trained_on_masses=config.is_trained_on_masses,
             is_trained_on_calcifications=config.is_trained_on_calcifications,
             is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
+            is_condition_binary=config.is_condition_binary,
             # https://pytorch.org/vision/stable/transforms.html
             transform=transforms.Compose([
                 transforms.RandomHorizontalFlip(p=0.5),

@@ -99,12 +99,19 @@ class GANConfig:
     # Specify whether basic data augmentation methods should be applied to the GAN training data.
     is_training_data_augmented: bool = True
 
+    # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
+    is_condition_binary: bool = True
+
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
     def __post_init__(self):
         if self.conditional:
             self.nc = 2
-        if self.split_birads_fours:
+        if self.is_condition_binary:
+            self.birads_min = 0
+            self.birads_max = 1
+            self.n_cond = self.birads_max + 1
+        elif self.split_birads_fours:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1

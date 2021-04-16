@@ -38,6 +38,7 @@ class InbreastDataset(Dataset):
             is_trained_on_calcifications: bool = False,
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
+            is_condition_binary:bool = False,
             transform: any = None,
     ):
         assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
@@ -62,6 +63,7 @@ class InbreastDataset(Dataset):
                 [metapoint for metapoint in metadata_unfiltered if metapoint['roi_type'] == 'Other'])
             print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
+        self.is_condition_binary = is_condition_binary
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
@@ -69,6 +71,7 @@ class InbreastDataset(Dataset):
         self.conditional_birads = conditional_birads
         self.split_birads_fours = split_birads_fours
         self.transform = transform
+
 
     def __len__(self):
         # metadata contains a list of lesion objects (incl. patient id, bounding box, etc)
@@ -142,9 +145,13 @@ class InbreastDataset(Dataset):
         # print(sample)
         if self.transform:
             sample = self.transform(sample)
-
         if self.conditional_birads:
-            if self.split_birads_fours:
+            if self.is_condition_binary:
+                condition = metapoint["birads"][0]
+                if int(condition) <= 3:
+                    return sample, 0
+                return sample, 1
+            elif self.split_birads_fours:
                 condition = BIRADS_DICT[metapoint["birads"]]
             else:
                 condition = metapoint["birads"][
