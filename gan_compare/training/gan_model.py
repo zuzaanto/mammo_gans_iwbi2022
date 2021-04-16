@@ -543,7 +543,9 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
-            self._save_model(epoch)
+            if (epoch % 5 == 0 and epoch >= 50):
+                # Save on each 5th epoch starting at epoch 50.
+                self._save_model(epoch)
         self._save_model()
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
