@@ -1,17 +1,19 @@
 from __future__ import print_function
+
 import argparse
 import os
-import random
-import argparse
-from pathlib import Path
-import cv2
-from torch.utils.data import DataLoader
 from dataclasses import asdict
-from gan_compare.training.dataset import InbreastDataset
-from gan_compare.training.io import load_yaml
+from pathlib import Path
+
+import cv2
+import torchvision.transforms as transforms
 from dacite import from_dict
+from torch.utils.data import DataLoader
+
+from gan_compare.training.dataset import InbreastDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
+from gan_compare.training.io import load_yaml
 
 
 def parse_args() -> argparse.Namespace:
@@ -56,17 +58,37 @@ if __name__ == "__main__":
     config = from_dict(GANConfig, config_dict)
     print(asdict(config))
 
-    print(
-        "Loading dataset..."
-    )  # When we have more datasets implemented, we can specify which one(s) to load in config.
-    inbreast_dataset = InbreastDataset(
-        metadata_path=args.in_metadata_path,
-        final_shape=(config.image_size, config.image_size),
-        conditional_birads=config.conditional,
-        is_trained_on_masses= config.is_trained_on_masses,
-        is_trained_on_calcifications= config.is_trained_on_calcifications,
-        is_trained_on_other_roi_types= config.is_trained_on_other_roi_types,
-    )
+    # When we have more datasets implemented, we can specify which one(s) to load in config.
+    if config.is_training_data_augmented:
+        inbreast_dataset = InbreastDataset(
+            metadata_path=args.in_metadata_path,
+            final_shape=(config.image_size, config.image_size),
+            conditional_birads=config.conditional,
+            is_trained_on_masses=config.is_trained_on_masses,
+            is_trained_on_calcifications=config.is_trained_on_calcifications,
+            is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
+            # https://pytorch.org/vision/stable/transforms.html
+            transform=transforms.Compose([
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
+                # scale: min 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
+                transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
+                # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
+                # which is not present in the original images.
+                #transforms.RandomAffine(),
+            ]))
+    else:
+        inbreast_dataset = InbreastDataset(
+            metadata_path=args.in_metadata_path,
+            final_shape=(config.image_size, config.image_size),
+            conditional_birads=config.conditional,
+            is_trained_on_masses=config.is_trained_on_masses,
+            is_trained_on_calcifications=config.is_trained_on_calcifications,
+            is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
+        )
+    print(f"Loaded dataset {inbreast_dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}")
+
+
     dataloader = DataLoader(
         inbreast_dataset,
         batch_size=config.batch_size,

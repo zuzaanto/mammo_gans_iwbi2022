@@ -10,6 +10,7 @@ split_birads_fours: True
 is_trained_on_masses: True
 is_trained_on_calcifications: True
 is_trained_on_other_roi_types: True
+is_training_data_augmented: True
 leakiness: 0.2
 conditional: True
 num_epochs: 60

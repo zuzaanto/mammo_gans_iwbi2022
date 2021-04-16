@@ -96,6 +96,9 @@ class GANConfig:
     # Specify whether other ROI types (e.g. Assymetry, Distortion, etc) should be included into GAN training
     is_trained_on_other_roi_types: bool = False
 
+    # Specify whether basic data augmentation methods should be applied to the GAN training data.
+    is_training_data_augmented: bool = True
+
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
     def __post_init__(self):
