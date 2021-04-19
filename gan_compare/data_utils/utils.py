@@ -39,25 +39,25 @@ def load_inbreast_mask(
         # ROI type information i.e. either calcifications or masses
         roi_type = roi["Name"]
 
-        # Define the ROI types that we want marked as masses
-        roi_type_mass_definition_list = ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']
+        # Define the ROI types that we want marked as masses, map to lowercase
+        roi_type_mass_definition_list = list(map(lambda x:x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
 
-        # Define the ROI types that we want marked as calcifications
-        roi_type_calc_definition_list = ['Calcification', 'Calcifications', 'Cluster']
+        # Define the ROI types that we want marked as calcifications, map to lowercase
+        roi_type_calc_definition_list = list(map(lambda x:x.lower(),['Calcification', 'Calcifications', 'Cluster']))
 
         points = roi["Point_px"]
         assert numPoints == len(points)
         points = [eval(point) for point in points]
         if len(points) <= 2:
             for point in points:
-                if roi_type in roi_type_mass_definition_list:
+                if roi_type.lower() in roi_type_mass_definition_list:
                     mask_masses[int(point[1]), int(point[0])] = 1
-                elif roi_type in roi_type_calc_definition_list:
+                elif roi_type.lower() in roi_type_calc_definition_list:
                     mask_calcifications[int(point[1]), int(point[0])] = 1
                 else:
                     mask_other[int(point[1]), int(point[0])] = 1
                     # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
-                    #      f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
+                    # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
         else:
             x, y = zip(*points)
             col, row = np.array(x), np.array(
@@ -65,14 +65,14 @@ def load_inbreast_mask(
             )
             # x coord is the column coord in an image and y is the row
             poly_x, poly_y = polygon(row, col, shape=imshape)
-            if roi_type in roi_type_mass_definition_list:
+            if roi_type.lower() in roi_type_mass_definition_list:
                 mask_masses[poly_x, poly_y] = 1
-            elif roi_type in roi_type_calc_definition_list:
+            elif roi_type.lower() in roi_type_calc_definition_list:
                 mask_calcifications[poly_x, poly_y] = 1
             else:
                 mask_other[poly_x, poly_y] = 1
-                # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type
-                # 'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
+                # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
+                # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
 
     # If a specific expected roi type was provided, only return those. Else, return all possible pre-defined roi types.
     if expected_roi_type is None or expected_roi_type == 'Mass':
@@ -132,6 +132,6 @@ def generate_metapoints(mask, image_id, patient_id, csv_metadata, image_path, xm
             # "contour": c.tolist(),
         }
         start_index += 1
-        # print(f'patent= {patient_id}, start_index = {start_index}')
+        # print(f' patent = {patient_id}, start_index = {start_index}')
         lesion_metapoints.append(metapoint)
     return lesion_metapoints, start_index

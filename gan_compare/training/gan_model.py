@@ -420,7 +420,9 @@ class GANModel:
         # Training Loop
         print("Starting Training.. ")
         if self.config.conditional:
-            print(f"Training conditioned on BiRADS, as categorical variable(?): {self.config.is_condition_categorical}")
+            print(
+                f"Training conditioned on BiRADS"
+                f"{' as a continuous and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
             # For each batch in the dataloader
