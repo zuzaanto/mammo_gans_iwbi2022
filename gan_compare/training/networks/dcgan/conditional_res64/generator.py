@@ -70,7 +70,7 @@ class Generator(BaseGenerator):
             # target output dim of dense layer is: nz x 1 x 1
             # input is dimension of the embedding layer output
             nn.Linear(in_features=self.num_embedding_dimensions, out_features=self.nz),
-            # nn.BatchNorm2d(10*10),
+            # nn.BatchNorm1d(10*10),
             nn.LeakyReLU(self.leakiness, inplace=True),
         )
         self.embed_nn_only_linear = nn.Sequential(
