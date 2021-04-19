@@ -45,7 +45,9 @@ Note that you can change any parameters you want by passing the correct config y
 For LSGAN, only 64x64 is supported.
 For DCGAN, currently supported are 2 image sizes: 64x64 and 128x128.
 
-Note that you can use LS loss with DCGAN - for more details check the `gan_compare/training/gan_config.py`. Actually, 128x128 images will cause vanishing gradient in DCGAN, unless you use LS loss.
+Note that you can use LS loss with DCGAN - for more details check the `gan_compare/training/gan_config.py`. Actually, 128x128 images may cause vanishing gradient in DCGAN, unless you use LS loss.
+
+Note that you can condition the DCGAN training on BIRADS. BIRADS labels determine risk of malignancy and are assigned to each region of interest in the mammogram.
 
 #### Inference
 
@@ -55,8 +57,19 @@ python gan_compare.training.generate \
 --model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
 --model_checkpoint_dir MODEL_CHECKPOINT_DIR \ # Path to model checkpoint directory
 --model_checkpoint_path MODEL_CHECKPOINT_PATH \ # Path to model checkpoint .pt file (optional, by default takes model.pt file in model_checkpoint_dir)
---num_samples NUM_SAMPLES \ #How many samples to generate
+--num_samples NUM_SAMPLES \ #Number of samples to be generated
+--birads BIRADS \ #The BIRADS risk status (int, 1-6). Control sample generation using a cGAN conditioned on BIRADS.
 ```
+Note, that if the config.yaml of the model you use to generate samples was trained with the variable `split_birads_fours=True`, then the BIRADS conditions have been translated as follows: 
+`{
+    "2": 1,
+    "3": 2,
+    "4a": 3,
+    "4b": 4,
+    "4c": 5,
+    "5": 6,
+    "6": 7
+}`
 
 #### Peek through the dataset
 This script walks through your data directory and shows you InBreast images with overlayed ground-truth masks:
@@ -73,14 +86,14 @@ There is an additional folder for Jupyter notebooks oriented around better datas
 #### Visualize training on tensorboard
 Tensorboard is integrated to facilitate visual analysis of GAN losses, discriminator accuracy and model architecture. 
 During training, tensorboard writes some event logs that will later be used to generate the tensorboard visualizations. 
-By default, these logs are stored in `gan_compare/model_checkpoint/training_{TIMESTAMP}/{DIM}/visualization`
+By default, these logs are stored in `gan_compare/model_checkpoint/training_{TIMESTAMP}/visualization`
 
 To run tensorboard on localhost, adjust and run the following command:
 ```
-tensorboard --logdir=gan_compare/model_checkpoint/training_{TIMESTAMP}/{DIM}/visualization
+tensorboard --logdir=gan_compare/model_checkpoint/training_{TIMESTAMP}/visualization
 ```
 
 ## Future work
 
 1. [Interesting page](https://github.com/soumith/ganhacks) with a casual summary of GAN practical training knowledge, tips and tricks.
-2. An interesting [paper](https://arxiv.org/pdf/1606.03498.pdf) about improvements in training GANs, helping to - among all else - tackle mode collapse issue. (It's from 2016, so quite old, but seems still respected in the community, and wwas written by.. well, legendary people)
+2. An interesting [paper](https://arxiv.org/pdf/1606.03498.pdf) about improvements in training GANs, helping to - among all else - tackle mode collapse issue. (It's from 2016, so quite old, but seems still respected in the community, and was written by.. well, legendary people)

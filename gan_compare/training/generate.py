@@ -33,7 +33,10 @@ def parse_args() -> argparse.Namespace:
         help="Path to model checkpoint .pt file",
     )
     parser.add_argument(
-        "--num_samples", type=int, default=50, help="How many samples to generate"
+        "--num_samples",
+        type=int,
+        default=50,
+        help="How many samples to generate",
     )
     parser.add_argument(
         "--dont_show_images",
@@ -51,6 +54,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Directory to save the generated images in.",
     )
+    parser.add_argument(
+        "--birads", type=int, default=None,
+        help="Define the associated risk of malignancy (1-6) accroding to the Breast Imaging-Reporting and Data "
+             "System (BIRADS).",
+    )
     args = parser.parse_args()
     return args
 
@@ -58,6 +66,9 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     # Load model and config
+    assert (
+        Path(args.model_checkpoint_dir).is_dir()
+    ), f'The path to the model dir you provided does not point to a valid dir:{args.model_checkpoint_dir} '
     yaml_path = next(Path(args.model_checkpoint_dir).rglob("*.yaml"))  # i.e. "config.yaml")
     config_dict = load_yaml(path=yaml_path)
     config = from_dict(GANConfig, config_dict)
@@ -66,14 +77,36 @@ if __name__ == "__main__":
     model = GANModel(
         model_name=args.model_name,
         config=config,
-        dataloader=None
+        dataloader=None,
     )
 
+    if config.conditional is False and args.birads is not None:
+        print(
+            f'You want to generate ROIs with birads={args.birads}. Note that the GAN model you provided is not '
+            f'conditioned on BIRADS. Therefore, it will generate unconditional random samples.')
+        args.birads = None
+    elif config.conditional is True and args.birads is not None:
+        print(f'Conditional samples will be generate for BIRADS = {args.birads}.')
+
     if args.model_checkpoint_path is None:
-        args.model_checkpoint_path = next(Path(args.model_checkpoint_dir).rglob("*.pt"))  # i.e. "model.pt"
+        try:
+            args.model_checkpoint_path = next(Path(args.model_checkpoint_dir).rglob("*model.pt"))  # i.e. "model.pt"
+        except StopIteration:
+            try:
+                # As there is no model.pt file, let's try to get the last item of the iterator instead, i.e. "300.pt"
+                *_, args.model_checkpoint_path = Path(args.model_checkpoint_dir).rglob("*.pt")
+            except ValueError:
+                pass
+
+    # Let's validate the path to the model
+    assert (
+            args.model_checkpoint_path is not None and Path(args.model_checkpoint_path).is_file()
+    ), f'There seems to be no model file with extension .pt stored in the model_checkpoint_dir you provided: {args.model_checkpoint_dir}'
+
+    print(f'Using model retrieved from: {args.model_checkpoint_path}')
 
     img_list = model.generate(
-        model_checkpoint_path=args.model_checkpoint_path, num_samples=args.num_samples
+        model_checkpoint_path=args.model_checkpoint_path, num_samples=args.num_samples, fixed_condition=args.birads
     )
 
     # Show the images in interactive UI

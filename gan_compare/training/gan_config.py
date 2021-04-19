@@ -13,11 +13,16 @@ class GANConfig:
     split_birads_fours: bool = True
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
-    n_cond = birads_max + 1
+    n_cond: int = birads_max + 1
 
-    # l2 regularization in discriminator
-    # value taken from here: https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
-    weight_decay: float = 0.0005
+    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
+    is_condition_categorical: bool = False
+
+    # l2 regularization in discriminator value taken from here:
+    # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
+    # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
+    # - https://arxiv.org/pdf/1701.00160.pdf
+    weight_decay: float = 5e-06 # 0.000005
 
     # Number of workers for dataloader
     workers: int = 2
@@ -26,11 +31,28 @@ class GANConfig:
     batch_size: int = 16
 
     # Spatial size of training images. All images will be resized to this
-    #   size using a transformer.
+    # size using a transformer.
     image_size: int = 64
 
     # Whether to use least square loss
     use_lsgan_loss: bool = False
+
+    # Whether to switch the loss function (i.e. from ls to bce) on each epoch.
+    switch_loss_each_epoch: bool = False
+
+    # Whether the discriminator kernel size should be changed from 4 to 6. D's kernel size of 6 does away with the
+    # symmetry between discriminator and generator kernel size (=4). This symmetry can cause checkerboard effects as
+    # it introduces blind spots for the discriminator as described in https://arxiv.org/pdf/1909.02062.pdf
+    use_discriminator_kernel_size_6: bool = True
+
+    # Reduce the overconfidence of predictions of the discriminator for positive labels by replacing only the label
+    # for real images(=1) with a value smaller than 1 (described in https://arxiv.org/pdf/1701.00160.pdf) or with a
+    # value randomly drawn from an interval surrounding 1, e.g. (0.7,1.2) (described in
+    # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
+    use_one_sided_label_smoothing: bool = True
+    # Define the one-sided label smoothing interval for positive labels (real images) for D.
+    label_smoothing_start:float = 0.7
+    label_smoothing_end:float = 1.2
 
     # Leakiness for ReLUs
     leakiness: float = 0.2
@@ -65,12 +87,31 @@ class GANConfig:
     # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
     discriminator_clf_threshold: float = 0.5
 
-    output_model_dir: str = f"model_checkpoints/training_{time()}/{image_size}/"
+    # Specify whether ROIs of masses should be included into GAN training
+    is_trained_on_masses: bool = True
+
+    # Specify whether ROIs of calcifications should be included into GAN training
+    is_trained_on_calcifications: bool = False
+
+    # Specify whether other ROI types (e.g. Assymetry, Distortion, etc) should be included into GAN training
+    is_trained_on_other_roi_types: bool = False
+
+    # Specify whether basic data augmentation methods should be applied to the GAN training data.
+    is_training_data_augmented: bool = True
+
+    # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
+    is_condition_binary: bool = True
+
+    output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
     def __post_init__(self):
         if self.conditional:
             self.nc = 2
-        if self.split_birads_fours:
+        if self.is_condition_binary:
+            self.birads_min = 0
+            self.birads_max = 1
+            self.n_cond = self.birads_max + 1
+        elif self.split_birads_fours:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1

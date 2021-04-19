@@ -83,16 +83,17 @@ class GANModel:
         if self.model_name == "dcgan":
             if self.config.image_size == 64:
                 if self.config.conditional:
-                    from gan_compare.training.networks.dcgan.conditional.discriminator import (
-                        Discriminator,
-                    )
-                    from gan_compare.training.networks.dcgan.conditional.generator import (
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.conditional_res64.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.conditional_res64.discriminator import (
+                            Discriminator
+                        )
+                    from gan_compare.training.networks.dcgan.conditional_res64.generator import (
                         Generator,
                     )
-
-                    assert (
-                            self.config.nc == 2
-                    ), "To use conditional input, change number of channels (nc) to 2."
 
                     self.netG = Generator(
                         nz=self.config.nz,
@@ -100,6 +101,7 @@ class GANModel:
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
                         n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
                     ).to(self.device)
 
                     self.netD = Discriminator(
@@ -107,12 +109,19 @@ class GANModel:
                         nc=self.config.nc,
                         ngpu=self.config.ngpu,
                         n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
                     ).to(self.device)
 
                 else:
-                    from gan_compare.training.networks.dcgan.res64.discriminator import (
-                        Discriminator,
-                    )
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.res64.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.res64.discriminator import (
+                            Discriminator,
+                        )
+
                     from gan_compare.training.networks.dcgan.res64.generator import (
                         Generator,
                     )
@@ -131,27 +140,64 @@ class GANModel:
                     ).to(self.device)
 
             elif self.config.image_size == 128:
-                from gan_compare.training.networks.dcgan.res128.discriminator import (
-                    Discriminator,
-                )
-                from gan_compare.training.networks.dcgan.res128.generator import (
-                    Generator,
-                )
+                if self.config.conditional:
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.conditional_res128.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.conditional_res128.discriminator import (
+                            Discriminator,
+                        )
 
-                self.netD = Discriminator(
-                    ndf=self.config.ndf,
-                    nc=self.config.nc,
-                    ngpu=self.config.ngpu,
-                    leakiness=self.config.leakiness,
-                    bias=False,
-                ).to(self.device)
+                    from gan_compare.training.networks.dcgan.conditional_res128.generator import (
+                        Generator,
+                    )
 
-                self.netG = Generator(
-                    nz=self.config.nz,
-                    ngf=self.config.ngf,
-                    nc=self.config.nc,
-                    ngpu=self.config.ngpu,
-                ).to(self.device)
+                    self.netG = Generator(
+                        nz=self.config.nz,
+                        ngf=self.config.ngf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
+                    ).to(self.device)
+
+                    self.netD = Discriminator(
+                        ndf=self.config.ndf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        n_cond=self.config.n_cond,
+                        is_condition_categorical=self.config.is_condition_categorical,
+                    ).to(self.device)
+
+                else:
+                    if self.config.use_discriminator_kernel_size_6:
+                        from gan_compare.training.networks.dcgan.res128.discriminator_kernel6 import (
+                            Discriminator
+                        )
+                    else:
+                        from gan_compare.training.networks.dcgan.res128.discriminator import (
+                            Discriminator
+                        )
+
+                    from gan_compare.training.networks.dcgan.res128.generator import (
+                        Generator,
+                    )
+                    self.netD = Discriminator(
+                        ndf=self.config.ndf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                        leakiness=self.config.leakiness,
+                        bias=False,
+                    ).to(self.device)
+
+                    self.netG = Generator(
+                        nz=self.config.nz,
+                        ngf=self.config.ngf,
+                        nc=self.config.nc,
+                        ngpu=self.config.ngpu,
+                    ).to(self.device)
             else:
                 raise ValueError(
                     "Unsupported image size. Supported sizes are 128 and 64."
@@ -161,6 +207,9 @@ class GANModel:
             assert (
                     self.config.image_size == 64
             ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
+            assert (
+                self.config.conditional
+            ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
 
             from gan_compare.training.networks.lsgan.discriminator import Discriminator
             from gan_compare.training.networks.lsgan.generator import Generator
@@ -180,7 +229,18 @@ class GANModel:
             ).to(self.device)
         else:
             raise ValueError(f"Unknown model name: {self.model_name}")
-            # Handle multi-gpu if desired
+
+        # Check if channel size is correct
+        if self.config.conditional:
+            assert (
+                    self.config.nc == 2
+            ), "To use conditional input, change number of channels (nc) to 2."
+        else:
+            assert (
+                    self.config.nc == 1
+            ), "Without conditional input into GAN, change number of channels (nc) to 1."
+
+        # Handle multi-gpu if desired
         if (self.device.type == "cuda") and (self.config.ngpu > 1):
             self.netG = nn.DataParallel(self.netG, list(range(self.config.ngpu)))
         # Apply the weights_init function to randomly initialize all weights
@@ -201,12 +261,13 @@ class GANModel:
         # Print the model
         print(self.netD)
 
-    def _netG_update(self, fake_images, fake_conditions):
+    def _netG_update(self, fake_images, fake_conditions, epoch: int):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
-        # Here, the "real" label is needed, as the fake labels are "real" for generator cost
-        labels = torch.full((fake_images.size(0),), self.real_label_float, dtype=torch.float, device=self.device)
+        # Here, the "real" label is needed, as the fake labels are "real" for generator cost. label smoothing is False, as this option would penalize the generator less  the generator to
+        labels = torch.full((fake_images.size(0),), self._get_labels(smoothing=False).get('real'), dtype=torch.float,
+                            device=self.device)
 
         # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
         # The generator loss of the updated discriminator should be higher than the previous one.
@@ -216,7 +277,7 @@ class GANModel:
             output = self.netD(fake_images).view(-1)
 
         # Calculate G's loss based on this output
-        errG = self._compute_loss(output, labels)
+        errG = self._compute_loss(output=output, label=labels, epoch=epoch)
 
         # Calculate gradients for G
         errG.backward()
@@ -229,19 +290,27 @@ class GANModel:
 
         return output, D_G_z2, errG
 
-    def _netD_update(self, real_images, fake_images, real_conditions=None, fake_conditions=None):
+    def _netD_update(self, real_images, fake_images, epoch: int, real_conditions=None, fake_conditions=None):
         ''' Update Discriminator network on real AND fake data. '''
 
         # Forward pass real batch through D
-        output_real, errD_real, D_x = self._netD_forward_backward_pass(real_images, self.real_label_float,
-                                                                       real_conditions, )
+        output_real, errD_real, D_x = self._netD_forward_backward_pass(
+            real_images,
+            self._get_labels().get('real'),
+            real_conditions,
+            epoch=epoch,
+        )
         # remove gradient only if fake_conditions is a torch tensor
         if fake_conditions is not None:
             fake_conditions = fake_conditions.detach()
 
         # Forward pass fake batch through D
-        output_fake, errD_fake, D_G_z1 = self._netD_forward_backward_pass(fake_images.detach(), self.fake_label_float,
-                                                                          fake_conditions, )
+        output_fake, errD_fake, D_G_z1 = self._netD_forward_backward_pass(
+            fake_images.detach(),
+            self._get_labels().get('fake'),
+            fake_conditions,
+            epoch=epoch,
+        )
 
         # Add the gradients from the all-real and all-fake batches
         errD = errD_real + errD_fake
@@ -251,7 +320,7 @@ class GANModel:
 
         return output_real, errD_real, D_x, output_fake, errD_fake, D_G_z1, errD
 
-    def _netD_forward_backward_pass(self, images, label_as_float, conditions):
+    def _netD_forward_backward_pass(self, images, label_as_float, conditions, epoch: int):
         ''' Forward and backward pass through discriminator network '''
         # Forward pass batch through D
         output = None
@@ -264,7 +333,7 @@ class GANModel:
         labels = torch.full((images.size(0),), label_as_float, dtype=torch.float, device=self.device)
 
         # Calculate loss on all-real batch
-        errD = self._compute_loss(output, labels)
+        errD = self._compute_loss(output=output, label=labels, epoch=epoch)
 
         # Calculate gradients for D in backward pass of real data batch
         errD.backward()
@@ -272,16 +341,37 @@ class GANModel:
 
         return output, errD, D_input
 
-    def _compute_loss(self, output, label):
+    def _compute_loss(self, output, label, epoch: int):
         if not hasattr(self, 'criterion') or self.criterion is None:
             # Initialize standard criterion. Note: Could be moved to config.
             self.criterion = nn.BCELoss()
-        if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
-            # Standard criterion defined above - i.e. Vanilla GAN's binary cross entropy (BCE) loss
-            return self.criterion(output, label)
+        if self.config.switch_loss_each_epoch:
+            # Note this design decision: switch_loss_each_epoch:bool=True overwrites use_lsgan_loss:bool=False
+            if epoch % 2 == 0:
+                # if epoch is even, we use BCE loss, if it is uneven, we use least square loss.
+                # print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} == 0 '
+                #      f'-> BCE loss.')
+                return self.criterion(output, label)
+            else:
+                # print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} != 0 '
+                #      f'-> LS loss.')
+                return 0.5 * torch.mean((output - label) ** 2)
         else:
-            # Least Square Loss - https://arxiv.org/abs/1611.04076
-            return 0.5 * torch.mean((output - label) ** 2)
+            if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
+                # Standard criterion defined above - i.e. Vanilla GAN's binary cross entropy (BCE) loss
+                return self.criterion(output, label)
+            else:
+                # Least Square Loss - https://arxiv.org/abs/1611.04076
+                return 0.5 * torch.mean((output - label) ** 2)
+
+    def _get_labels(self, smoothing: bool = True):
+        # if enabled, let's smooth the labels for "real" (--> real !=1)
+        if self.config.use_one_sided_label_smoothing and smoothing:
+            smoothed_real_label: float = random.uniform(self.config.label_smoothing_start,
+                                                        self.config.label_smoothing_end)
+            # print(f"smoothed_real_label = {smoothed_real_label}")
+            return {"real": smoothed_real_label, "fake": 0.0}
+        return {"real": 1.0, "fake": 0.0}
 
     def train(self):
 
@@ -301,10 +391,6 @@ class GANModel:
                 (self.config.batch_size,),
                 device=self.device,
             )
-
-        # Establish convention for real and fake labels during training
-        self.real_label_float: float = 1.0
-        self.fake_label_float: float = 0.0
 
         # Setup Adam optimizers for both G and D
         self.optimizerD = optim.Adam(
@@ -334,7 +420,9 @@ class GANModel:
         # Training Loop
         print("Starting Training.. ")
         if self.config.conditional:
-            print("Training conditioned on BiRADS")
+            print(
+                f"Training conditioned on BiRADS"
+                f"{' as a continuous and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
             # For each batch in the dataloader
@@ -348,7 +436,7 @@ class GANModel:
                 if self.config.conditional:
                     data, condition = data
 
-                # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
+                # Format batch (fake and real), get images and, optionally, corresponding conditional_res64 GAN inputs
                 real_images = data.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
@@ -368,7 +456,7 @@ class GANModel:
                         (b_size,),
                         device=self.device,
                     )
-                    # Generate fake image batch with G (conditional)
+                    # Generate fake image batch with G (conditional_res64)
                     fake_images = self.netG(noise, fake_conditions)
                 else:
                     # Generate fake image batch with G (without condition)
@@ -376,10 +464,11 @@ class GANModel:
 
                 # Perform a forward backward training step for D with optimizer weight update for real and fake data
                 output_real, errD_real, D_x, output_fake_1, errD_fake, D_G_z1, errD = self._netD_update(
-                    real_images,
-                    fake_images,
-                    real_conditions,
-                    fake_conditions,
+                    real_images=real_images,
+                    fake_images=fake_images,
+                    epoch=epoch,
+                    real_conditions=real_conditions,
+                    fake_conditions=fake_conditions,
                 )
 
                 # After updating the discriminator, we now update the generator
@@ -388,7 +477,11 @@ class GANModel:
 
                 # Perform a forward backward training step for G with optimizer weight update including a second
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
-                output_fake_2, D_G_z2, errG = self._netG_update(fake_images, fake_conditions)
+                output_fake_2, D_G_z2, errG = self._netG_update(
+                    fake_images=fake_images,
+                    fake_conditions=fake_conditions,
+                    epoch=epoch,
+                )
 
                 # Calculate D's accuracy on the real data with real_label being = 1.
                 current_real_acc = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
@@ -452,11 +545,13 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
-            self._save_model(epoch)
+            if (epoch % 5 == 0 and epoch >= 50):
+                # Save on each 5th epoch starting at epoch 50.
+                self._save_model(epoch)
         self._save_model()
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
-                 num_samples: int = 64) -> list:
+                 num_samples: int = 64, birads: int = None) -> list:
 
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
@@ -475,6 +570,11 @@ class GANModel:
                     fixed_condition = torch.randint(
                         self.config.birads_min, self.config.birads_max + 1, (num_samples,), device=self.device
                     )
+                elif isinstance(fixed_condition, int):
+                    fixed_condition = torch.randint(
+                        fixed_condition, fixed_condition + 1, (num_samples,), device=self.device
+                    )
+                # print(f'Tensor with batch of BIRADS conditions = {fixed_condition}')
                 fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
                 fake = self.netG(fixed_noise).detach().cpu().numpy()
