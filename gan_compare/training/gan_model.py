@@ -81,131 +81,41 @@ class GANModel:
 
     def _create_network(self):
         if self.model_name == "dcgan":
-            if self.config.image_size == 64:
-                if self.config.conditional:
-                    if self.config.use_discriminator_kernel_size_6:
-                        from gan_compare.training.networks.dcgan.conditional_res64.discriminator_kernel6 import (
-                            Discriminator
-                        )
-                    else:
-                        from gan_compare.training.networks.dcgan.conditional_res64.discriminator import (
-                            Discriminator
-                        )
-                    from gan_compare.training.networks.dcgan.conditional_res64.generator import (
-                        Generator,
-                    )
+            print(f"self.config.kernel_size: {self.config.kernel_size}")
+            print(f"self.config.image_size: {self.config.image_size}")
 
-                    self.netG = Generator(
-                        nz=self.config.nz,
-                        ngf=self.config.ngf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond,
-                        is_condition_categorical=self.config.is_condition_categorical,
-                    ).to(self.device)
+            from gan_compare.training.networks.dcgan.discriminator import (
+                Discriminator
+            )
+            self.netD = Discriminator(
+                ndf=self.config.ndf,
+                nc=self.config.nc,
+                ngpu=self.config.ngpu,
+                image_size=self.config.image_size,
+                is_conditional=self.config.conditional,
+                n_cond=self.config.n_cond,
+                is_condition_categorical=self.config.is_condition_categorical,
+                kernel_size=self.config.kernel_size,
+            ).to(self.device)
 
-                    self.netD = Discriminator(
-                        ndf=self.config.ndf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond,
-                        is_condition_categorical=self.config.is_condition_categorical,
-                    ).to(self.device)
+            from gan_compare.training.networks.dcgan.generator import (
+                Generator
+            )
+            self.netG = Generator(
+                nz=self.config.nz,
+                ngf=self.config.ngf,
+                nc=self.config.nc,
+                ngpu=self.config.ngpu,
+                image_size=self.config.image_size,
+                is_conditional=self.config.conditional,
+                n_cond=self.config.n_cond,
+                is_condition_categorical=self.config.is_condition_categorical,
+            ).to(self.device)
 
-                else:
-                    if self.config.use_discriminator_kernel_size_6:
-                        from gan_compare.training.networks.dcgan.res64.discriminator_kernel6 import (
-                            Discriminator
-                        )
-                    else:
-                        from gan_compare.training.networks.dcgan.res64.discriminator import (
-                            Discriminator,
-                        )
-
-                    from gan_compare.training.networks.dcgan.res64.generator import (
-                        Generator,
-                    )
-
-                    self.netG = Generator(
-                        nz=self.config.nz,
-                        ngf=self.config.ngf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                    ).to(self.device)
-
-                    self.netD = Discriminator(
-                        ndf=self.config.ndf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                    ).to(self.device)
-
-            elif self.config.image_size == 128:
-                if self.config.conditional:
-                    if self.config.use_discriminator_kernel_size_6:
-                        from gan_compare.training.networks.dcgan.conditional_res128.discriminator_kernel6 import (
-                            Discriminator
-                        )
-                    else:
-                        from gan_compare.training.networks.dcgan.conditional_res128.discriminator import (
-                            Discriminator,
-                        )
-
-                    from gan_compare.training.networks.dcgan.conditional_res128.generator import (
-                        Generator,
-                    )
-
-                    self.netG = Generator(
-                        nz=self.config.nz,
-                        ngf=self.config.ngf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond,
-                        is_condition_categorical=self.config.is_condition_categorical,
-                    ).to(self.device)
-
-                    self.netD = Discriminator(
-                        ndf=self.config.ndf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                        n_cond=self.config.n_cond,
-                        is_condition_categorical=self.config.is_condition_categorical,
-                    ).to(self.device)
-
-                else:
-                    if self.config.use_discriminator_kernel_size_6:
-                        from gan_compare.training.networks.dcgan.res128.discriminator_kernel6 import (
-                            Discriminator
-                        )
-                    else:
-                        from gan_compare.training.networks.dcgan.res128.discriminator import (
-                            Discriminator
-                        )
-
-                    from gan_compare.training.networks.dcgan.res128.generator import (
-                        Generator,
-                    )
-                    self.netD = Discriminator(
-                        ndf=self.config.ndf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                        leakiness=self.config.leakiness,
-                        bias=False,
-                    ).to(self.device)
-
-                    self.netG = Generator(
-                        nz=self.config.nz,
-                        ngf=self.config.ngf,
-                        nc=self.config.nc,
-                        ngpu=self.config.ngpu,
-                    ).to(self.device)
-            else:
-                raise ValueError(
-                    "Unsupported image size. Supported sizes are 128 and 64."
-                )
         elif self.model_name == "lsgan":
             # only 64x64 image resolution will be supported
             assert (
-                    self.config.image_size == 64
+                self.config.image_size == 64
             ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
             assert (
                 self.config.conditional
@@ -220,6 +130,7 @@ class GANModel:
                 nc=self.config.nc,
                 ngpu=self.config.ngpu,
             ).to(self.device)
+
             self.netD = Discriminator(
                 ndf=self.config.ndf,
                 nc=self.config.nc,
@@ -227,6 +138,7 @@ class GANModel:
                 leakiness=self.config.leakiness,
                 bias=False,
             ).to(self.device)
+
         else:
             raise ValueError(f"Unknown model name: {self.model_name}")
 
@@ -243,29 +155,29 @@ class GANModel:
         # Handle multi-gpu if desired
         if (self.device.type == "cuda") and (self.config.ngpu > 1):
             self.netG = nn.DataParallel(self.netG, list(range(self.config.ngpu)))
-        # Apply the weights_init function to randomly initialize all weights
-        #  to mean=0, stdev=0.2.
+        # Apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
         self.netG.apply(weights_init)
 
-        # Print the model
+        # Print the generator model
         print(self.netG)
 
         # Handle multi-gpu if desired
         if (self.device.type == "cuda") and (self.config.ngpu > 1):
             self.netD = nn.DataParallel(self.netD, list(range(self.config.ngpu)))
 
-        # Apply the weights_init function to randomly initialize all weights
-        #  to mean=0, stdev=0.2.
+        # Apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
         self.netD.apply(weights_init)
 
-        # Print the model
+        # Print the discriminator model
         print(self.netD)
+
 
     def _netG_update(self, fake_images, fake_conditions, epoch: int):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
-        # Here, the "real" label is needed, as the fake labels are "real" for generator cost. label smoothing is False, as this option would penalize the generator less  the generator to
+        # Here, the "real" label is needed, as the fake labels are "real" for generator cost.
+        # label smoothing is False, as this option would decrease the loss of the generator.
         labels = torch.full((fake_images.size(0),), self._get_labels(smoothing=False).get('real'), dtype=torch.float,
                             device=self.device)
 
@@ -418,7 +330,7 @@ class GANModel:
         iters = 0
 
         # Training Loop
-        print("Starting Training.. ")
+        print(f"Starting Training.. Image size: {self.config.image_size}")
         if self.config.conditional:
             print(
                 f"Training conditioned on BiRADS"
@@ -487,8 +399,6 @@ class GANModel:
                 current_real_acc = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
                                    list(output_real.size())[0]
                 running_real_discriminator_accuracy += current_real_acc
-                # print("REAL found by D#: " + str(torch.sum(output_real > self.config.discriminator_clf_threshold).item()))
-                # print("REAL accuracy %: " + str(torch.sum(output_real > self.config.discriminator_clf_threshold).item() / list(output_real.size())[0]))
 
                 # Calculate D's accuracy on the fake data from G with fake_label being = 0.
                 # Note that we use the output_fake_1 and not output_fake_2, as 2 would be unfair,
@@ -496,8 +406,6 @@ class GANModel:
                 current_fake_acc = torch.sum(output_fake_1 < self.config.discriminator_clf_threshold).item() / \
                                    list(output_fake_1.size())[0]
                 running_fake_discriminator_accuracy += current_fake_acc
-                # print("FAKE found by D #: " + str(torch.sum(output_fake1 < self.config.discriminator_clf_threshold).item()))
-                # print("FAKE accuracy %: " + str(torch.sum(output_fake1 < self.config.discriminator_clf_threshold).item() / list(output_fake1.size())[0]))
 
                 # Save Losses for plotting later
                 G_losses.append(errG.item())
