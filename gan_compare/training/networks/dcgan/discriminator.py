@@ -36,105 +36,67 @@ class Discriminator(BaseDiscriminator):
         # The image size (supported params should be 128 or 64)
         self.image_size = image_size
 
+        stride = 2
+        padding = 2
+        if self.kernel_size == 4:
+            padding = 1
+        elif kernel_size != 6:
+            raise ValueError(f"Allowed kernel sizes are 6 and 4. You provided {self.kernel_size}. Please adjust.")
+
         if self.image_size == 128:
             self.ndf_input_main = self.ndf * 2
-            if self.kernel_size == 6:
-                self.first_layers = nn.Sequential(
-                    # input is (nc) x 128 x 128
-                    nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=6, stride=2, padding=2,
-                              bias=self.bias),
-                    nn.LeakyReLU(self.leakiness, inplace=True),
-                    # state size. (ndf) x 64 x 64
-                    nn.Conv2d(self.ndf, self.ndf * 2, kernel_size=6, stride=2, padding=2, bias=self.bias),
-                    nn.BatchNorm2d(self.ndf * 2),
-                    nn.LeakyReLU(self.leakiness, inplace=True),
-                )
-            elif self.kernel_size == 4:
-                self.first_layers = nn.Sequential(
-                    # input is (nc) x 128 x 128
-                    nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=4, stride=2, padding=1,
-                              bias=self.bias),
-                    nn.LeakyReLU(self.leakiness, inplace=True),
-                    # state size. (ndf) x 64 x 64
-                    nn.Conv2d(self.ndf, self.ndf * 2, 4, stride=2, padding=1, bias=self.bias),
-                    nn.BatchNorm2d(self.ndf * 2),
-                    nn.LeakyReLU(self.leakiness, inplace=True),
-                )
-            else:
-                raise ValueError(f"Allowed kernel sizes are 6 and 4. You provided {self.kernel_size}. Please adjust.")
+            self.first_layers = nn.Sequential(
+                # input is (nc) x 128 x 128
+                nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=self.kernel_size, stride=stride,
+                          padding=padding,
+                          bias=self.bias),
+                nn.LeakyReLU(self.leakiness, inplace=True),
+                # state size. (ndf) x 64 x 64
+                nn.Conv2d(self.ndf, self.ndf * 2, kernel_size=self.kernel_size, stride=stride, padding=padding,
+                          bias=self.bias),
+                nn.BatchNorm2d(self.ndf * 2),
+                nn.LeakyReLU(self.leakiness, inplace=True),
+            )
         elif self.image_size == 64:
             self.ndf_input_main = self.ndf
-            if self.kernel_size == 6:
-                self.first_layers = nn.Sequential(
-                    # input is (self.nc) x 64 x 64
-                    nn.Conv2d(self.nc, self.ndf, kernel_size=6, stride=2, padding=2, bias=self.bias),
-                    nn.LeakyReLU(leakiness, inplace=True),
-                )
-            elif self.kernel_size == 4:
-                self.first_layers = nn.Sequential(
-                    # input is (self.nc) x 64 x 64
-                    nn.Conv2d(self.nc, self.ndf, 4, 2, 1, bias=self.bias),
-                    nn.LeakyReLU(leakiness, inplace=True),
-                )
-            else:
-                raise ValueError(f"Allowed kernel sizes are 6 and 4. You provided {self.kernel_size}. Please adjust.")
+            self.first_layers = nn.Sequential(
+                # input is (self.nc) x 64 x 64
+                nn.Conv2d(self.nc, self.ndf, kernel_size=self.kernel_size, stride=stride, padding=padding,
+                          bias=self.bias),
+                nn.LeakyReLU(leakiness, inplace=True),
+            )
         else:
             raise ValueError(f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust.")
 
-        if self.kernel_size == 6:
-            self.main = nn.Sequential(
-                *self.first_layers.children(),
-                # state size. (ndf*2) x 32 x 32
-                nn.Conv2d(
-                    self.ndf_input_main, self.ndf_input_main * 2, kernel_size=6, stride=2, padding=2, bias=self.bias
-                ),
-                nn.BatchNorm2d(self.ndf_input_main * 2),
-                nn.LeakyReLU(self.leakiness, inplace=True),
-                # state size. (ndf*4) x 16 x 16
-                nn.Conv2d(
-                    self.ndf_input_main * 2, self.ndf_input_main * 4, kernel_size=6, stride=2, padding=2, bias=self.bias
-                ),
-                nn.BatchNorm2d(self.ndf_input_main * 4),
-                nn.LeakyReLU(self.leakiness, inplace=True),
-                # state size. (ndf*8) x 8 x 8
-                nn.Conv2d(
-                    self.ndf_input_main * 4, self.ndf_input_main * 8, kernel_size=6, stride=2, padding=2, bias=self.bias
-                ),
-                nn.BatchNorm2d(self.ndf_input_main * 8),
-                nn.LeakyReLU(self.leakiness, inplace=True),
-                # state size. (ndf*16) x 4 x 4
-                nn.Conv2d(self.ndf_input_main * 8, 1, kernel_size=6, stride=1, padding=1, bias=self.bias),
-                nn.Sigmoid(),
-                # state size. 1
-            )
-        elif self.kernel_size == 4:
-            self.main = nn.Sequential(
-                *self.first_layers.children(),
-                # state size. (ndf*2) x 32 x 32
-                nn.Conv2d(
-                    self.ndf_input_main, self.ndf_input_main * 2, 4, stride=2, padding=1, bias=self.bias
-                ),
-                nn.BatchNorm2d(self.ndf_input_main * 2),
-                nn.LeakyReLU(self.leakiness, inplace=True),
-                # state size. (ndf*4) x 16 x 16
-                nn.Conv2d(
-                    self.ndf_input_main * 2, self.ndf_input_main * 4, 4, stride=2, padding=1, bias=self.bias
-                ),
-                nn.BatchNorm2d(self.ndf_input_main * 4),
-                nn.LeakyReLU(self.leakiness, inplace=True),
-                # state size. (ndf*8) x 8 x 8
-                nn.Conv2d(
-                    self.ndf_input_main * 4, self.ndf_input_main * 8, 4, stride=2, padding=1, bias=self.bias
-                ),
-                nn.BatchNorm2d(self.ndf_input_main * 8),
-                nn.LeakyReLU(self.leakiness, inplace=True),
-                # state size. (ndf*16) x 4 x 4
-                nn.Conv2d(self.ndf_input_main * 8, 1, 4, stride=1, padding=0, bias=self.bias),
-                nn.Sigmoid(),
-                # state size. 1
-            )
-        else:
-            raise ValueError(f"Allowed kernel sizes are 6 and 4. You provided {self.kernel_size}. Please adjust.")
+        self.main = nn.Sequential(
+            *self.first_layers.children(),
+            # state size. (ndf*2) x 32 x 32
+            nn.Conv2d(
+                self.ndf_input_main, self.ndf_input_main * 2, kernel_size=self.kernel_size, stride=stride,
+                padding=padding, bias=self.bias
+            ),
+            nn.BatchNorm2d(self.ndf_input_main * 2),
+            nn.LeakyReLU(self.leakiness, inplace=True),
+            # state size. (ndf*4) x 16 x 16
+            nn.Conv2d(
+                self.ndf_input_main * 2, self.ndf_input_main * 4, kernel_size=self.kernel_size, stride=stride,
+                padding=padding, bias=self.bias
+            ),
+            nn.BatchNorm2d(self.ndf_input_main * 4),
+            nn.LeakyReLU(self.leakiness, inplace=True),
+            # state size. (ndf*8) x 8 x 8
+            nn.Conv2d(
+                self.ndf_input_main * 4, self.ndf_input_main * 8, kernel_size=self.kernel_size, stride=stride,
+                padding=padding, bias=self.bias
+            ),
+            nn.BatchNorm2d(self.ndf_input_main * 8),
+            nn.LeakyReLU(self.leakiness, inplace=True),
+            # state size. (ndf*16) x 4 x 4
+            nn.Conv2d(self.ndf_input_main * 8, 1, kernel_size=self.kernel_size, stride=stride - 1, padding=padding - 1,
+                      bias=self.bias),
+            nn.Sigmoid(),
+            # state size. 1
+        )
 
         if self.is_condition_categorical:
             self.embed_nn = nn.Sequential(
