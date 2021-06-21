@@ -4,7 +4,7 @@ batch_size: 16
 image_size: 128
 use_lsgan_loss: False
 switch_loss_each_epoch: False
-use_discriminator_kernel_size_6: False
+kernel_size: 4
 use_one_sided_label_smoothing: True
 split_birads_fours: True
 is_trained_on_masses: True
@@ -13,6 +13,6 @@ is_trained_on_other_roi_types: True
 is_training_data_augmented: True
 is_condition_binary: True
 leakiness: 0.2
-conditional: True
+conditional: False
 num_epochs: 60
 ngpu: 1

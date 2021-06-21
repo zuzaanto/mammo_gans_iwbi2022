@@ -32,7 +32,7 @@ class GANConfig:
 
     # Spatial size of training images. All images will be resized to this
     # size using a transformer.
-    image_size: int = 64
+    image_size: int = 128
 
     # Whether to use least square loss
     use_lsgan_loss: bool = False
@@ -43,7 +43,7 @@ class GANConfig:
     # Whether the discriminator kernel size should be changed from 4 to 6. D's kernel size of 6 does away with the
     # symmetry between discriminator and generator kernel size (=4). This symmetry can cause checkerboard effects as
     # it introduces blind spots for the discriminator as described in https://arxiv.org/pdf/1909.02062.pdf
-    use_discriminator_kernel_size_6: bool = True
+    kernel_size: int = 6
 
     # Reduce the overconfidence of predictions of the discriminator for positive labels by replacing only the label
     # for real images(=1) with a value smaller than 1 (described in https://arxiv.org/pdf/1701.00160.pdf) or with a
@@ -101,6 +101,9 @@ class GANConfig:
 
     # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = True
+
+    # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
+    num_embedding_dimensions: int = 50
 
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
