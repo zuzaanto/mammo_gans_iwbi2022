@@ -95,6 +95,7 @@ class GANModel:
                 is_conditional=self.config.conditional,
                 n_cond=self.config.n_cond,
                 is_condition_categorical=self.config.is_condition_categorical,
+                num_embedding_dimensions=self.config.num_embedding_dimensions,
                 kernel_size=self.config.kernel_size,
             ).to(self.device)
 
@@ -110,6 +111,7 @@ class GANModel:
                 is_conditional=self.config.conditional,
                 n_cond=self.config.n_cond,
                 is_condition_categorical=self.config.is_condition_categorical,
+                num_embedding_dimensions=self.config.num_embedding_dimensions,
             ).to(self.device)
 
         elif self.model_name == "lsgan":

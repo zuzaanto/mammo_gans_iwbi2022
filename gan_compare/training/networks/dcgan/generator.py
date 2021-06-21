@@ -18,6 +18,7 @@ class Generator(BaseGenerator):
         bias: bool = False,
         n_cond: int = 10,
         is_condition_categorical: bool = False,
+        num_embedding_dimensions: int = 50
     ):
         super(Generator, self).__init__(
             nz=nz,
@@ -36,7 +37,7 @@ class Generator(BaseGenerator):
         # num_embedding_dimensions is only used if is_condition_categorical is True.
         # num_embedding_dimensions standard would be dim(z), but atm we have a nn.Linear after
         # nn.Embedding that upscales the dimension to self.nz. Using same value of num_embedding_dims in D and G.
-        self.num_embedding_dimensions = 50
+        self.num_embedding_dimensions = num_embedding_dimensions
 
         # whether the is a conditional input into the GAN i.e. cGAN
         self.is_conditional: bool = is_conditional

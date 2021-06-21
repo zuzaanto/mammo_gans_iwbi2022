@@ -8,7 +8,8 @@ from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 class Discriminator(BaseDiscriminator):
     def __init__(
             self, ndf: int, nc: int, ngpu: int, image_size: int, is_conditional: bool, leakiness: float = 0.2,
-            bias: bool = False, n_cond: int = 10, is_condition_categorical: bool = False, kernel_size: int = 6,
+            bias: bool = False, n_cond: int = 10, is_condition_categorical: bool = False,
+            num_embedding_dimensions: int = 50, kernel_size: int = 6,
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,
@@ -24,7 +25,7 @@ class Discriminator(BaseDiscriminator):
         self.num_embedding_input = n_cond
 
         # num_embedding_dimensions is only used if is_condition_categorical is True.
-        self.num_embedding_dimensions = 50
+        self.num_embedding_dimensions = num_embedding_dimensions
 
         # whether the is a conditional input into the GAN i.e. cGAN
         self.is_conditional: bool = is_conditional

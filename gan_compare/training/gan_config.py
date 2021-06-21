@@ -102,6 +102,9 @@ class GANConfig:
     # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = True
 
+    # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
+    num_embedding_dimensions: int = 50
+
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
     def __post_init__(self):
