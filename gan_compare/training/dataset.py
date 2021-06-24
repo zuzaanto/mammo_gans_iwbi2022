@@ -20,26 +20,27 @@ BIRADS_DICT = {
     "5": 6,
     "6": 7,
 }
-
+# TODO add option for shuffling in data from synthetic metadata file
 
 class InbreastDataset(Dataset):
     """Inbreast dataset."""
 
     def __init__(
-            self,
-            metadata_path: str,
-            crop: bool = True,
-            min_size: int = 160,
-            margin: int = 100,
-            final_shape: Tuple[int, int] = (400, 400),
-            conditional_birads: bool = False,
-            split_birads_fours: bool = False,
-            # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-            is_trained_on_calcifications: bool = False,
-            is_trained_on_masses: bool = True,
-            is_trained_on_other_roi_types: bool = False,
-            is_condition_binary:bool = False,
-            transform: any = None,
+        self,
+        metadata_path: str,
+        crop: bool = True,
+        min_size: int = 160,
+        margin: int = 100,
+        final_shape: Tuple[int, int] = (400, 400),
+        conditional_birads: bool = False,
+        split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
+        is_trained_on_calcifications: bool = False,
+        is_trained_on_masses: bool = True,
+        is_trained_on_other_roi_types: bool = False,
+        is_condition_binary:bool = False,
+        transform: any = None,
+        synthetic_metadata_path: str = None,
+        synthetic_shuffle_proportion: float = 0.5,
     ):
         assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
         self.metadata = []
@@ -71,6 +72,17 @@ class InbreastDataset(Dataset):
         self.conditional_birads = conditional_birads
         self.split_birads_fours = split_birads_fours
         self.transform = transform
+        self.synthetic_metadata = None
+        if synthetic_metadata_path is not None and synthetic_shuffle_proportion > 0:
+            assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
+            with open(synthetic_metadata_path, "r") as synth_metadata_file:
+                self.synthetic_metadata = json.load(synth_metadata_file)
+            num_of_metapoints = len(self.metadata)
+            num_of_synth_metapoints = round(len(self.metadata) * synthetic_shuffle_proportion)
+            if num_of_synth_metapoints > len(self.synthetic_metadata):
+                num_of_synth_metapoints = len(self.synthetic_metadata)
+                num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
+            self.metadata = random.sample(self.metadata, num_of_metapoints) + random.sample(self.synthetic_metadata, num_of_synth_metapoints)
 
 
     def __len__(self):
@@ -110,25 +122,24 @@ class InbreastDataset(Dataset):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
         image_path = metapoint["image_path"]
-        ds = dicom.dcmread(image_path)
-        xml_filepath = metapoint["xml_path"]
-        expected_roi_type = metapoint["roi_type"]
-        if xml_filepath != "":
-            with open(xml_filepath, "rb") as patient_xml:
-                mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape, expected_roi_type=expected_roi_type)
-                try:
-                    mask = mask_list[0].get('mask')
-                except:
-                    print(
-                        f"Error when trying to mask_list[0].get('mask'). mask_list: {mask_list}, metapoint: {metapoint}")
+        if ".png" in image_path:
+            # Synthetic images don't need cropping
+            image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            mask = np.zeros(image.shape)
+            mask = mask.astype("uint8")
         else:
-            mask = np.zeros(ds.pixel_array.shape)
-            print(f"xml_filepath Error for metapoint: {metapoint}")
-        image = self._convert_to_uint8(ds.pixel_array)
-        mask = mask.astype("uint8")
-        x, y, w, h = self._get_crops_around_mask(metapoint)
-        image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
-
+            ds = dicom.dcmread(image_path)
+            image = self._convert_to_uint8(ds.pixel_array)
+            xml_filepath = metapoint["xml_path"]
+            if xml_filepath != "":
+                with open(xml_filepath, "rb") as patient_xml:
+                    mask = load_inbreast_mask(patient_xml, image.shape)
+            else:
+                mask = np.zeros(image.shape)
+            
+            mask = mask.astype("uint8")
+            x, y, w, h = self._get_crops_around_mask(metapoint)
+            image, mask = image[y : y + h, x : x + w], mask[y : y + h, x : x + w]
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)

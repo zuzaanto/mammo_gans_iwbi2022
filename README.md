@@ -33,11 +33,11 @@ python -m gan_compare.scripts.create_metadata --output_path where/to/save/metada
 To start your DCGAN training, run:
 ```
 python -m gan_compare.training.train_gan \
---model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
+--model_name MODEL_NAME \ # Model name: supported: dcgan and lsgan
 --config_path CONFIG_PATH \ # Path to a yaml model config file
---save_dataset SAVE_DATASET \ #Indicating whether to generate and save a synthetic dataset
---out_dataset_path OUT_DATASET_PATH \ #Directory to save the dataset samples in.
---in_metadata_path IN_METADATA_PATH \ #Path to metadata json file.
+--save_dataset SAVE_DATASET \ # Indicating whether to generate and save a synthetic dataset
+--out_dataset_path OUT_DATASET_PATH \ # Directory to save the dataset samples in.
+--in_metadata_path IN_METADATA_PATH \ # Path to metadata json file.
 ```
 
 Note that you can change any parameters you want by passing the correct config yaml file. A sample and default config file can be found in `gan_compare/configs/dcgan_config.py`.
@@ -70,6 +70,31 @@ Note, that if the config.yaml of the model you use to generate samples was train
     "5": 6,
     "6": 7
 }`
+
+#### Train classifier
+To train a classifier using partially synthetic data, you first need to generate synthetic images and metadata:
+```
+python gan_compare/scripts/create_metadata_from_checkpoint.py \
+  --output_path OUTPUT_PATH \ # Path to json file to store metadata in.
+  --checkpoint_path CHECKPOINT_PATH \ # Path to model's checkpoint.
+  --generated_data_dir GENERATED_DATA_DIR \ # Directory to save generated images in.
+  --num_samples_per_class NUM_SAMPLES_PER_CLASS \ # Number of samples to generate per each class.
+  --model_config_path MODEL_CONFIG_PATH \ # Path to model config file.
+  --model_name MODEL_NAME # Model name.
+```
+You also need to split your original, real metadata into train, validation and test subsets:
+```
+python gan_compare/scripts/split_metadata.py \
+--metadata_path METADATA_PATH \ # Path to json file with metadata.
+[--train_proportion TRAIN_PROPORTION] \ # Proportion of train subset.
+[--val_proportion VAL_PROPORTION] \ # Proportion of val subset.
+--output_dir OUTPUT_DIR # Directory to save 3 new metadata files.
+```
+After that, you can train and evaluate the classifier as follows:
+```
+python gan_compare/scripts/classify.py \
+  --config_path CONFIG_PATH # Path to a yaml model config file
+```
 
 #### Peek through the dataset
 This script walks through your data directory and shows you InBreast images with overlayed ground-truth masks:

@@ -129,5 +129,5 @@ if __name__ == "__main__":
             img_path = args.out_images_path / f"{args.model_name}_{i}_{time()}.png"
             img_ = interval_mapping(img_.transpose(1, 2, 0), -1.0, 1.0, 0, 255)
             img_ = img_.astype("uint8")
-            cv2.imwrite(str(args.out_images_path.resolve()), img_)
+            cv2.imwrite(str(img_path.resolve()), img_)
         print(f"Saved generated images to {args.out_images_path.resolve()}")

@@ -7,3 +7,4 @@ visualisation/
 .idea
 .ipynb_checkpoints
 *.egg-info
+*.png

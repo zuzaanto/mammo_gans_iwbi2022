@@ -51,6 +51,9 @@ if __name__ == "__main__":
             metadata.extend(lesion_metapoints)
 
     # Output metadata as json file to specified location on disk
+    outpath = Path(args.output_path)
+    if not outpath.parent.exists():
+        os.makedirs(outpath.parent.resolve(), exist_ok=True)
     with open(args.output_path, "w") as outfile:
         json.dump(metadata, outfile, indent=4)
     print(f"Saved {len(metadata)} metapoints to {args.output_path}")
