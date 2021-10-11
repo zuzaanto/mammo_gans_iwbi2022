@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from time import time
+from typing import List
 
 
 @dataclass
@@ -51,8 +52,8 @@ class GANConfig:
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start:float = 0.7
-    label_smoothing_end:float = 1.2
+    label_smoothing_start: float = 0.7
+    label_smoothing_end: float = 1.2
 
     # Leakiness for ReLUs
     leakiness: float = 0.2
@@ -107,6 +108,8 @@ class GANConfig:
 
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
+    dataset_names: List[str] = field(default_factory=list)
+
     def __post_init__(self):
         if self.conditional:
             self.nc = 2
@@ -118,3 +121,4 @@ class GANConfig:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1
+        assert all(dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names)

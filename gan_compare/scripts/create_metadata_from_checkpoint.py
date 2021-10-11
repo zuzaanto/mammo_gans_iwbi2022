@@ -1,7 +1,7 @@
 from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH
 from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list, read_csv
 from gan_compare.training.io import load_yaml
-from gan_compare.training.dataset import BIRADS_DICT
+from gan_compare.dataset.constants import BIRADS_DICT
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.data_utils.utils import interval_mapping
@@ -91,6 +91,7 @@ if __name__ == "__main__":
                 "bbox": [0, 0, config.image_size, config.image_size],
                 "image_path": str(img_path.resolve()),
                 "xml_path": "",
+                "dataset": "synthetic",
             }
             metadata.append(metapoint)
             

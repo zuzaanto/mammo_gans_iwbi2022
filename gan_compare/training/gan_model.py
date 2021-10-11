@@ -341,7 +341,6 @@ class GANModel:
         for epoch in range(self.config.num_epochs):
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
-
                 # We start by updating the discriminator
                 # Reset the gradient of the discriminator of previous training iterations
                 self.netD.zero_grad()
@@ -350,8 +349,8 @@ class GANModel:
                 if self.config.conditional:
                     data, condition = data
 
-                # Format batch (fake and real), get images and, optionally, corresponding conditional_res64 GAN inputs
-                real_images = data.to(self.device)
+                # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
+                real_images = data[0].to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)
