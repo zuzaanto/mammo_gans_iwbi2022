@@ -83,7 +83,7 @@ if __name__ == "__main__":
             metapoint = {
                 "image_id": -i,
                 "patient_id": "synth",
-                "ACR": "-1",
+                "density": "-1",
                 "birads": str(birads_val),
                 "laterality": "synth",
                 "view": "synth",
