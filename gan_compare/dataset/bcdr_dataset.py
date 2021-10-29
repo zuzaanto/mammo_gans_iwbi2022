@@ -22,6 +22,7 @@ class BCDRDataset(BaseDataset):
         min_size: int = 160,
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
+        conditioned_on:str = None,
         conditional_birads: bool = False,
         split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         is_trained_on_calcifications: bool = False,
@@ -36,6 +37,7 @@ class BCDRDataset(BaseDataset):
             min_size=min_size,
             margin=margin,
             final_shape=final_shape,
+            conditioned_on = conditioned_on,
             conditional_birads=conditional_birads,
             split_birads_fours=split_birads_fours,
             is_trained_on_calcifications=is_trained_on_calcifications,

@@ -21,6 +21,7 @@ class InbreastDataset(BaseDataset):
         min_size: int = 160,
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
+        conditioned_on: str = None,
         conditional_birads: bool = False,
         split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         is_trained_on_calcifications: bool = False,
@@ -35,6 +36,7 @@ class InbreastDataset(BaseDataset):
             min_size=min_size,
             margin=margin,
             final_shape=final_shape,
+            conditioned_on = conditioned_on,
             conditional_birads=conditional_birads,
             split_birads_fours=split_birads_fours,
             is_trained_on_calcifications=is_trained_on_calcifications,
@@ -95,17 +97,34 @@ class InbreastDataset(BaseDataset):
         if self.transform:
             sample = self.transform(sample)
         if self.conditional_birads:
-            if self.is_condition_binary:
-                condition = metapoint["birads"][0]
-                if int(condition) <= 3:
-                    return sample, 0
-                return sample, 1
-            elif self.split_birads_fours:
-                condition = BIRADS_DICT[metapoint["birads"]]
-            else:
-                condition = metapoint["birads"][
-                    0
-                ]  # avoid 4c, 4b, 4a and just truncate them to 4
+            condition = self.resolve_and_get_condition()
             return sample, int(condition), image
-
         return sample, image
+
+    def resolve_and_get_condition(self):
+        condition = None
+        if self.conditional_birads:
+            if self.conditioned_on is "birads":
+                if self.is_condition_binary:
+                    condition = metapoint["birads"][0]
+                    if int(condition) <= 3:
+                        return sample, 0
+                    return sample, 1
+                elif self.split_birads_fours:
+                    condition = BIRADS_DICT[metapoint["birads"]]
+                else:
+                    condition = metapoint["birads"][
+                        0
+                    ]  # avoid 4c, 4b, 4a and just truncate them to 4
+                # TODO Shouldn't be here also be an evaluation of is_condition_categorical?
+            elif self.conditioned_on is "density":
+                if self.is_condition_binary:
+                    condition = metapoint["density"][0]
+                    if int(condition) <= 2:
+                        return sample, 0
+                    return sample, 1
+                elif self.is_condition_categorical:
+                    condition = metapoint["density"][0]  # 1-4
+                else: # return a value between 0 and 1
+                    condition: float = float(metapoint["density"][0])/4.
+        return condition

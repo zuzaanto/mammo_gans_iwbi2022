@@ -1,19 +1,19 @@
-birads_min: 2
-birads_max: 6
 batch_size: 16
 image_size: 128
 use_lsgan_loss: False
 switch_loss_each_epoch: False
 kernel_size: 4
 use_one_sided_label_smoothing: True
+conditioned_on: density
+conditional: False
+is_condition_binary: True
+is_condition_categorical: True
 split_birads_fours: True
 is_trained_on_masses: True
 is_trained_on_calcifications: False
 is_trained_on_other_roi_types: False
 is_training_data_augmented: True
-is_condition_binary: True
 leakiness: 0.2
-conditional: False
 num_epochs: 5
 ngpu: 1
 dataset_names: 

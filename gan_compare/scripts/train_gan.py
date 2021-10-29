@@ -70,16 +70,36 @@ if __name__ == "__main__":
             #transforms.RandomAffine(),
         ])
     for dataset_name in config.dataset_names:
-        dataset = DATASET_DICT[dataset_name](
-            metadata_path=args.in_metadata_path,
-            final_shape=(config.image_size, config.image_size),
-            conditional_birads=config.conditional,
-            is_trained_on_masses=config.is_trained_on_masses,
-            is_trained_on_calcifications=config.is_trained_on_calcifications,
-            is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
-            is_condition_binary=config.is_condition_binary,
-            # https://pytorch.org/vision/stable/transforms.html
-            transform=transform_to_use)
+        if config.is_training_data_augmented:
+            dataset = DATASET_DICT[dataset_name](
+                metadata_path=args.in_metadata_path,
+                final_shape=(config.image_size, config.image_size),
+                conditioned_on = conditioned_on,
+                conditional_birads=config.conditional,
+                is_trained_on_masses=config.is_trained_on_masses,
+                is_trained_on_calcifications=config.is_trained_on_calcifications,
+                is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
+                is_condition_binary=config.is_condition_binary,
+                # https://pytorch.org/vision/stable/transforms.html
+                transform=transforms.Compose([
+                    transforms.RandomHorizontalFlip(p=0.5),
+                    transforms.RandomVerticalFlip(p=0.5),
+                    # scale: min 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
+                    transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
+                    # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
+                    # which is not present in the original images.
+                    #transforms.RandomAffine(),
+                ]))
+        else:
+            dataset = DATASET_DICT[dataset_name](
+                metadata_path=args.in_metadata_path,
+                final_shape=(config.image_size, config.image_size),
+                conditioned_on=conditioned_on,
+                conditional_birads=config.conditional,
+                is_trained_on_masses=config.is_trained_on_masses,
+                is_trained_on_calcifications=config.is_trained_on_calcifications,
+                is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
+            )
         dataset_list.append(dataset)
     dataset = ConcatDataset(dataset_list)
 
