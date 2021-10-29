@@ -20,6 +20,7 @@ class BaseDataset(Dataset):
         min_size: int = 160,
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
+        conditioned_on: str = None,
         conditional_birads: bool = False,
         split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         is_trained_on_calcifications: bool = False,
@@ -32,6 +33,7 @@ class BaseDataset(Dataset):
         self.metadata = []
         with open(metadata_path, "r") as metadata_file:
             self.metadata_unfiltered = json.load(metadata_file)
+        self.conditioned_on = conditioned_on
         self.is_condition_binary = is_condition_binary
         self.crop = crop
         self.min_size = min_size

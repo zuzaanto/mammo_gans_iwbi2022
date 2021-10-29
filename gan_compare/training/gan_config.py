@@ -5,19 +5,6 @@ from typing import List
 
 @dataclass
 class GANConfig:
-    # Birads range
-    birads_min: int = 2
-    birads_max: int = 6
-
-    # Whether to train conditional GAN
-    conditional: bool = True
-    split_birads_fours: bool = True
-
-    # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
-    n_cond: int = birads_max + 1
-
-    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
-    is_condition_categorical: bool = False
 
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
@@ -100,25 +87,57 @@ class GANConfig:
     # Specify whether basic data augmentation methods should be applied to the GAN training data.
     is_training_data_augmented: bool = True
 
+    output_model_dir: str = f"model_checkpoints/training_{time()}/"
+
+    dataset_names: List[str] = field(default_factory=list)
+
+    ########## Start: Variables related to condition ###########
+    # Whether to train conditional GAN
+    conditional: bool = True
+
+    # We can condition on different variables such as breast density or birads status of lesion. Default = "density"
+    conditioned_on = "density"
+
+    if conditioned_on is "density":
+        # Density range (called "ACR" in InBreast)
+        condition_min = 1
+        condition_max = 4
+    elif conditioned_on is "birads":
+        # Birads range
+        condition_min: int = 2
+        condition_max: int = 6
+        split_birads_fours: bool = True
+
+    # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
+    n_cond: int = condition_max + 1
+
+    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
+    is_condition_categorical: bool = False
+
     # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = True
 
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50
 
-    output_model_dir: str = f"model_checkpoints/training_{time()}/"
+    ########## End: Variables related to condition ###########
 
-    dataset_names: List[str] = field(default_factory=list)
 
     def __post_init__(self):
         if self.conditional:
             self.nc = 2
-        if self.is_condition_binary:
-            self.birads_min = 0
-            self.birads_max = 1
-            self.n_cond = self.birads_max + 1
-        elif self.split_birads_fours:
-            self.birads_min = 1
-            self.birads_max = 7
-            self.n_cond = self.birads_max + 1
+            if self.is_condition_binary:
+                self.condition_min = 0
+                self.condition_max = 1
+            elif self.conditioned_on is "density":
+                self.condition_min = 1
+                self.condition_max = 4
+            elif self.conditioned_on is "birads":
+                if self.split_birads_fours:
+                    self.birads_min = 1
+                    self.birads_max = 7
+                else:
+                    self.condition_min = 2
+                    self.condition_max = 6
+            self.n_cond = self.condition_max + 1
         assert all(dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names)

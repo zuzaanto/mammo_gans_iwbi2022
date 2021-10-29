@@ -69,6 +69,7 @@ if __name__ == "__main__":
             dataset = DATASET_DICT[dataset_name](
                 metadata_path=args.in_metadata_path,
                 final_shape=(config.image_size, config.image_size),
+                conditioned_on = conditioned_on,
                 conditional_birads=config.conditional,
                 is_trained_on_masses=config.is_trained_on_masses,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
@@ -88,6 +89,7 @@ if __name__ == "__main__":
             dataset = DATASET_DICT[dataset_name](
                 metadata_path=args.in_metadata_path,
                 final_shape=(config.image_size, config.image_size),
+                conditioned_on=conditioned_on,
                 conditional_birads=config.conditional,
                 is_trained_on_masses=config.is_trained_on_masses,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
