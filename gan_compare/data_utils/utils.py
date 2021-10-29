@@ -146,7 +146,7 @@ def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image
         metapoint = {
             "image_id": image_id,
             "patient_id": patient_id,
-            "ACR": csv_metadata["ACR"],
+            "density": csv_metadata["ACR"],
             "birads": csv_metadata["Bi-Rads"],
             "laterality": csv_metadata["Laterality"],
             "view": csv_metadata["View"],
@@ -172,7 +172,7 @@ def generate_bcdr_metapoints(image_dir_path: Path, row_df: pd.Series):
     metapoint = {
         "image_id": row_df["study_id"],
         "patient_id": row_df["patient_id"],
-        "ACR": row_df["density"].strip(),
+        "density": row_df["density"].strip(),
         "birads": None,
         "laterality": laterality,
         "view": view,
