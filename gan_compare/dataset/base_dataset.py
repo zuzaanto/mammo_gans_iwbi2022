@@ -21,12 +21,13 @@ class BaseDataset(Dataset):
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
         conditioned_on: str = None,
-        conditional_birads: bool = False,
+        conditional: bool = False,
         split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         is_trained_on_calcifications: bool = False,
         is_trained_on_masses: bool = True,
         is_trained_on_other_roi_types: bool = False,
         is_condition_binary:bool = False,
+        is_condition_categorical:bool = False,
         transform: any = None,
     ):
         assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
@@ -35,11 +36,12 @@ class BaseDataset(Dataset):
             self.metadata_unfiltered = json.load(metadata_file)
         self.conditioned_on = conditioned_on
         self.is_condition_binary = is_condition_binary
+        self.is_condition_categorical = is_condition_categorical
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
         self.final_shape = final_shape
-        self.conditional_birads = conditional_birads
+        self.conditional = conditional
         self.split_birads_fours = split_birads_fours
         self.transform = transform
 

@@ -95,14 +95,22 @@ class GANConfig:
     # Whether to train conditional GAN
     conditional: bool = True
 
+    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
+    is_condition_categorical: bool = False
+
+    # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
+    is_condition_binary: bool = True
+
     # We can condition on different variables such as breast density or birads status of lesion. Default = "density"
     conditioned_on = "density"
 
-    if conditioned_on is "density":
+    if conditioned_on == "density":
         # Density range (called "ACR" in InBreast)
         condition_min = 1
         condition_max = 4
-    elif conditioned_on is "birads":
+        is_condition_categorical = False
+        is_condition_binary = False
+    elif conditioned_on == "birads":
         # Birads range
         condition_min: int = 2
         condition_max: int = 6
@@ -110,12 +118,6 @@ class GANConfig:
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
     n_cond: int = condition_max + 1
-
-    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
-    is_condition_categorical: bool = False
-
-    # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
-    is_condition_binary: bool = True
 
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50
@@ -129,10 +131,11 @@ class GANConfig:
             if self.is_condition_binary:
                 self.condition_min = 0
                 self.condition_max = 1
-            elif self.conditioned_on is "density":
+            elif self.conditioned_on == "density":
+                # Density range (called "ACR" in InBreast)
                 self.condition_min = 1
                 self.condition_max = 4
-            elif self.conditioned_on is "birads":
+            elif self.conditioned_on == "birads":
                 if self.split_birads_fours:
                     self.birads_min = 1
                     self.birads_max = 7

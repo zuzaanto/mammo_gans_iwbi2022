@@ -8,6 +8,14 @@ BIRADS_DICT = {
     "6": 7,
 }
 
+DENSITY_DICT = {
+    "1": 0.0,
+    "2": 0.33,
+    "3": 0.67,
+    "4": 1.0,
+    "N": 0.5, # TODO: Remove N here once fix from Zuzanna is available.
+}
+
 BCDR_SUBDIRECTORIES = {
     "d01": "BCDR-D01_dataset",
     "d02": "BCDR-D02_dataset",

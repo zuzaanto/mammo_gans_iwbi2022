@@ -69,8 +69,8 @@ if __name__ == "__main__":
             dataset = DATASET_DICT[dataset_name](
                 metadata_path=args.in_metadata_path,
                 final_shape=(config.image_size, config.image_size),
-                conditioned_on = conditioned_on,
-                conditional_birads=config.conditional,
+                conditioned_on=config.conditioned_on,
+                conditional=config.conditional,
                 is_trained_on_masses=config.is_trained_on_masses,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
                 is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
@@ -89,8 +89,8 @@ if __name__ == "__main__":
             dataset = DATASET_DICT[dataset_name](
                 metadata_path=args.in_metadata_path,
                 final_shape=(config.image_size, config.image_size),
-                conditioned_on=conditioned_on,
-                conditional_birads=config.conditional,
+                conditioned_on=config.conditioned_on,
+                conditional=config.conditional,
                 is_trained_on_masses=config.is_trained_on_masses,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
                 is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
@@ -98,9 +98,7 @@ if __name__ == "__main__":
         dataset_list.append(dataset)
     dataset = ConcatDataset(dataset_list)
 
-
     print(f"Loaded dataset {dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}")
-
 
     dataloader = DataLoader(
         dataset,
