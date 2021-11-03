@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+import logging
 
 from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
@@ -131,6 +132,7 @@ class Discriminator(BaseDiscriminator):
                 # Also adjust dimensions to (batch_size x 1) as needed for input into linear layer
                 # labels should already be of type float, no change expected in .float() conversion (it is only a safety check)
                 conditions = conditions.view(conditions.size(0), -1).float()
+            logging.debug(f'Conditions in discriminator: {conditions}')
             embedded_conditions = self.embed_nn(conditions)
             embedded_conditions_as_image_channel = embedded_conditions.view(-1, 1, self.image_size, self.image_size)
             x = torch.cat([x, embedded_conditions_as_image_channel], 1)
