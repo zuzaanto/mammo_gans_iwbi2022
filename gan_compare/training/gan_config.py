@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from time import time
 from typing import List
+from gan_compare.constants import DATASET_DICT
 
 
 @dataclass
@@ -121,4 +122,4 @@ class GANConfig:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1
-        assert all(dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names)
+        assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)

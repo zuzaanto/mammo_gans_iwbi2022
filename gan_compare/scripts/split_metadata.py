@@ -3,7 +3,10 @@ from pathlib import Path
 import json
 import argparse
 import numpy as np
-from typing import Tuple
+from typing import List, Tuple, Union
+from sklearn.model_selection import train_test_split
+import pandas as pd
+from gan_compare.constants import DENSITIES
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,32 +27,65 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def split_array_into_folds(metadata_array: np.ndarray, proportion: float) -> Tuple[np.ndarray]:
-    fold2_index = np.random.uniform(size=len(metadata_array)) > proportion
-    fold2 = metadata_array[fold2_index]
-    fold1 = metadata_array[~fold2_index]
+def split_df_into_folds(metadata_df: pd.DataFrame, proportion: float) -> Tuple[pd.DataFrame]:
+    fold2_index = np.random.uniform(size=len(metadata_df)) > proportion
+    fold2 = metadata_df[fold2_index]
+    fold1 = metadata_df[~fold2_index]
     return fold1, fold2
 
 
-def save_metadata_to_file(metadata_array: np.ndarray, out_path: Path) -> None:
-    if len(metadata_array) > 0:
+def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
+    if len(metadata_df) > 0:
         if not out_path.parent.exists():
             os.makedirs(out_path.parent)
         with open(str(out_path.resolve()), "w") as out_file:
-            json.dump(metadata_array.tolist(), out_file, indent=4)
+            json.dump(list(metadata_df.replace({np.nan:None}).T.to_dict().values()), out_file, indent=4)
             
+
+def split_array_into_folds(patients_list: np.ndarray, proportion: float) -> Tuple[np.ndarray]:
+    fold2_index = np.random.uniform(size=len(patients_list)) > proportion
+    fold2 = patients_list[fold2_index]
+    fold1 = patients_list[~fold2_index]
+    return fold1, fold2
+
 
 if __name__ == "__main__":
     args = parse_args()
     metadata = None
-    with open(args.metadata_path, "r") as metadata_file:
-        metadata = json.load(metadata_file)
-    print(f"Number of metapoints: {len(metadata)}")
-    # val_metadata = random.sample(metadata, int(args.split_metadata ** len(metadata))
-    metadata_array = np.array(metadata)
-    train_metadata, remaining_metadata = split_array_into_folds(metadata_array, args.train_proportion)
-    val_proportion_scaled = args.val_proportion / (1. - args.train_proportion)
-    val_metadata, test_metadata = split_array_into_folds(remaining_metadata, val_proportion_scaled)
+    metadata_df = pd.read_json(args.metadata_path)
+    print(f"Number of metapoints: {len(metadata_df)}")
+    # TODO add option to append existing metadata
+    train_metadata = pd.DataFrame([])
+    val_metadata = pd.DataFrame([])
+    test_metadata = pd.DataFrame([])
+    used_patients = []
+    for density in DENSITIES:
+        metadata_per_density = metadata_df[metadata_df.density == density]
+        patients = metadata_per_density.patient_id.unique()
+        train_patients_per_density, remaining_patients = split_array_into_folds(patients, args.train_proportion)
+        val_proportion_scaled = args.val_proportion / (1. - args.train_proportion)
+        val_patients_per_density, test_patients_per_density = split_array_into_folds(remaining_patients, val_proportion_scaled)
+
+        train_patients = train_patients_per_density.tolist()
+        val_patients = val_patients_per_density.tolist()
+        test_patients = test_patients_per_density.tolist()
+
+        for train_patient in train_patients:
+            if train_patient not in used_patients:
+                train_metadata = train_metadata.append(metadata_per_density[metadata_per_density.patient_id == train_patient])
+        used_patients.extend(train_patients)
+        for val_patient in val_patients:
+            if val_patient not in used_patients:
+                val_metadata = val_metadata.append(metadata_per_density[metadata_per_density.patient_id == val_patient])
+        used_patients.extend(val_patients)
+        for test_patient in test_patients:
+            if test_patient not in used_patients:
+                test_metadata = test_metadata.append(metadata_per_density[metadata_per_density.patient_id == test_patient])
+        used_patients.extend(test_patients)
+
+    # Some metapoints may not contain density label - we don't want them in any of the splits
+    assert (len(train_metadata) + len(val_metadata) + len(test_metadata)) < len(metadata_df)
+
     print(f"Split metadata into {len(train_metadata)}, {len(val_metadata)} and {len(test_metadata)} samples.")
     print("Saving..")
     out_dirpath = Path(args.output_dir)

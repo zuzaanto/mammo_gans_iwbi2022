@@ -1,5 +1,6 @@
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List
+from gan_compare.constants import DATASET_DICT
 
 
 @dataclass
@@ -22,6 +23,10 @@ class ClassifierConfig:
     birads_max: int = 6
 
     split_birads_fours: bool = True
+
+    # Whether to use synthetic data at all
+    use_synthetic: bool = True
+
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
     n_cond = birads_max + 1
@@ -47,10 +52,16 @@ class ClassifierConfig:
 
     out_checkpoint_path: str = "model_checkpoints//classifier/classifier.pt"
 
+    dataset_names: List[str] = field(default_factory=list)
+    
+    classes: str = "is_healthy"
+
     def __post_init__(self):
         if self.split_birads_fours:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1
+        assert self.classes in ["is_healthy", "birads"],  "Classifier currently supports either healthy vs unhealthy, or birads classification" # TODO Add ACR classification
         assert 1 >= self.train_shuffle_proportion >= 0, "Train shuffle proportion must be from <0,1> range"
         assert 1 >= self.validation_shuffle_proportion >= 0, "Validation shuffle proportion must be from <0,1> range"
+        assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)

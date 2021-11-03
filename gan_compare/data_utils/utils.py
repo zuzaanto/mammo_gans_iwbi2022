@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 from skimage.draw import polygon
 import random
-
+import pydicom as dicom
+from deprecation import deprecated
 from gan_compare.paths import INBREAST_IMAGE_PATH
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 
@@ -113,7 +114,7 @@ def read_csv(path: Union[Path, str], sep: chr = ";") -> pd.DataFrame:
     with open(path, "r") as csv_file:
         return pd.read_csv(csv_file, sep=sep)
 
-# obsolete
+@deprecated()
 def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
     """
     Note that this is just an assumption basing on radiologist's opinion, unconfirmed by actual biopsy!
@@ -130,8 +131,16 @@ def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
     return True
 
 
-def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image_path, xml_filepath, roi_type: str = "undefined",
-                        start_index: int = 0) -> Tuple[list, int]:
+def generate_inbreast_metapoints(
+    mask, 
+    image_id, 
+    patient_id, 
+    csv_metadata, 
+    image_path, 
+    xml_filepath, 
+    roi_type: str = "undefined",
+    start_index: int = 0,
+) -> Tuple[list, int]:
     # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
     mask = np.ascontiguousarray(mask, dtype=np.uint8)
     contours, hierarchy = cv2.findContours(
@@ -146,7 +155,7 @@ def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image
         metapoint = {
             "image_id": image_id,
             "patient_id": patient_id,
-            "ACR": csv_metadata["ACR"],
+            "density": csv_metadata["ACR"],
             "birads": csv_metadata["Bi-Rads"],
             "laterality": csv_metadata["Laterality"],
             "view": csv_metadata["View"],
@@ -165,14 +174,63 @@ def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image
     return lesion_metapoints, start_index
 
 
-def generate_bcdr_metapoints(image_dir_path: Path, row_df: pd.Series):
+def _random_crop(image: np.ndarray, size: int) -> Tuple[np.ndarray, List[int]]:
+    height, width = image.shape
+    ys = np.random.randint(0, height - size + 1)
+    xs = np.random.randint(0, width - size + 1)
+    image_crop = image[ys:ys+size, xs:xs+size]
+    return image_crop, [ys, xs, size, size]
+
+
+def generate_healthy_inbreast_metapoints(
+    image_id, 
+    patient_id, 
+    csv_metadata, 
+    image_path, 
+    per_image_count: int,
+    size: int,
+    bg_pixels_max_ratio: float = 0.4,
+    start_index: int = 0,
+) -> Tuple[list, int]:
+    lesion_metapoints = []
+    if int(csv_metadata["Bi-Rads"][:1]) == 1:
+        for _ in range(per_image_count):
+            img = dicom.dcmread(image_path).pixel_array
+            img_crop = np.zeros(shape=(size, size))
+            while cv2.countNonZero(img_crop) < bg_pixels_max_ratio * size * size:
+                img_crop, bbox = _random_crop(img, size)
+            metapoint = {
+                "healthy": True,
+                "image_id": image_id,
+                "patient_id": patient_id,
+                "density": csv_metadata["ACR"],
+                "birads": csv_metadata["Bi-Rads"],
+                "laterality": csv_metadata["Laterality"],
+                "view": csv_metadata["View"],
+                "lesion_id": csv_metadata["View"] + "_" + str(start_index),
+                "bbox": bbox,
+                "image_path": str(image_path.resolve()),
+                "xml_path": None,
+                "roi_type": "healthy",
+                "biopsy_proven_status": None,
+                "dataset": "inbreast",
+            }
+            start_index += 1
+            lesion_metapoints.append(metapoint)
+    return lesion_metapoints, start_index
+
+
+def generate_bcdr_metapoints(
+    image_dir_path: Path, 
+    row_df: pd.Series,
+):
     laterality, view = get_bcdr_laterality_and_view(row_df)
     if row_df["image_filename"][0] == " ":
         row_df["image_filename"] = row_df["image_filename"][1:]
     metapoint = {
         "image_id": row_df["study_id"],
         "patient_id": row_df["patient_id"],
-        "ACR": row_df["density"].strip(),
+        "density": row_df["density"].strip(),
         "birads": None,
         "laterality": laterality,
         "view": view,
@@ -181,15 +239,58 @@ def generate_bcdr_metapoints(image_dir_path: Path, row_df: pd.Series):
         "image_path": str((image_dir_path / row_df["image_filename"]).resolve()),
         "xml_path": None,
         "roi_type": get_bcdr_lesion_type(row_df),
-        "biobsy_proven_status": row_df["classification"].strip(),
+        "biopsy_proven_status": row_df["classification"].strip(),
         "dataset": "bcdr",
         "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
     }
     return metapoint
 
 
-def get_bcdr_laterality_and_view(row_df: pd.Series) -> Tuple[str]:
-    view_dict = BCDR_VIEW_DICT[row_df["image_view"]]
+def generate_healthy_bcdr_metapoints(
+    image_dir_path: Path, 
+    row_df: pd.Series,
+    per_image_count: int,
+    size: int,
+    start_index: int,
+    bg_pixels_max_ratio: float = 0.4,
+):
+    laterality, view = get_bcdr_laterality_and_view(row_df, healthy=True)
+    if row_df["image_filename"][0] == " ":
+        row_df["image_filename"] = row_df["image_filename"][1:]
+    image_path = str((image_dir_path / row_df["image_filename"]).resolve())
+    metapoints = []
+    for _ in range(per_image_count):
+        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        img_crop = np.zeros(shape=(size, size))
+        while cv2.countNonZero(img_crop) < bg_pixels_max_ratio * size * size:
+            img_crop, bbox = _random_crop(img, size)
+        metapoint = {
+            "healthy": True,
+            "image_id": row_df["study_id"],
+            "patient_id": row_df["patient_id"],
+            "density": row_df["density"],
+            "birads": None,
+            "laterality": laterality,
+            "view": view,
+            "lesion_id": f"{row_df['study_id']}_{start_index}",
+            "bbox": bbox,
+            "image_path": image_path,
+            "xml_path": None,
+            "roi_type": "healthy",
+            "biopsy_proven_status": None,
+            "dataset": "bcdr",
+            "contour": None,
+        }
+        metapoints.append(metapoint)
+        start_index += 1
+    return metapoints, start_index
+
+
+def get_bcdr_laterality_and_view(row_df: pd.Series, healthy: bool = False) -> Tuple[str]:
+    if healthy:
+        view_dict = BCDR_VIEW_DICT[row_df["image_type_id"] + 1]
+    else:
+        view_dict = BCDR_VIEW_DICT[row_df["image_view"]]
     return view_dict["laterality"], view_dict["view"]
 
 

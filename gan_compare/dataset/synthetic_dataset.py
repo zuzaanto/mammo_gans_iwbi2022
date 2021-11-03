@@ -1,9 +1,11 @@
-from typing import Tuple
+from os import stat
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 import pydicom as dicom
 import torch
+import random
 import torchvision
 
 from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8, get_crops_around_mask
@@ -28,8 +30,10 @@ class SyntheticDataset(BaseDataset):
         is_trained_on_other_roi_types: bool = False,
         is_condition_binary:bool = False,
         transform: any = None,
+        shuffle_proportion: Optional[int] = None,
+        current_length: Optional[int] = None,
     ):
-        super.__init__(
+        super().__init__(
             metadata_path=metadata_path,
             crop=crop,
             min_size=min_size,
@@ -43,13 +47,33 @@ class SyntheticDataset(BaseDataset):
             is_condition_binary=is_condition_binary,
             transform=transform,
         )
+        # TODO adjust along with synthetic metadata creation
+        self.metadata = self.metadata_unfiltered
+        assert len(self.metadata) > 0, "Empty synthetic metadata"
+        if shuffle_proportion is not None:
+            assert current_length is not None, "Cannot calculate expected dataset length without info of current dataset length"
+            missing_metadata_count = len(self.metadata) - self._calculate_expected_length(
+                current_length=current_length,
+                shuffle_proportion=shuffle_proportion
+            )
+            if missing_metadata_count > 0:
+                for idx in range(missing_metadata_count):
+                    self.metadata.append(random.choice(self.metadata))
+            elif missing_metadata_count < 0:
+                self.metadata = random.sample(self.metadata, len(self.metadata + missing_metadata_count))
+            print(current_length)
+            print(missing_metadata_count)
+            print(len(self.metadata))
 
+    @staticmethod
+    def _calculate_expected_length(current_length: int, shuffle_proportion: int) -> int:
+        return int(shuffle_proportion / (1 - shuffle_proportion) * current_length)
 
     def __getitem__(self, idx: int, to_save: bool = False):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
-        assert metapoint.get("dataset") == "synthetic", "Dataset name mismatch, you're using a wrong metadata file!"
+        # assert metapoint.get("dataset") == "synthetic", "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
         assert ".png" in image_path
         # Synthetic images don't need cropping

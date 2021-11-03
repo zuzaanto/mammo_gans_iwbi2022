@@ -13,6 +13,10 @@ BCDR_SUBDIRECTORIES = {
     "d02": "BCDR-D02_dataset",
 }
 
+BCDR_HEALTHY_SUBDIRECTORIES = {
+    "dn01": "BCDR-DN01_dataset",
+}
+
 BCDR_VIEW_DICT = {
     1: {"laterality": "R", "view": "CC"},
     2: {"laterality": "L", "view": "CC"},
