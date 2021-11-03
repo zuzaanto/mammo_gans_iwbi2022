@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+import logging
 
 from gan_compare.training.networks.base_generator import BaseGenerator
 
@@ -120,9 +121,8 @@ class Generator(BaseGenerator):
                 # If labels are continuous (not modelled as categorical), use floats instead of integers for labels.
                 # Also adjust dimensions to (batch_size x 1) as needed for input into linear layer
                 # labels should already be of type float, no change expected in .float() conversion (it is only a safety check)
-                print(f'1. Conditions in generator: {conditions}')
                 conditions = conditions.view(conditions.size(0), -1).float()
-                print(f'2. Conditions in generator: {conditions}')
+            logging.debug(f'Conditions in generator: {conditions}')
             embedded_conditions = self.embed_nn(conditions)
             embedded_conditions_with_random_noise_dim = embedded_conditions.view(-1, self.nz, 1, 1)
             x = torch.cat([x, embedded_conditions_with_random_noise_dim], 1)

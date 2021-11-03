@@ -1,18 +1,19 @@
 import glob
 import io
+import json
+import logging
 import plistlib
+import random
 from pathlib import Path
 from typing import Tuple, Union, List
-import json
 
 import cv2
 import numpy as np
 import pandas as pd
 from skimage.draw import polygon
-import random
 
+from gan_compare.dataset.constants import BCDR_VIEW_DICT, DENSITY_DICT, BIRADS_DICT, BCDR_BIRADS_DICT
 from gan_compare.paths import INBREAST_IMAGE_PATH
-from gan_compare.dataset.constants import BCDR_VIEW_DICT
 
 
 def load_inbreast_mask(
@@ -29,7 +30,7 @@ def load_inbreast_mask(
     in the roi are assigned a value of 1. e.g. [{mask:mask1, roi_type:type1}, {mask:mask2, roi_type:type2}]
     """
     mask_list = []
-    #mask = np.zeros(imshape)
+    # mask = np.zeros(imshape)
     mask_masses = np.zeros(imshape)
     mask_calcifications = np.zeros(imshape)
     mask_other = np.zeros(imshape)
@@ -44,10 +45,11 @@ def load_inbreast_mask(
         roi_type = roi["Name"]
 
         # Define the ROI types that we want marked as masses, map to lowercase
-        roi_type_mass_definition_list = list(map(lambda x:x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
+        roi_type_mass_definition_list = list(
+            map(lambda x: x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
 
         # Define the ROI types that we want marked as calcifications, map to lowercase
-        roi_type_calc_definition_list = list(map(lambda x:x.lower(),['Calcification', 'Calcifications', 'Cluster']))
+        roi_type_calc_definition_list = list(map(lambda x: x.lower(), ['Calcification', 'Calcifications', 'Cluster']))
 
         points = roi["Point_px"]
         assert numPoints == len(points)
@@ -71,13 +73,13 @@ def load_inbreast_mask(
             poly_x, poly_y = polygon(row, col, shape=imshape)
             if roi_type.lower() in roi_type_mass_definition_list:
                 mask_masses[poly_x, poly_y] = 1
-                #mask[poly_x, poly_y] = 1
+                # mask[poly_x, poly_y] = 1
             elif roi_type.lower() in roi_type_calc_definition_list:
                 mask_calcifications[poly_x, poly_y] = 1
-                #mask[poly_x, poly_y] = 1
+                # mask[poly_x, poly_y] = 1
             else:
                 mask_other[poly_x, poly_y] = 1
-                #mask[poly_x, poly_y] = 1
+                # mask[poly_x, poly_y] = 1
                 # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
                 # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
 
@@ -105,13 +107,14 @@ def interval_mapping(image, from_min, from_max, to_min, to_max):
     to_range = to_max - to_min
     # scale to interval [0,1]
     scaled = np.array((image - from_min) / float(from_range), dtype=float)
-    # multiply by range and add minimum to get interval [min,range+min]
+    # multiply by range and add minimum to get interval [minimum,range+minimum]
     return to_min + (scaled * to_range)
 
 
 def read_csv(path: Union[Path, str], sep: chr = ";") -> pd.DataFrame:
     with open(path, "r") as csv_file:
         return pd.read_csv(csv_file, sep=sep)
+
 
 # obsolete
 def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
@@ -130,8 +133,9 @@ def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
     return True
 
 
-def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image_path, xml_filepath, roi_type: str = "undefined",
-                        start_index: int = 0) -> Tuple[list, int]:
+def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image_path, xml_filepath,
+                                 roi_type: str = "undefined",
+                                 start_index: int = 0) -> Tuple[list, int]:
     # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
     mask = np.ascontiguousarray(mask, dtype=np.uint8)
     contours, hierarchy = cv2.findContours(
@@ -234,6 +238,7 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     )
     return img_n
 
+
 def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[int, int, int, int]:
     x, y, w, h = metapoint["bbox"]
     # pad the bbox
@@ -241,7 +246,7 @@ def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[
     y_p = max(0, y - margin // 2)
     w_p = w + margin
     h_p = h + margin
-    # make sure the bbox is bigger than min size
+    # make sure the bbox is bigger than minimum size
     if w_p < min_size:
         x_p = max(0, x - (min_size - w_p) // 2)
         w_p = min_size
@@ -250,8 +255,61 @@ def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[
         h_p = min_size
     return (x_p, y_p, w_p, h_p)
 
+
+def retrieve_condition(metapoint, conditioned_on: str, is_condition_binary: bool = False,
+                       is_condition_categorical: bool = False, split_birads_fours: bool = True):
+    condition = None
+    if conditioned_on == "birads":
+        try:
+            if is_condition_binary:
+                condition = metapoint["birads"][0]
+                if int(condition) <= 3:
+                    return 0
+                return 1
+            elif split_birads_fours:
+                condition = int(BIRADS_DICT[metapoint["birads"]])
+            else:
+                # avoid 4c, 4b, 4a and just truncate them to 4
+                condition = int(metapoint["birads"][0])
+        except Exception as e:
+            logging.debug(
+                f"Type Error while trying to extract birads. This could be due to birads field being None in "
+                f"BCDR dataset: {e}. Using biopsy_proven_status field instead as fallback.")
+            if is_condition_binary:
+                # TODO: Validate if this business logic is desired in experiment,
+                # TODO: e.g. biopsy proven 'Benign' is mapped to BIRADS 3 and Malignant to BIRADS 6
+                condition = BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]]
+                if int(condition) <= 3:
+                    return 0
+                return 1
+            elif split_birads_fours:
+                condition = int(BIRADS_DICT[str(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])])
+            else:
+                condition = int(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])
+        # We could also have evaluation of is_condition_categorical here if we want continuous birads not
+        # to be either 0 or 1 (0 or 1 is already provided by setting the is_condition_binary to true)
+    elif conditioned_on == "density":
+        if is_condition_binary:
+            condition = metapoint["density"][0]
+            # TODO Remove the 'N' comparison after Zuzanna's fix is available
+            if not condition == 'N' and int(float(condition)) <= 2:
+                return 0
+            return 1
+        elif is_condition_categorical:
+            condition = metapoint["density"][0]  # 1-4
+            # TODO Remove the 'N' comparison after Zuzanna's fix is available
+            if not condition == 'N':
+                return int(float(condition))
+            else:
+                return 3  # TODO This is wrong. Remove after Zuzanna's fix is available
+        else:  # return a value between 0 and 1 using the DENSITY_DICT.
+            condition: float = DENSITY_DICT[metapoint["density"][0]]
+    return condition
+
+
 # deprecated
-def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
+def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str,
+                                  synthetic_shuffle_proportion: float) -> List[dict]:
     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
     with open(synthetic_metadata_path, "r") as synth_metadata_file:
         synthetic_metadata = json.load(synth_metadata_file)
@@ -259,5 +317,6 @@ def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path:
     num_of_synth_metapoints = round(len(metadata) * synthetic_shuffle_proportion)
     if num_of_synth_metapoints > len(synthetic_metadata):
         num_of_synth_metapoints = len(synthetic_metadata)
-        num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
+        num_of_metapoints = round(
+            (1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)

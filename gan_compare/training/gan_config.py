@@ -5,12 +5,11 @@ from typing import List
 
 @dataclass
 class GANConfig:
-
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
     # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
     # - https://arxiv.org/pdf/1701.00160.pdf
-    weight_decay: float = 5e-06 # 0.000005
+    weight_decay: float = 5e-06  # 0.000005
 
     # Number of workers for dataloader
     workers: int = 2
@@ -102,19 +101,15 @@ class GANConfig:
     is_condition_binary: bool = True
 
     # We can condition on different variables such as breast density or birads status of lesion. Default = "density"
-    conditioned_on = "density"
+    conditioned_on: str = "density"
 
-    if conditioned_on == "density":
-        # Density range (called "ACR" in InBreast)
-        condition_min = 1
-        condition_max = 4
-        is_condition_categorical = False
-        is_condition_binary = False
-    elif conditioned_on == "birads":
-        # Birads range
-        condition_min: int = 2
-        condition_max: int = 6
-        split_birads_fours: bool = True
+    # the minimum possible value that the condition can have
+    condition_min: int = 1
+
+    # the maximum possible value that the condition can have
+    condition_max: int = 4
+
+    split_birads_fours: bool = True
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
     n_cond: int = condition_max + 1
@@ -123,7 +118,6 @@ class GANConfig:
     num_embedding_dimensions: int = 50
 
     ########## End: Variables related to condition ###########
-
 
     def __post_init__(self):
         if self.conditional:

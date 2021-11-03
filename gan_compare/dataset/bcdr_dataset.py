@@ -6,9 +6,8 @@ import scipy.ndimage as ndimage
 import torch
 import torchvision
 
-from gan_compare.data_utils.utils import get_crops_around_mask
+from gan_compare.data_utils.utils import get_crops_around_mask, retrieve_condition
 from gan_compare.dataset.base_dataset import BaseDataset
-from gan_compare.dataset.constants import BIRADS_DICT, DENSITY_DICT
 
 
 class BCDRDataset(BaseDataset):
@@ -23,13 +22,13 @@ class BCDRDataset(BaseDataset):
             final_shape: Tuple[int, int] = (400, 400),
             conditioned_on: str = None,
             conditional: bool = False,
+            is_condition_binary: bool = False,
             is_condition_categorical: bool = False,
             split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             is_trained_on_calcifications: bool = False,
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
-            is_condition_binary: bool = False,
             transform: any = None,
     ):
         super().__init__(
@@ -40,12 +39,12 @@ class BCDRDataset(BaseDataset):
             final_shape=final_shape,
             conditioned_on=conditioned_on,
             conditional=conditional,
+            is_condition_binary=is_condition_binary,
+            is_condition_categorical=is_condition_categorical,
             split_birads_fours=split_birads_fours,
             is_trained_on_calcifications=is_trained_on_calcifications,
             is_trained_on_masses=is_trained_on_masses,
             is_trained_on_other_roi_types=is_trained_on_other_roi_types,
-            is_condition_binary=is_condition_binary,
-            is_condition_categorical=is_condition_categorical,
             transform=transform,
         )
         assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
@@ -76,7 +75,7 @@ class BCDRDataset(BaseDataset):
             )
             print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
-    def __getitem__(self, idx: int, to_save: bool = False, is_image_returned:bool = False):
+    def __getitem__(self, idx: int, to_save: bool = False, is_image_returned: bool = False):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
@@ -103,7 +102,10 @@ class BCDRDataset(BaseDataset):
         if self.transform:
             sample = self.transform(sample)
         if self.conditional:
-            condition = self.resolve_and_get_condition(metapoint=metapoint)
+            condition = retrieve_condition(metapoint=metapoint, conditioned_on=self.conditioned_on,
+                                           is_condition_binary=self.is_condition_binary,
+                                           is_condition_categorical=self.is_condition_categorical,
+                                           split_birads_fours=self.split_birads_fours)
             if is_image_returned:
                 return sample, image, condition
             else:
@@ -113,32 +115,3 @@ class BCDRDataset(BaseDataset):
             return sample, image
         else:
             return sample
-
-    def resolve_and_get_condition(self, metapoint):
-        condition = None
-        if self.conditional:
-            if self.conditioned_on == "birads":
-                if self.is_condition_binary:
-                    condition = metapoint["birads"][0]
-                    if int(condition) <= 3:
-                        return 0
-                    return 1
-                elif self.split_birads_fours:
-                    condition = BIRADS_DICT[metapoint["birads"]]
-                else:
-                    condition = metapoint["birads"][
-                        0
-                    ]  # avoid 4c, 4b, 4a and just truncate them to 4
-                # We could also have evaluation of is_condition_categorical here if we want continuous birads not
-                # either 0 or 1 (0 or 1 is already provided by setting the is_condition_binary to true)
-            elif self.conditioned_on == "density":
-                if self.is_condition_binary:
-                    condition = metapoint["density"][0]
-                    if int(float(condition)) <= 2:
-                        return 0
-                    return 1
-                elif self.is_condition_categorical:
-                    condition = metapoint["density"][0]  # 1-4
-                else:  # return a value between 0 and 1 using the DENSITY_DICT.
-                    condition: float = DENSITY_DICT[metapoint["density"][0]]
-        return condition

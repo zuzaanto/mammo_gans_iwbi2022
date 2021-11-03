@@ -8,12 +8,17 @@ BIRADS_DICT = {
     "6": 7,
 }
 
+BCDR_BIRADS_DICT = {
+    "Benign": 3,
+    "Malign": 6,
+}
+
 DENSITY_DICT = {
     "1": 0.0,
     "2": 0.33,
     "3": 0.67,
     "4": 1.0,
-    "N": 0.5, # TODO: Remove N here once fix from Zuzanna is available.
+    "N": 0.5,  # TODO: Remove N here once fix from Zuzanna is available.
 }
 
 BCDR_SUBDIRECTORIES = {
@@ -25,5 +30,5 @@ BCDR_VIEW_DICT = {
     1: {"laterality": "R", "view": "CC"},
     2: {"laterality": "L", "view": "CC"},
     3: {"laterality": "R", "view": "MLO"},
-    4: {"laterality": "L", "view": "MLO"},    
+    4: {"laterality": "L", "view": "MLO"},
 }
