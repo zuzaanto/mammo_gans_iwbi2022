@@ -23,6 +23,7 @@ class BCDRDataset(BaseDataset):
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
         conditional_birads: bool = False,
+        classify_binary_healthy: bool = False,
         split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         is_trained_on_calcifications: bool = False,
         is_trained_on_masses: bool = True,
@@ -36,6 +37,7 @@ class BCDRDataset(BaseDataset):
             min_size=min_size,
             margin=margin,
             final_shape=final_shape,
+            classify_binary_healthy=classify_binary_healthy,
             conditional_birads=conditional_birads,
             split_birads_fours=split_birads_fours,
             is_trained_on_calcifications=is_trained_on_calcifications,
@@ -95,7 +97,6 @@ class BCDRDataset(BaseDataset):
         mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 
-        if self.transform:
-            sample = self.transform(sample)
+        if self.transform: sample = self.transform(sample)
 
         return sample, image

@@ -21,6 +21,7 @@ class BaseDataset(Dataset):
         margin: int = 100,
         final_shape: Tuple[int, int] = (400, 400),
         conditional_birads: bool = False,
+        classify_binary_healthy: bool = False,
         split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         is_trained_on_calcifications: bool = False,
         is_trained_on_masses: bool = True,
@@ -37,6 +38,7 @@ class BaseDataset(Dataset):
         self.min_size = min_size
         self.margin = margin
         self.final_shape = final_shape
+        self.classify_binary_healthy = classify_binary_healthy
         self.conditional_birads = conditional_birads
         self.split_birads_fours = split_birads_fours
         self.transform = transform
@@ -47,3 +49,21 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, idx: int):
         raise NotImplementedError
+
+    def determine_label(self, metapoint):
+        label = None
+        if self.classify_binary_healthy:
+            label = int(metapoint.get("healthy", False)) # label = 1 iff metapoint is healthy
+        elif self.conditional_birads:
+            if self.is_condition_binary:
+                condition = metapoint["birads"][0]
+                if int(condition) <= 3: label = 0
+                else: label = 1
+            elif self.split_birads_fours:
+                condition = BIRADS_DICT[metapoint["birads"]]
+                label = int(condition)
+            else:
+                condition = metapoint["birads"][0] # avoid 4c, 4b, 4a and just truncate them to 4
+                label = int(condition)
+        # else: None
+        return label

@@ -15,5 +15,3 @@ dataset_names:
 is_trained_on_calcifications: True
 image_size: 64
 classify_binary_healthy: True
-
-# TODO save this as another config yaml (classification_binary_healthy_config.yaml)

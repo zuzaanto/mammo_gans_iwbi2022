@@ -6,10 +6,10 @@ import torch
 def calc_all_scores(y_true, y_prob_logit, v_loss, run_type, epoch=None):
     y_prob = torch.exp(y_prob_logit) # probabilities of all classes for each sample
     _, y_pred = torch.max(y_prob, 1) # class prediction for each sample
-    v_loss = calc_loss(v_loss, run_type, epoch)
+    loss = calc_loss(v_loss, run_type, epoch)
     acc_score = calc_accuracy(y_true, y_pred, run_type, epoch)
     prec_rec_f1_scores = calc_prec_rec_f1_scores(y_true, y_pred, run_type, epoch)
-    return v_loss, acc_score, prec_rec_f1_scores
+    return loss, acc_score, prec_rec_f1_scores
 
 def calc_loss(v_loss, run_type, epoch=None):
     loss = np.mean(v_loss)
