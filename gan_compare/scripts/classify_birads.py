@@ -10,7 +10,6 @@ from dataclasses import asdict
 from gan_compare.training.io import load_yaml
 from dacite import from_dict
 from gan_compare.training.classifier_config import ClassifierConfig
-from gan_compare.training.networks.classification.classifier_64 import Net
 from torch.utils.data.dataset import ConcatDataset
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
 import torch.optim as optim
@@ -130,6 +129,10 @@ if __name__ == "__main__":
     )
     if not Path(config.out_checkpoint_path).parent.exists():
         os.makedirs(Path(config.out_checkpoint_path).parent.resolve(), exist_ok=True)
+
+    if config.image_size == 64: from gan_compare.training.networks.classification.classifier_64 import Net
+    elif config.image_size == 128: from gan_compare.training.networks.classification.classifier_128 import Net
+    else: raise ValueError("image_size must be either 64 or 128")
 
     net = Net(num_labels=config.n_cond)
 
