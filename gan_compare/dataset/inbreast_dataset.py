@@ -20,6 +20,8 @@ class InbreastDataset(BaseDataset):
             min_size: int = 160,
             margin: int = 100,
             final_shape: Tuple[int, int] = (400, 400),
+            classify_binary_healthy: bool = False,
+            conditional_birads: bool = False,
             conditioned_on: str = None,
             conditional: bool = False,
             is_condition_binary: bool = False,
@@ -41,6 +43,8 @@ class InbreastDataset(BaseDataset):
             conditional=conditional,
             is_condition_binary=is_condition_binary,
             is_condition_categorical=is_condition_categorical,
+            classify_binary_healthy=classify_binary_healthy,
+            conditional_birads=conditional_birads,
             split_birads_fours=split_birads_fours,
             is_trained_on_calcifications=is_trained_on_calcifications,
             is_trained_on_masses=is_trained_on_masses,
@@ -98,5 +102,5 @@ class InbreastDataset(BaseDataset):
 
         condition = None
         if self.transform: sample = self.transform(sample)
-        if self.conditional: condition = self.retrieve_condition(metapoint)
+        if self.conditional: condition = self.retrieve_condition(metapoint) # TODO there is some confusion about condition and label!
         return sample, condition, image

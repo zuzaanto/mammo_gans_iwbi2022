@@ -62,6 +62,7 @@ if __name__ == "__main__":
             DATASET_DICT[dataset_name](
             metadata_path=config.train_metadata_path,
             final_shape=(config.image_size, config.image_size),
+            classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
             transform=train_transform,
             # synthetic_metadata_path=config.synthetic_metadata_path,
@@ -72,6 +73,7 @@ if __name__ == "__main__":
             DATASET_DICT[dataset_name](
                 metadata_path=config.validation_metadata_path,
                 final_shape=(config.image_size, config.image_size),
+                classify_binary_healthy=config.classify_binary_healthy,
                 conditional_birads=True,
                 transform=val_transform,
                 # synthetic_metadata_path=config.synthetic_metadata_path,
@@ -82,6 +84,7 @@ if __name__ == "__main__":
             DATASET_DICT[dataset_name](
                 metadata_path=config.test_metadata_path,
                 final_shape=(config.image_size, config.image_size),
+                classify_binary_healthy=config.classify_binary_healthy,
                 conditional_birads=True,
                 transform=val_transform,
             )
@@ -94,6 +97,7 @@ if __name__ == "__main__":
         synth_train_images = SyntheticDataset(
             metadata_path=config.synthetic_metadata_path,
             final_shape=(config.image_size, config.image_size),
+            classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
@@ -103,6 +107,7 @@ if __name__ == "__main__":
         synth_val_images = SyntheticDataset(
             metadata_path=config.synthetic_metadata_path,
             final_shape=(config.image_size, config.image_size),
+            classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
             transform=val_transform,
             shuffle_proportion=config.train_shuffle_proportion,
@@ -144,7 +149,7 @@ if __name__ == "__main__":
         running_loss = 0.0
         for i, data in enumerate(train_dataloader, 0):
             # get the inputs; data is a list of [inputs, labels]
-            inputs, labels, _ = data
+            inputs, labels = data
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -167,7 +172,7 @@ if __name__ == "__main__":
             y_prob_logit = []
             net.eval()
             for i, data in enumerate(val_dataloader, 0):
-                images, labels, _ = data
+                images, labels = data
                 # print(images.size())
                 outputs = net(images)
                 _, predicted = torch.max(outputs.data, 1)
@@ -188,7 +193,7 @@ if __name__ == "__main__":
         test_loss = []
         net.eval()
         for i, data in enumerate(test_dataloader, 0):
-            images, labels, _ = data
+            images, labels = data
             # print(images.size())
             outputs = net(images)
             _, predicted = torch.max(outputs.data, 1)

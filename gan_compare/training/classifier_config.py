@@ -24,6 +24,9 @@ class ClassifierConfig:
 
     split_birads_fours: bool = True
 
+    # Whether to do binary classification of healthy/non-healthy patches
+    classify_binary_healthy: bool = False
+
     # Whether to use synthetic data at all
     use_synthetic: bool = True
 
@@ -57,7 +60,9 @@ class ClassifierConfig:
     classes: str = "is_healthy"
 
     def __post_init__(self):
-        if self.split_birads_fours:
+        if self.classify_binary_healthy:
+            self.n_cond = 2
+        elif self.split_birads_fours:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1

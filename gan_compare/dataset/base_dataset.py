@@ -22,6 +22,8 @@ class BaseDataset(Dataset):
         final_shape: Tuple[int, int] = (400, 400),
         conditioned_on: str = None,
         conditional: bool = False,
+        conditional_birads: bool = False,
+        classify_binary_healthy: bool = False,
         split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         is_trained_on_calcifications: bool = False,
         is_trained_on_masses: bool = True,
@@ -42,6 +44,8 @@ class BaseDataset(Dataset):
         self.margin = margin
         self.final_shape = final_shape
         self.conditional = conditional
+        self.classify_binary_healthy = classify_binary_healthy
+        self.conditional_birads = conditional_birads
         self.split_birads_fours = split_birads_fours
         self.transform = transform
 
@@ -56,16 +60,21 @@ class BaseDataset(Dataset):
         condition = None
         if self.conditioned_on == "birads":
             try:
-                if self.is_condition_binary:
-                    condition = metapoint["birads"][0]
-                    if int(condition) <= 3:
-                        return 0
-                    return 1
-                elif self.split_birads_fours:
-                    condition = int(BIRADS_DICT[metapoint["birads"]])
-                else:
-                    # avoid 4c, 4b, 4a and just truncate them to 4
-                    condition = int(metapoint["birads"][0])
+                label = None
+                if self.classify_binary_healthy:
+                    label = int(metapoint.get("healthy", False)) # label = 1 iff metapoint is healthy
+                    condition = label
+                elif self.conditional_birads:
+                    if self.is_condition_binary:
+                        condition = metapoint["birads"][0]
+                        if int(condition) <= 3: label = 0
+                        else: label = 1
+                    elif self.split_birads_fours:
+                        condition = BIRADS_DICT[metapoint["birads"]]
+                        label = int(condition)
+                    else:
+                        condition = metapoint["birads"][0] # avoid 4c, 4b, 4a and just truncate them to 4
+                        label = int(condition)
             except Exception as e:
                 logging.debug(
                     f"Type Error while trying to extract birads. This could be due to birads field being None in "
