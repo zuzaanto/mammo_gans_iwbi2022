@@ -12,6 +12,7 @@ from dacite import from_dict
 from gan_compare.training.classifier_config import ClassifierConfig
 from torch.utils.data.dataset import ConcatDataset
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
+from gan_compare.scripts.metrics import calc_all_scores
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.nn as nn
@@ -160,43 +161,42 @@ if __name__ == "__main__":
                 running_loss = 0.0
                 
         # validate
-        total = 0
-        correct = 0
         val_loss = []
         with torch.no_grad():
+            y_true = []
+            y_prob_logit = []
             net.eval()
             for i, data in enumerate(val_dataloader, 0):
-                images, labels = data
+                images, labels, _ = data
                 # print(images.size())
                 outputs = net(images)
                 _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
                 val_loss.append(criterion(outputs, labels))
+                y_true.append(labels)
+                y_prob_logit.append(outputs.data)
             val_loss = np.mean(val_loss)
             if val_loss < best_loss:
                 torch.save(net.state_dict(), config.out_checkpoint_path)
-            print(f"Accuracy in {epoch + 1} epoch: {100 * correct / total}")            
-            print(f'Loss in {epoch + 1} epoch: {val_loss}')            
+            calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
 
     print("Finished Training")
     print("Beginning test...")
-    total = 0
-    correct = 0
-    test_loss = []
     net.load_state_dict(torch.load(config.out_checkpoint_path))
     with torch.no_grad():
+        y_true = []
+        y_prob_logit = []
+        test_loss = []
         net.eval()
         for i, data in enumerate(test_dataloader, 0):
-            images, labels = data
+            images, labels, _ = data
             # print(images.size())
             outputs = net(images)
             _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
             test_loss.append(criterion(outputs, labels))
+            y_true.append(labels)
+            y_prob_logit.append(outputs.data)
         test_loss = np.mean(test_loss)
-        print(f'Test accuracy: {100 * correct / total}')            
-        print(f'Test loss: {test_loss}')            
+        calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), test_loss, "Test")
+        # output_ROC_curve(y_true, y_prob_logit, "Test")
     print("Finished testing.")
     print(f"Saved model state dict to {config.out_checkpoint_path}")
