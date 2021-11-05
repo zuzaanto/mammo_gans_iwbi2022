@@ -83,8 +83,8 @@ if __name__ == "__main__":
                     transforms.RandomHorizontalFlip(p=0.5),
                     transforms.RandomVerticalFlip(p=0.5),
                     # scale: minimum 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
-                    transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0),
-                                                 ratio=(0.75, 1.3333333333333333)),
+                    #transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0),
+                    #                             ratio=(0.75, 1.3333333333333333)),
                     # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
                     # which is not present in the original images.
                     # transforms.RandomAffine(),

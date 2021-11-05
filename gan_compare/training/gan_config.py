@@ -9,7 +9,7 @@ class GANConfig:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
     # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
     # - https://arxiv.org/pdf/1701.00160.pdf
-    weight_decay: float = 5e-06  # 0.000005
+    weight_decay: float = 0 #5e-06  # 0.000005
 
     # Number of workers for dataloader
     workers: int = 2
@@ -38,8 +38,8 @@ class GANConfig:
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.7
-    label_smoothing_end: float = 1.2
+    label_smoothing_start: float = 0.9
+    label_smoothing_end: float = 1.0
 
     # Leakiness for ReLUs
     leakiness: float = 0.2

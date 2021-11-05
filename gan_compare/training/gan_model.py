@@ -359,7 +359,7 @@ class GANModel:
         iters = 0
 
         # Training Loop
-        print(f"Starting Training.. Image size: {self.config.image_size}")
+        print(f"Starting Training on {self.device}.. Image size: {self.config.image_size}")
         if self.config.conditional:
             print(
                 f"Training conditioned on: {self.config.conditioned_on}"
