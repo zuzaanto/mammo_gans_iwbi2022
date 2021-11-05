@@ -374,10 +374,10 @@ class GANModel:
 
                 # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
                 if self.config.conditional:
-                    data, condition = data
+                    sample, condition = data
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = data.to(self.device)
+                real_images = sample.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)

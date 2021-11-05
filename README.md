@@ -117,6 +117,7 @@ To run tensorboard on localhost, adjust and run the following command:
 ```
 tensorboard --logdir=gan_compare/model_checkpoint/training_{TIMESTAMP}/visualization
 ```
+Note: if TensorBoard cannot find your event files, try using an absolute path for logdir.
 
 ## Future work
 

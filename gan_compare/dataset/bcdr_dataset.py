@@ -6,7 +6,7 @@ import scipy.ndimage as ndimage
 import torch
 import torchvision
 
-from gan_compare.data_utils.utils import get_crops_around_mask, retrieve_condition
+from gan_compare.data_utils.utils import get_crops_around_mask
 from gan_compare.dataset.base_dataset import BaseDataset
 
 
@@ -75,7 +75,7 @@ class BCDRDataset(BaseDataset):
             )
             print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
-    def __getitem__(self, idx: int, to_save: bool = False, is_image_returned: bool = False):
+    def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
@@ -99,19 +99,7 @@ class BCDRDataset(BaseDataset):
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 
-        if self.transform:
-            sample = self.transform(sample)
-        if self.conditional:
-            condition = retrieve_condition(metapoint=metapoint, conditioned_on=self.conditioned_on,
-                                           is_condition_binary=self.is_condition_binary,
-                                           is_condition_categorical=self.is_condition_categorical,
-                                           split_birads_fours=self.split_birads_fours)
-            if is_image_returned:
-                return sample, image, condition
-            else:
-                return sample, condition
-
-        if is_image_returned:
-            return sample, image
-        else:
-            return sample
+        condition = None
+        if self.transform: sample = self.transform(sample)
+        if self.conditional: condition = self.retrieve_condition(metapoint)
+        return sample, image, condition

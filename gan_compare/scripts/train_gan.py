@@ -120,10 +120,10 @@ if __name__ == "__main__":
             # print(dataset[i])
             # Plot some training images
             if config.conditional:
-                _, condition, image = dataset.__getitem__(i)
+                sample, condition = dataset.__getitem__(i)
                 cv2.imwrite(
                     str(output_dataset_dir / f"{i}_birads{condition}.png"),
-                    image,
+                    sample,
                 )
             else:
                 cv2.imwrite(
