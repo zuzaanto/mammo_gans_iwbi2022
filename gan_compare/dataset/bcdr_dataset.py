@@ -102,4 +102,4 @@ class BCDRDataset(BaseDataset):
         condition = None
         if self.transform: sample = self.transform(sample)
         if self.conditional: condition = self.retrieve_condition(metapoint)
-        return sample, image, condition
+        return sample, condition, image

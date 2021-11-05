@@ -373,8 +373,7 @@ class GANModel:
                 self.netD.zero_grad()
 
                 # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
-                if self.config.conditional:
-                    sample, condition = data
+                if self.config.conditional: sample, condition, _ = data
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
                 real_images = sample.to(self.device)
@@ -444,7 +443,7 @@ class GANModel:
                 if i % self.config.num_iterations_between_prints == 0:
                     print(
                         '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
-                        % (epoch, self.config.num_epochs, i, len(self.dataloader),
+                        % (epoch, self.config.num_epochs-1, i, len(self.dataloader),
                            errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
 
                     # Add loss scalars to tensorboard
