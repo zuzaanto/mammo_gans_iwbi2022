@@ -35,7 +35,7 @@ class UnitTests(unittest.TestCase):
 
         except IndexError:
             error_message = 'This did not work (IndexError: index out of range in self) because torch nn.Embedding ' \
-                            'start to count the num_embeddings at index 0 --> [0,max+1] --> nn.Embedding(max+1,dim) '
+                            'start to count the num_embeddings at index 0 --> [0,maximum+1] --> nn.Embedding(maximum+1,dim) '
             print(f"{error_message}")
 
     def test_torch_gpu_availability(self):

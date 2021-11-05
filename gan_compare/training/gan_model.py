@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import logging
 import os
 import random
 from pathlib import Path
@@ -24,6 +25,7 @@ from gan_compare.training.visualization import VisualizationUtils
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.dcgan.utils import weights_init
 from gan_compare.training.io import save_yaml
+from gan_compare.dataset.constants import DENSITY_DICT
 
 
 class GANModel:
@@ -41,7 +43,7 @@ class GANModel:
         self.manual_seed = (
             999  # manualSeed = random.randint(1, 10000) # use if you want new results
         )
-        print("Random Seed: ", self.manual_seed)
+        logging.debug("Random Seed: ", self.manual_seed)
         random.seed(self.manual_seed)
         torch.manual_seed(self.manual_seed)
 
@@ -92,7 +94,7 @@ class GANModel:
                 nc=self.config.nc,
                 ngpu=self.config.ngpu,
                 image_size=self.config.image_size,
-                is_conditional=self.config.conditional,
+                conditional=self.config.conditional,
                 n_cond=self.config.n_cond,
                 is_condition_categorical=self.config.is_condition_categorical,
                 num_embedding_dimensions=self.config.num_embedding_dimensions,
@@ -108,7 +110,7 @@ class GANModel:
                 nc=self.config.nc,
                 ngpu=self.config.ngpu,
                 image_size=self.config.image_size,
-                is_conditional=self.config.conditional,
+                conditional=self.config.conditional,
                 n_cond=self.config.n_cond,
                 is_condition_categorical=self.config.is_condition_categorical,
                 num_embedding_dimensions=self.config.num_embedding_dimensions,
@@ -117,7 +119,7 @@ class GANModel:
         elif self.model_name == "lsgan":
             # only 64x64 image resolution will be supported
             assert (
-                self.config.image_size == 64
+                    self.config.image_size == 64
             ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
             assert (
                 self.config.conditional
@@ -172,7 +174,6 @@ class GANModel:
 
         # Print the discriminator model
         print(self.netD)
-
 
     def _netG_update(self, fake_images, fake_conditions, epoch: int):
         ''' Update Generator network: maximize log(D(G(z))) '''
@@ -263,12 +264,12 @@ class GANModel:
             # Note this design decision: switch_loss_each_epoch:bool=True overwrites use_lsgan_loss:bool=False
             if epoch % 2 == 0:
                 # if epoch is even, we use BCE loss, if it is uneven, we use least square loss.
-                # print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} == 0 '
-                #      f'-> BCE loss.')
+                logging.debug(
+                    f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} == 0 -> BCE loss.')
                 return self.criterion(output, label)
             else:
-                # print(f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} != 0 '
-                #      f'-> LS loss.')
+                logging.debug(
+                    f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} != 0 -> LS loss.')
                 return 0.5 * torch.mean((output - label) ** 2)
         else:
             if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
@@ -283,9 +284,40 @@ class GANModel:
         if self.config.use_one_sided_label_smoothing and smoothing:
             smoothed_real_label: float = random.uniform(self.config.label_smoothing_start,
                                                         self.config.label_smoothing_end)
-            # print(f"smoothed_real_label = {smoothed_real_label}")
+            logging.debug(f"smoothed_real_label = {smoothed_real_label}")
             return {"real": smoothed_real_label, "fake": 0.0}
         return {"real": 1.0, "fake": 0.0}
+
+    def _get_random_conditions(self, minimum=None, maximum=None, batch_size=None, requires_grad=False):
+        if minimum is None:
+            minimum = self.config.condition_min
+
+        if maximum is None:
+            # Need to add +1 here to allow torch.rand/randint to create samples with number = condition_max
+            maximum = self.config.condition_max + 1
+
+        if batch_size is None:
+            # sometimes we might want to pass batch_size i.e. in the last batch of an epoch that might have less
+            # training samples than previous batches.
+            batch_size = self.config.batch_size
+
+        if self.config.conditioned_on == 'density' and not self.config.is_condition_categorical and not self.config.is_condition_binary:
+            # here we need a float randomly drawn from a set of possible values (0.0, 0.33, 0.67, 1.0) for breast density (1 - 4)
+            conditions = []
+            condition_value_options = list(DENSITY_DICT.values())
+            for i in range(batch_size):
+                conditions.append(random.choice(condition_value_options))
+            condition_tensor = torch.tensor(conditions, device=self.device, requires_grad=requires_grad)
+            logging.debug(f'random condition_tensor: {condition_tensor}')
+            return condition_tensor
+        else:
+            # now we want an integer rather than a float.
+            return torch.randint(
+                minimum,
+                maximum,
+                (batch_size,),
+                device=self.device,
+                requires_grad=requires_grad)
 
     def train(self):
 
@@ -299,12 +331,7 @@ class GANModel:
         # Create batch of fixed conditions that we will use to visualize the progression of the generator
         fixed_condition = None
         if self.config.conditional:
-            fixed_condition = torch.randint(
-                self.config.birads_min,
-                self.config.birads_max + 1,
-                (self.config.batch_size,),
-                device=self.device,
-            )
+            fixed_condition = self._get_random_conditions()
 
         # Setup Adam optimizers for both G and D
         self.optimizerD = optim.Adam(
@@ -335,7 +362,7 @@ class GANModel:
         print(f"Starting Training.. Image size: {self.config.image_size}")
         if self.config.conditional:
             print(
-                f"Training conditioned on BiRADS"
+                f"Training conditioned on: {self.config.conditioned_on}"
                 f"{' as a continuous and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
@@ -346,14 +373,15 @@ class GANModel:
                 self.netD.zero_grad()
 
                 # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
-                if self.config.conditional:
-                    data, condition = data
+                if self.config.conditional: sample, condition, _ = data
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = data[0].to(self.device)
+                real_images = sample.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)
+                logging.debug(f'b_size: {b_size}')
+                logging.debug(f'condition: {condition}')
 
                 # Generate batch of latent vectors as input into generator to generate fake images
                 noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
@@ -363,12 +391,7 @@ class GANModel:
                 if self.config.conditional:
                     real_conditions = condition.to(self.device)
                     # generate fake conditions
-                    fake_conditions = torch.randint(
-                        self.config.birads_min,
-                        self.config.birads_max + 1,
-                        (b_size,),
-                        device=self.device,
-                    )
+                    fake_conditions = self._get_random_conditions(batch_size=b_size)
                     # Generate fake image batch with G (conditional_res64)
                     fake_images = self.netG(noise, fake_conditions)
                 else:
@@ -420,7 +443,7 @@ class GANModel:
                 if i % self.config.num_iterations_between_prints == 0:
                     print(
                         '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
-                        % (epoch, self.config.num_epochs, i, len(self.dataloader),
+                        % (epoch, self.config.num_epochs-1, i, len(self.dataloader),
                            errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
 
                     # Add loss scalars to tensorboard
@@ -476,14 +499,10 @@ class GANModel:
                 fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
             if self.config.conditional:
                 if fixed_condition is None:
-                    fixed_condition = torch.randint(
-                        self.config.birads_min, self.config.birads_max + 1, (num_samples,), device=self.device
-                    )
+                    fixed_condition = self._get_random_conditions(batch_size=num_samples)
                 elif isinstance(fixed_condition, int):
-                    fixed_condition = torch.randint(
-                        fixed_condition, fixed_condition + 1, (num_samples,), device=self.device
-                    )
-                # print(f'Tensor with batch of BIRADS conditions = {fixed_condition}')
+                    fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
+                                                                  batch_size=num_samples)
                 fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
                 fake = self.netG(fixed_noise).detach().cpu().numpy()
@@ -505,13 +524,7 @@ class GANModel:
                                           device=self.device)
 
             if self.config.conditional and fixed_condition is None:
-                fixed_condition = torch.randint(
-                    self.config.birads_min,
-                    self.config.birads_max + 1,
-                    (self.config.batch_size,),
-                    requires_grad=False,
-                    device=self.device
-                )
+                fixed_condition = self._get_random_conditions(requires_grad=False)
 
             # Visualize the model architecture of the generator
             visualization_utils.generate_tensorboard_network_graph(

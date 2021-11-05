@@ -1,13 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+import logging
 
 from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 
 class Discriminator(BaseDiscriminator):
     def __init__(
-            self, ndf: int, nc: int, ngpu: int, image_size: int, is_conditional: bool, leakiness: float = 0.2,
+            self, ndf: int, nc: int, ngpu: int, image_size: int, conditional: bool, leakiness: float = 0.2,
             bias: bool = False, n_cond: int = 10, is_condition_categorical: bool = False,
             num_embedding_dimensions: int = 50, kernel_size: int = 6,
     ):
@@ -28,7 +29,7 @@ class Discriminator(BaseDiscriminator):
         self.num_embedding_dimensions = num_embedding_dimensions
 
         # whether the is a conditional input into the GAN i.e. cGAN
-        self.is_conditional: bool = is_conditional
+        self.conditional: bool = conditional
 
         # the kernel size (supported params should be 6 or 4)
         self.kernel_size = kernel_size
@@ -123,14 +124,16 @@ class Discriminator(BaseDiscriminator):
                 nn.LeakyReLU(self.leakiness, inplace=True),
             )
 
-    def forward(self, x, labels=None):
-        if self.is_conditional:
+    def forward(self, x, conditions=None):
+        if self.conditional:
             # combining condition labels and input images via a new image channel
             if not self.is_condition_categorical:
                 # If labels are continuous (not modelled as categorical), use floats instead of integers for labels.
                 # Also adjust dimensions to (batch_size x 1) as needed for input into linear layer
-                labels = labels.view(labels.size(0), -1).float()
-            embedded_labels = self.embed_nn(labels)
-            embedded_labels_as_image_channel = embedded_labels.view(-1, 1, self.image_size, self.image_size)
-            x = torch.cat([x, embedded_labels_as_image_channel], 1)
+                # labels should already be of type float, no change expected in .float() conversion (it is only a safety check)
+                conditions = conditions.view(conditions.size(0), -1).float()
+            logging.debug(f'Conditions in discriminator: {conditions}')
+            embedded_conditions = self.embed_nn(conditions)
+            embedded_conditions_as_image_channel = embedded_conditions.view(-1, 1, self.image_size, self.image_size)
+            x = torch.cat([x, embedded_conditions_as_image_channel], 1)
         return self.main(x)

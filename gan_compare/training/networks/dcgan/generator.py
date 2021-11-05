@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+import logging
 
 from gan_compare.training.networks.base_generator import BaseGenerator
 
@@ -13,7 +14,7 @@ class Generator(BaseGenerator):
         nc: int,
         ngpu: int,
         image_size: int,
-        is_conditional: bool,
+        conditional: bool,
         leakiness: float = 0.2,
         bias: bool = False,
         n_cond: int = 10,
@@ -40,7 +41,7 @@ class Generator(BaseGenerator):
         self.num_embedding_dimensions = num_embedding_dimensions
 
         # whether the is a conditional input into the GAN i.e. cGAN
-        self.is_conditional: bool = is_conditional
+        self.conditional: bool = conditional
 
         # The image size (supported params should be 128 or 64)
         self.image_size = image_size
@@ -113,14 +114,16 @@ class Generator(BaseGenerator):
                 nn.LeakyReLU(self.leakiness, inplace=True),
             )
 
-    def forward(self, x, labels=None):
-        if self.is_conditional:
+    def forward(self, x, conditions=None):
+        if self.conditional:
             # combining condition labels and input images via a new image channel
             if not self.is_condition_categorical:
                 # If labels are continuous (not modelled as categorical), use floats instead of integers for labels.
                 # Also adjust dimensions to (batch_size x 1) as needed for input into linear layer
-                labels = labels.view(labels.size(0), -1).float()
-            embedded_labels = self.embed_nn(labels)
-            embedded_labels_with_random_noise_dim = embedded_labels.view(-1, self.nz, 1, 1)
-            x = torch.cat([x, embedded_labels_with_random_noise_dim], 1)
+                # labels should already be of type float, no change expected in .float() conversion (it is only a safety check)
+                conditions = conditions.view(conditions.size(0), -1).float()
+            logging.debug(f'Conditions in generator: {conditions}')
+            embedded_conditions = self.embed_nn(conditions)
+            embedded_conditions_with_random_noise_dim = embedded_conditions.view(-1, self.nz, 1, 1)
+            x = torch.cat([x, embedded_conditions_with_random_noise_dim], 1)
         return self.main(x)
