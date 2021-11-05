@@ -149,12 +149,12 @@ if __name__ == "__main__":
         running_loss = 0.0
         for i, data in enumerate(train_dataloader, 0):
             # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
+            samples, labels, _ = data
 
             # zero the parameter gradients
             optimizer.zero_grad()
             # forward + backward + optimize
-            outputs = net(inputs)
+            outputs = net(samples)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -172,9 +172,9 @@ if __name__ == "__main__":
             y_prob_logit = []
             net.eval()
             for i, data in enumerate(val_dataloader, 0):
-                images, labels = data
+                samples, labels, _ = data
                 # print(images.size())
-                outputs = net(images)
+                outputs = net(samples)
                 _, predicted = torch.max(outputs.data, 1)
                 val_loss.append(criterion(outputs, labels))
                 y_true.append(labels)
@@ -193,9 +193,9 @@ if __name__ == "__main__":
         test_loss = []
         net.eval()
         for i, data in enumerate(test_dataloader, 0):
-            images, labels = data
+            samples, labels, _ = data
             # print(images.size())
-            outputs = net(images)
+            outputs = net(samples)
             _, predicted = torch.max(outputs.data, 1)
             test_loss.append(criterion(outputs, labels))
             y_true.append(labels)

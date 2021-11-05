@@ -103,7 +103,6 @@ class BCDRDataset(BaseDataset):
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 
-        condition = None
-        if self.transform: sample = self.transform(sample)
-        if self.conditional: condition = self.retrieve_condition(metapoint)
-        return sample, condition, image
+        label = self.retrieve_condition(metapoint) if self.conditional else self.determine_label(metapoint)
+
+        return sample, label, image

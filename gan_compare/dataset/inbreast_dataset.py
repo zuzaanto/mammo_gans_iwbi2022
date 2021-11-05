@@ -28,7 +28,7 @@ class InbreastDataset(BaseDataset):
             is_condition_categorical: bool = False,
             split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-            is_trained_on_calcifications: bool = False,
+            is_trained_on_calcifications: bool = True,
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
             transform: any = None,
@@ -100,7 +100,8 @@ class InbreastDataset(BaseDataset):
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 
-        condition = None
         if self.transform: sample = self.transform(sample)
-        if self.conditional: condition = self.retrieve_condition(metapoint) # TODO there is some confusion about condition and label!
-        return sample, condition, image
+        
+        label = self.retrieve_condition(metapoint) if self.conditional else self.determine_label(metapoint)
+        
+        return sample, label, image

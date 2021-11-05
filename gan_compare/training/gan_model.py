@@ -372,16 +372,17 @@ class GANModel:
                 # Reset the gradient of the discriminator of previous training iterations
                 self.netD.zero_grad()
 
-                # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
-                if self.config.conditional: sample, condition, _ = data
+                # Unpack data (=image batch) alongside condition (i.e. birads number). Conditions are all -1 if unconditioned.
+                samples, conditions, _ = data
+
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = sample.to(self.device)
+                real_images = samples.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)
                 logging.debug(f'b_size: {b_size}')
-                logging.debug(f'condition: {condition}')
+                logging.debug(f'condition: {conditions}')
 
                 # Generate batch of latent vectors as input into generator to generate fake images
                 noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
@@ -389,7 +390,7 @@ class GANModel:
                 real_conditions = None
                 fake_conditions = None
                 if self.config.conditional:
-                    real_conditions = condition.to(self.device)
+                    real_conditions = conditions.to(self.device)
                     # generate fake conditions
                     fake_conditions = self._get_random_conditions(batch_size=b_size)
                     # Generate fake image batch with G (conditional_res64)
