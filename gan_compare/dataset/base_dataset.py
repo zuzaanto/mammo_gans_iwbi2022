@@ -109,3 +109,20 @@ class BaseDataset(Dataset):
             else:  # return a value between 0 and 1 using the DENSITY_DICT.
                 condition: float = DENSITY_DICT[metapoint["density"][0]]
         return condition
+    def determine_label(self, metapoint):
+        label = None
+        if self.classify_binary_healthy:
+            label = int(metapoint.get("healthy", False)) # label = 1 iff metapoint is healthy
+        elif self.conditional_birads:
+            if self.is_condition_binary:
+                condition = metapoint["birads"][0]
+                if int(condition) <= 3: label = 0
+                else: label = 1
+            elif self.split_birads_fours:
+                condition = BIRADS_DICT[metapoint["birads"]]
+                label = int(condition)
+            else:
+                condition = metapoint["birads"][0] # avoid 4c, 4b, 4a and just truncate them to 4
+                label = int(condition)
+        # else: None
+        return label
