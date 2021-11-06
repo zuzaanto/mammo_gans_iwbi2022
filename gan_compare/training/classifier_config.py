@@ -54,11 +54,15 @@ class ClassifierConfig:
     # Learning rate for optimizers
     lr: float = 0.0002
 
+    ngpu: int = 1
+
     out_checkpoint_path: str = "model_checkpoints//classifier/classifier.pt"
 
     dataset_names: List[str] = field(default_factory=list)
     
     classes: str = "is_healthy"
+
+    conditional: bool = False
 
     def __post_init__(self):
         if self.classify_binary_healthy:
