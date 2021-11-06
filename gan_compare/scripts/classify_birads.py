@@ -12,12 +12,13 @@ from dacite import from_dict
 from gan_compare.training.classifier_config import ClassifierConfig
 from torch.utils.data.dataset import ConcatDataset
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
-from gan_compare.scripts.metrics import calc_all_scores
+from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch
 
+from tqdm import tqdm
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -26,6 +27,11 @@ def parse_args():
         type=str,
         default="gan_compare/configs/classification_config.yaml",
         help="Path to a yaml model config file",
+    )
+    parser.add_argument(
+        "--only_get_metrics",
+        action="store_true",
+        help="Whether to skip training and just evaluate the model saved in the default location.",
     )
 
     args = parser.parse_args()
@@ -143,51 +149,64 @@ if __name__ == "__main__":
     elif config.image_size == 128: from gan_compare.training.networks.classification.classifier_128 import Net
     else: raise ValueError("image_size must be either 64 or 128")
 
-    net = Net(num_labels=config.n_cond)
+    device = torch.device(
+        "cuda" if (torch.cuda.is_available() and config.ngpu > 0) else "cpu"
+    )
+
+    print(f"Device: {device}")
+
+    net = Net(num_labels=config.n_cond).to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-    best_loss = 10000
-    for epoch in range(config.num_epochs):  # loop over the dataset multiple times
-        running_loss = 0.0
-        for i, data in enumerate(train_dataloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
-            samples, labels, _ = data
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
-            # forward + backward + optimize
-            outputs = net(samples)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-
-            # print statistics
-            running_loss += loss.item()
-            if i % 2000 == 1999:  # print every 2000 mini-batches
-                print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
-                running_loss = 0.0
-                
-        # validate
-        val_loss = []
-        with torch.no_grad():
-            y_true = []
-            y_prob_logit = []
-            net.eval()
-            for i, data in enumerate(val_dataloader, 0):
+    if not args.only_get_metrics:
+        optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+        best_loss = 10000
+        for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
+            running_loss = 0.0
+            print("\nTraining...")
+            for i, data in enumerate(tqdm(train_dataloader)):
+                # get the inputs; data is a list of [inputs, labels]
                 samples, labels, _ = data
-                # print(images.size())
-                outputs = net(samples)
-                _, predicted = torch.max(outputs.data, 1)
-                val_loss.append(criterion(outputs, labels))
-                y_true.append(labels)
-                y_prob_logit.append(outputs.data)
-            val_loss = np.mean(val_loss)
-            if val_loss < best_loss:
-                torch.save(net.state_dict(), config.out_checkpoint_path)
-            calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
 
-    print("Finished Training")
+                if len(samples) <= 1: continue # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+                # forward + backward + optimize
+                outputs = net(samples.to(device))
+                loss = criterion(outputs, labels.to(device))
+                loss.backward()
+                optimizer.step()
+
+                # print statistics
+                running_loss += loss.item()
+                if i % 2000 == 1999:  # print every 2000 mini-batches
+                    print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
+                    running_loss = 0.0
+                    
+            # validate
+            val_loss = []
+            with torch.no_grad():
+                y_true = []
+                y_prob_logit = []
+                net.eval()
+                print("\nValidating...")
+                for i, data in enumerate(tqdm(val_dataloader)):
+                    samples, labels, _ = data
+                    # print(images.size())
+                    outputs = net(samples.to(device))
+                    val_loss.append(criterion(outputs.cpu(), labels))
+                    y_true.append(labels)
+                    y_prob_logit.append(outputs.data.cpu())
+                val_loss = np.mean(val_loss)
+                if val_loss < best_loss:
+                    torch.save(net.state_dict(), config.out_checkpoint_path)
+                calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
+
+        print("Finished Training")
+        print(f"Saved model state dict to {config.out_checkpoint_path}")
+
     print("Beginning test...")
     net.load_state_dict(torch.load(config.out_checkpoint_path))
     with torch.no_grad():
@@ -195,14 +214,14 @@ if __name__ == "__main__":
         y_prob_logit = []
         test_loss = []
         net.eval()
-        for i, data in enumerate(test_dataloader, 0):
+        print("\nTesting...")
+        for i, data in enumerate(tqdm(test_dataloader)):
             samples, labels, _ = data
             # print(images.size())
-            outputs = net(samples)
-            _, predicted = torch.max(outputs.data, 1)
-            test_loss.append(criterion(outputs, labels))
+            outputs = net(samples.to(device))
+            test_loss.append(criterion(outputs.cpu(), labels))
             y_true.append(labels)
-            y_prob_logit.append(outputs.data)
+            y_prob_logit.append(outputs.data.cpu())
         test_loss = np.mean(test_loss)
         calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), test_loss, "Test")
         # output_ROC_curve(y_true, y_prob_logit, "Test")
