@@ -51,33 +51,38 @@ class BCDRDataset(BaseDataset):
             is_trained_on_other_roi_types=is_trained_on_other_roi_types,
             transform=transform,
         )
-        assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
-            f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
-            f"at least one roi type. "
-        if is_trained_on_masses:
+        if self.classify_binary_healthy:
             self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered if "nodule" in metapoint["roi_type"]])
-            print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr'])
+            print(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
+        else:
+            assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
+                f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
+                f"at least one roi type. "
+            if is_trained_on_masses:
+                self.metadata.extend(
+                    [metapoint for metapoint in self.metadata_unfiltered if "nodule" in metapoint["roi_type"]])
+                print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
 
-        if is_trained_on_calcifications:
-            # TODO add these keywords to a dedicated constants file
-            self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered \
-                 if "calcification" in metapoint["roi_type"] \
-                 or "microcalcification" in metapoint["roi_type"]
-                 ]
-            )
-            print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+            if is_trained_on_calcifications:
+                # TODO add these keywords to a dedicated constants file
+                self.metadata.extend(
+                    [metapoint for metapoint in self.metadata_unfiltered \
+                    if "calcification" in metapoint["roi_type"] \
+                    or "microcalcification" in metapoint["roi_type"]
+                    ]
+                )
+                print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
-        if is_trained_on_other_roi_types:
-            self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered \
-                 if "axillary_adenopathy" in metapoint["roi_type"] \
-                 or "architectural_distortion" in metapoint["roi_type"] \
-                 or "stroma_distortion" in metapoint["roi_type"]
-                 ]
-            )
-            print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+            if is_trained_on_other_roi_types:
+                self.metadata.extend(
+                    [metapoint for metapoint in self.metadata_unfiltered \
+                    if "axillary_adenopathy" in metapoint["roi_type"] \
+                    or "architectural_distortion" in metapoint["roi_type"] \
+                    or "stroma_distortion" in metapoint["roi_type"]
+                    ]
+                )
+                print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -87,19 +92,22 @@ class BCDRDataset(BaseDataset):
         image_path = metapoint["image_path"]
         # TODO read as grayscale
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        contour = np.asarray(metapoint["contour"])
-        # Create an empty image to store the masked array
-        r_mask = np.zeros((image.shape[0] + 1, image.shape[1] + 1), dtype='bool')
-        # Create a contour image by using the contour coordinates rounded to their nearest integer value
-        r_mask[np.round(contour[1, :]).astype('int'), np.round(contour[0, :]).astype('int')] = 1
-        # Fill in the hole created by the contour boundary
-        mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
-        mask = mask.astype("uint8")
-        x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size)
-        image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
+        contour = metapoint["contour"]
+        if contour is not None:
+            contour = np.asarray(contour)
+            # Create an empty image to store the masked array
+            # print(f"Image path: {image_path}")
+            r_mask = np.zeros((image.shape[0] + 1, image.shape[1] + 1), dtype='bool')
+            # Create a contour image by using the contour coordinates rounded to their nearest integer value
+            r_mask[np.round(contour[1, :]).astype('int'), np.round(contour[0, :]).astype('int')] = 1
+            # Fill in the hole created by the contour boundary
+            mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
+            mask = mask.astype("uint8")
+            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size)
+            image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-        mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 

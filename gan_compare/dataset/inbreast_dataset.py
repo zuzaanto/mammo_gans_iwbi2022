@@ -51,23 +51,28 @@ class InbreastDataset(BaseDataset):
             is_trained_on_other_roi_types=is_trained_on_other_roi_types,
             transform=transform,
         )
-        assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
-            f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
-            f"at least one roi type. "
-        if is_trained_on_masses:
+        if self.classify_binary_healthy:
             self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Mass'])
-            print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'inbreast'])
+            print(f'Appended InBreast metadata. Metadata size: {len(self.metadata)}')
+        else:
+            assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
+                f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
+                f"at least one roi type. "
+            if is_trained_on_masses:
+                self.metadata.extend(
+                    [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Mass'])
+                print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
 
-        if is_trained_on_calcifications:
-            self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Calcification'])
-            print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+            if is_trained_on_calcifications:
+                self.metadata.extend(
+                    [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Calcification'])
+                print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
-        if is_trained_on_other_roi_types:
-            self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Other'])
-            print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+            if is_trained_on_other_roi_types:
+                self.metadata.extend(
+                    [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Other'])
+                print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -96,7 +101,7 @@ class InbreastDataset(BaseDataset):
         image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-        mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 
