@@ -65,6 +65,7 @@ if __name__ == "__main__":
             classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
             transform=train_transform,
+            is_trained_on_calcifications=config.is_trained_on_calcifications,
             # synthetic_metadata_path=config.synthetic_metadata_path,
             # synthetic_shuffle_proportion=config.train_shuffle_proportion,
             )
@@ -76,6 +77,7 @@ if __name__ == "__main__":
                 classify_binary_healthy=config.classify_binary_healthy,
                 conditional_birads=True,
                 transform=val_transform,
+                is_trained_on_calcifications=config.is_trained_on_calcifications,
                 # synthetic_metadata_path=config.synthetic_metadata_path,
                 # synthetic_shuffle_proportion=config.validation_shuffle_proportion,
             )
@@ -87,6 +89,7 @@ if __name__ == "__main__":
                 classify_binary_healthy=config.classify_binary_healthy,
                 conditional_birads=True,
                 transform=val_transform,
+                is_trained_on_calcifications=config.is_trained_on_calcifications,
             )
         )
     train_dataset = ConcatDataset(train_dataset_list)

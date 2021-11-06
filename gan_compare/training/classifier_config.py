@@ -30,6 +30,7 @@ class ClassifierConfig:
     # Whether to use synthetic data at all
     use_synthetic: bool = True
 
+    is_trained_on_calcifications: bool = False
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
     n_cond = birads_max + 1

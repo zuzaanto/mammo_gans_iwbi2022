@@ -28,7 +28,7 @@ class InbreastDataset(BaseDataset):
             is_condition_categorical: bool = False,
             split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-            is_trained_on_calcifications: bool = True,
+            is_trained_on_calcifications: bool = False,
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
             transform: any = None,

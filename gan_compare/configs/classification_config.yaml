@@ -1,5 +1,5 @@
 batch_size: 8
-num_epochs: 3
+num_epochs: 1
 train_metadata_path: metadata/binary_metadata/train_metadata.json
 validation_metadata_path: metadata/binary_metadata/val_metadata.json
 test_metadata_path: metadata/binary_metadata/test_metadata.json
@@ -12,8 +12,6 @@ use_synthetic: False
 dataset_names: 
   - bcdr
   - inbreast
-is_trained_on_calcifications: True
+is_trained_on_calcifications: False
 image_size: 64
 classify_binary_healthy: True
-
-# TODO save this as another config yaml (classification_binary_healthy_config.yaml)
