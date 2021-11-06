@@ -35,7 +35,7 @@ def calc_prec_rec_f1_scores(y_true, y_pred, run_type, epoch=None):
         print(f'{run_type} F1-Score in {epoch} epoch:  {f1}')
     return prec, rec, f1
 
-def output_ROC_curve(y_true, y_prob, run_type):
+def output_ROC_curve(y_true, y_prob_logit, run_type):
     """Only for binary classification
 
     Args:
@@ -43,6 +43,7 @@ def output_ROC_curve(y_true, y_prob, run_type):
         y_prob ([type]): [description]
         run_type ([type]): [description]
     """
+    y_prob = torch.exp(y_prob_logit)[:,-1] # keep only the probabilities for the true class
 
     # Calculate ROC values:
     fpr, tpr, _ = roc_curve(y_true, y_prob)
@@ -65,4 +66,4 @@ def output_ROC_curve(y_true, y_prob, run_type):
     plt.ylabel("True Positive Rate")
     plt.title(f"{run_type} receiver operating characteristic")
     plt.legend(loc="lower right")
-    plt.show()
+    plt.savefig("ROC_curve.png")

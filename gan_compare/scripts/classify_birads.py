@@ -223,7 +223,9 @@ if __name__ == "__main__":
             y_true.append(labels)
             y_prob_logit.append(outputs.data.cpu())
         test_loss = np.mean(test_loss)
-        calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), test_loss, "Test")
-        # output_ROC_curve(y_true, y_prob_logit, "Test")
+        y_true = torch.cat(y_true)
+        y_prob_logit = torch.cat(y_prob_logit)
+        calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
+        if config.classify_binary_healthy: output_ROC_curve(y_true, y_prob_logit, "Test")
     print("Finished testing.")
-    print(f"Saved model state dict to {config.out_checkpoint_path}")
+    
