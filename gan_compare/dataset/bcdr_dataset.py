@@ -93,7 +93,10 @@ class BCDRDataset(BaseDataset):
         # TODO read as grayscale
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         contour = metapoint["contour"]
-        if contour is not None:
+        if metapoint.get("healthy", False):
+            x, y, w, h = metapoint["bbox"]
+            image = image[x: x + h, y: y + w] # note that the order of axis in healthy bbox is different, TODO change someday
+        elif contour is not None:
             contour = np.asarray(contour)
             # Create an empty image to store the masked array
             # print(f"Image path: {image_path}")
