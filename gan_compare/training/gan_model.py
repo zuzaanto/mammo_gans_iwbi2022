@@ -133,6 +133,7 @@ class GANModel:
                 ngf=self.config.ngf,
                 nc=self.config.nc,
                 ngpu=self.config.ngpu,
+                leakiness=self.config.leakiness,
             ).to(self.device)
 
             self.netD = Discriminator(
