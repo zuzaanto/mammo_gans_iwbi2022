@@ -9,3 +9,8 @@ synthetic_metadata_path: metadata/synthetic_metadata.json
 train_shuffle_proportion: 0.4
 out_checkpoint_path: model_checkpoints/classifier/classifier.pt
 validation_shuffle_proportion: 0
+classes: is_healthy
+use_synthetic: True
+dataset_names: 
+  - bcdr
+  - inbreast

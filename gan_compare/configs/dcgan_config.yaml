@@ -2,12 +2,12 @@ batch_size: 16
 image_size: 128
 use_lsgan_loss: False
 switch_loss_each_epoch: False
-kernel_size: 4
+kernel_size: 6
 use_one_sided_label_smoothing: True
 conditioned_on: density
 conditional: True
 is_condition_binary: False
-is_condition_categorical: True
+is_condition_categorical: False
 split_birads_fours: False
 is_trained_on_masses: True
 is_trained_on_calcifications: True

@@ -1,7 +1,7 @@
 import glob
 import io
 import json
-import logging
+
 import plistlib
 import random
 from pathlib import Path
@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd
 from skimage.draw import polygon
 
-from gan_compare.dataset.constants import BCDR_VIEW_DICT, DENSITY_DICT, BIRADS_DICT, BCDR_BIRADS_DICT
+from gan_compare.dataset.constants import BCDR_VIEW_DICT
+
 from gan_compare.paths import INBREAST_IMAGE_PATH
 
 
@@ -254,57 +255,6 @@ def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[
         y_p = max(0, y - (min_size - h_p) // 2)
         h_p = min_size
     return (x_p, y_p, w_p, h_p)
-
-
-def retrieve_condition(metapoint, conditioned_on: str, is_condition_binary: bool = False,
-                       is_condition_categorical: bool = False, split_birads_fours: bool = True):
-    condition = None
-    if conditioned_on == "birads":
-        try:
-            if is_condition_binary:
-                condition = metapoint["birads"][0]
-                if int(condition) <= 3:
-                    return 0
-                return 1
-            elif split_birads_fours:
-                condition = int(BIRADS_DICT[metapoint["birads"]])
-            else:
-                # avoid 4c, 4b, 4a and just truncate them to 4
-                condition = int(metapoint["birads"][0])
-        except Exception as e:
-            logging.debug(
-                f"Type Error while trying to extract birads. This could be due to birads field being None in "
-                f"BCDR dataset: {e}. Using biopsy_proven_status field instead as fallback.")
-            if is_condition_binary:
-                # TODO: Validate if this business logic is desired in experiment,
-                # TODO: e.g. biopsy proven 'Benign' is mapped to BIRADS 3 and Malignant to BIRADS 6
-                condition = BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]]
-                if int(condition) <= 3:
-                    return 0
-                return 1
-            elif split_birads_fours:
-                condition = int(BIRADS_DICT[str(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])])
-            else:
-                condition = int(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])
-        # We could also have evaluation of is_condition_categorical here if we want continuous birads not
-        # to be either 0 or 1 (0 or 1 is already provided by setting the is_condition_binary to true)
-    elif conditioned_on == "density":
-        if is_condition_binary:
-            condition = metapoint["density"][0]
-            # TODO Remove the 'N' comparison after Zuzanna's fix is available
-            if not condition == 'N' and int(float(condition)) <= 2:
-                return 0
-            return 1
-        elif is_condition_categorical:
-            condition = metapoint["density"][0]  # 1-4
-            # TODO Remove the 'N' comparison after Zuzanna's fix is available
-            if not condition == 'N':
-                return int(float(condition))
-            else:
-                return 3  # TODO This is wrong. Remove after Zuzanna's fix is available
-        else:  # return a value between 0 and 1 using the DENSITY_DICT.
-            condition: float = DENSITY_DICT[metapoint["density"][0]]
-    return condition
 
 
 # deprecated

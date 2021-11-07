@@ -6,7 +6,8 @@ import scipy.ndimage as ndimage
 import torch
 import torchvision
 
-from gan_compare.data_utils.utils import get_crops_around_mask, retrieve_condition
+
+from gan_compare.data_utils.utils import get_crops_around_mask
 from gan_compare.dataset.base_dataset import BaseDataset
 
 
@@ -24,6 +25,7 @@ class BCDRDataset(BaseDataset):
             conditional: bool = False,
             is_condition_binary: bool = False,
             is_condition_categorical: bool = False,
+            added_noise_term:float = 0.0,
             split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             is_trained_on_calcifications: bool = False,
@@ -41,6 +43,7 @@ class BCDRDataset(BaseDataset):
             conditional=conditional,
             is_condition_binary=is_condition_binary,
             is_condition_categorical=is_condition_categorical,
+            added_noise_term=added_noise_term,
             split_birads_fours=split_birads_fours,
             is_trained_on_calcifications=is_trained_on_calcifications,
             is_trained_on_masses=is_trained_on_masses,
@@ -75,7 +78,8 @@ class BCDRDataset(BaseDataset):
             )
             print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
-    def __getitem__(self, idx: int, to_save: bool = False, is_image_returned: bool = False):
+
+    def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
@@ -96,22 +100,9 @@ class BCDRDataset(BaseDataset):
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
-
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        condition = None
+        if self.transform: sample = self.transform(sample)
+        if self.conditional: condition = self.retrieve_condition(metapoint)
+        return sample, condition, image
 
-        if self.transform:
-            sample = self.transform(sample)
-        if self.conditional:
-            condition = retrieve_condition(metapoint=metapoint, conditioned_on=self.conditioned_on,
-                                           is_condition_binary=self.is_condition_binary,
-                                           is_condition_categorical=self.is_condition_categorical,
-                                           split_birads_fours=self.split_birads_fours)
-            if is_image_returned:
-                return sample, image, condition
-            else:
-                return sample, condition
-
-        if is_image_returned:
-            return sample, image
-        else:
-            return sample

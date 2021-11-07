@@ -1,23 +1,25 @@
-from __future__ import print_function
-import argparse
 import argparse
 import numpy as np
 import os
 from pathlib import Path
 from torch.utils.data import DataLoader
+
+from gan_compare.constants import DATASET_DICT
+
 from dataclasses import asdict
-from gan_compare.training.dataset import InbreastDataset
 from gan_compare.training.io import load_yaml
 from dacite import from_dict
 from gan_compare.training.classifier_config import ClassifierConfig
 from gan_compare.training.networks.classification.classifier_64 import Net
+from torch.utils.data.dataset import ConcatDataset
+from gan_compare.dataset.synthetic_dataset import SyntheticDataset
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config_path",
@@ -52,43 +54,76 @@ if __name__ == "__main__":
             transforms.Normalize((0.5), (0.5)),
         ]
     )
+    train_dataset_list = []
+    val_dataset_list = []
+    test_dataset_list = []
+    for dataset_name in config.dataset_names:
+        train_dataset_list.append(
+            DATASET_DICT[dataset_name](
+            metadata_path=config.train_metadata_path,
+            final_shape=(config.image_size, config.image_size),
+            conditional_birads=True,
+            transform=train_transform,
+            # synthetic_metadata_path=config.synthetic_metadata_path,
+            # synthetic_shuffle_proportion=config.train_shuffle_proportion,
+            )
+        )
+        val_dataset_list.append(
+            DATASET_DICT[dataset_name](
+                metadata_path=config.validation_metadata_path,
+                final_shape=(config.image_size, config.image_size),
+                conditional_birads=True,
+                transform=val_transform,
+                # synthetic_metadata_path=config.synthetic_metadata_path,
+                # synthetic_shuffle_proportion=config.validation_shuffle_proportion,
+            )
+        )
+        test_dataset_list.append(
+            DATASET_DICT[dataset_name](
+                metadata_path=config.test_metadata_path,
+                final_shape=(config.image_size, config.image_size),
+                conditional_birads=True,
+                transform=val_transform,
+            )
+        )
+    train_dataset = ConcatDataset(train_dataset_list)
+    val_dataset = ConcatDataset(val_dataset_list)
+    test_dataset = ConcatDataset(test_dataset_list)
+    if config.use_synthetic:
+        # append synthetic data
+        synth_train_images = SyntheticDataset(
+            metadata_path=config.synthetic_metadata_path,
+            final_shape=(config.image_size, config.image_size),
+            conditional_birads=True,
+            transform=train_transform,
+            shuffle_proportion=config.train_shuffle_proportion,
+            current_length=len(train_dataset)
+        )
+        train_dataset = ConcatDataset([train_dataset, synth_train_images])
+        synth_val_images = SyntheticDataset(
+            metadata_path=config.synthetic_metadata_path,
+            final_shape=(config.image_size, config.image_size),
+            conditional_birads=True,
+            transform=val_transform,
+            shuffle_proportion=config.train_shuffle_proportion,
+            current_length=len(val_dataset)
+        )
+        val_dataset = ConcatDataset([val_dataset, synth_val_images])
 
-    train_inbreast_dataset = InbreastDataset(
-        metadata_path=config.train_metadata_path,
-        final_shape=(config.image_size, config.image_size),
-        conditional_birads=True,
-        transform=train_transform,
-        synthetic_metadata_path=config.synthetic_metadata_path,
-        synthetic_shuffle_proportion=config.train_shuffle_proportion,
-    )
     train_dataloader = DataLoader(
-        train_inbreast_dataset,
+        train_dataset,
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=config.workers,
-    )    
-    val_inbreast_dataset = InbreastDataset(
-        metadata_path=config.validation_metadata_path,
-        final_shape=(config.image_size, config.image_size),
-        conditional_birads=True,
-        transform=val_transform,
-        synthetic_metadata_path=config.synthetic_metadata_path,
-        synthetic_shuffle_proportion=config.validation_shuffle_proportion,
     )
     val_dataloader = DataLoader(
-        val_inbreast_dataset,
+        val_dataset,
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=config.workers,
     )
-    test_inbreast_dataset = InbreastDataset(
-        metadata_path=config.test_metadata_path,
-        final_shape=(config.image_size, config.image_size),
-        conditional_birads=True,
-        transform=val_transform,
-    )
     test_dataloader = DataLoader(
-        test_inbreast_dataset,
+        test_dataset,
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=config.workers,
@@ -105,7 +140,7 @@ if __name__ == "__main__":
         running_loss = 0.0
         for i, data in enumerate(train_dataloader, 0):
             # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
+            inputs, labels, _ = data
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -138,7 +173,7 @@ if __name__ == "__main__":
             val_loss = np.mean(val_loss)
             if val_loss < best_loss:
                 torch.save(net.state_dict(), config.out_checkpoint_path)
-            print(f'Accuracy in {epoch + 1} epoch: {100 * correct / total}')            
+            print(f"Accuracy in {epoch + 1} epoch: {100 * correct / total}")            
             print(f'Loss in {epoch + 1} epoch: {val_loss}')            
 
     print("Finished Training")

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from time import time
 from typing import List
+from gan_compare.constants import DATASET_DICT
 
 
 @dataclass
@@ -109,6 +110,11 @@ class GANConfig:
     # the maximum possible value that the condition can have
     condition_max: int = 4
 
+    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
+    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
+    added_noise_term: float = 0.2
+
+    # 4a 4b 4c of birads are splitted into integers
     split_birads_fours: bool = True
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
