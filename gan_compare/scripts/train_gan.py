@@ -121,13 +121,8 @@ if __name__ == "__main__":
             # Plot some training images
             
             sample, condition, image = dataset.__getitem__(i)
-            cv2.imwrite(
-                str(output_dataset_dir / f"{i}_birads{condition}.png"),
-                image,
-            )
             out_image_path = f"{i}_birads{condition}.png" if config.conditional else f"{i}.png" 
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
-
     print("Loading model...")
     model = GANModel(
         model_name=args.model_name,

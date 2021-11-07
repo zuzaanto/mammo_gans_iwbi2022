@@ -17,9 +17,9 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch
+import cv2
 from tqdm import tqdm
 
-from tqdm import tqdm
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -33,6 +33,9 @@ def parse_args():
         "--only_get_metrics",
         action="store_true",
         help="Whether to skip training and just evaluate the model saved in the default location.",
+    )
+    parser.add_argument(
+        "--save_dataset", action="store_true", help="Whether to save image patches to images_classifier dir",
     )
 
     args = parser.parse_args()
@@ -156,6 +159,17 @@ if __name__ == "__main__":
     net = CLASSIFIERS_DICT[config.model_name](num_classes=config.n_cond, img_size=config.image_size).to(device)
 
     criterion = nn.CrossEntropyLoss()
+    if args.save_dataset:
+        print(f"Saving data samples...")
+        save_data_path = Path("save_dataset")
+        for i, data in enumerate(tqdm(train_dataset)):
+            _, label, image = data
+            label = "healthy" if int(label) == 1 else "with_lesions"
+            out_image_dir = save_data_path / "train" / str(label)
+            out_image_dir.mkdir(parents=True, exist_ok=True)
+            out_image_path = out_image_dir / f"{i}.png" 
+            cv2.imwrite(str(out_image_path), image)
+        print(f"Saved data samples to {save_data_path.resolve()}")
 
     if not args.only_get_metrics:
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
