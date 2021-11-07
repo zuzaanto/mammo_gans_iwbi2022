@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from torch.utils.data import DataLoader
 
-from gan_compare.constants import DATASET_DICT
+from gan_compare.constants import DATASET_DICT, CLASSIFIERS_DICT
 
 from dataclasses import asdict
 from gan_compare.training.io import load_yaml
@@ -17,6 +17,7 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch
+from tqdm import tqdm
 
 from tqdm import tqdm
 
@@ -145,9 +146,6 @@ if __name__ == "__main__":
     if not Path(config.out_checkpoint_path).parent.exists():
         os.makedirs(Path(config.out_checkpoint_path).parent.resolve(), exist_ok=True)
 
-    if config.image_size == 64: from gan_compare.training.networks.classification.classifier_64 import Net
-    elif config.image_size == 128: from gan_compare.training.networks.classification.classifier_128 import Net
-    else: raise ValueError("image_size must be either 64 or 128")
 
     device = torch.device(
         "cuda" if (torch.cuda.is_available() and config.ngpu > 0) else "cpu"
@@ -155,7 +153,7 @@ if __name__ == "__main__":
 
     print(f"Device: {device}")
 
-    net = Net(num_labels=config.n_cond).to(device)
+    net = CLASSIFIERS_DICT[config.model_name](num_classes=config.n_cond, img_size=config.image_size).to(device)
 
     criterion = nn.CrossEntropyLoss()
 

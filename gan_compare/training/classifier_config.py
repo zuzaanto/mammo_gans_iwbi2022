@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
 from typing import List
-from gan_compare.constants import DATASET_DICT
+from gan_compare.constants import DATASET_DICT, CLASSIFIERS_DICT
 
 
 @dataclass
 class ClassifierConfig:
+    model_name = "cnn"
+
     # Paths to train and validation metadata
     train_metadata_path: str
     validation_metadata_path: str
@@ -75,3 +77,4 @@ class ClassifierConfig:
         assert 1 >= self.train_shuffle_proportion >= 0, "Train shuffle proportion must be from <0,1> range"
         assert 1 >= self.validation_shuffle_proportion >= 0, "Validation shuffle proportion must be from <0,1> range"
         assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)
+        assert self.model_name in CLASSIFIERS_DICT, f"Unknown model name {self.model_name}"
