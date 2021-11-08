@@ -36,7 +36,7 @@ tqdm==4.59.0
 typing-extensions==3.7.4.3
 deprecation==2.1.0
 tensorboard
-deprecation
+timm
 
 # Previous requirements.txt included
 # pydicom

@@ -1,3 +1,4 @@
+model_name: "cnn"
 batch_size: 8
 num_epochs: 1
 train_metadata_path: metadata/binary_metadata/train_metadata.json

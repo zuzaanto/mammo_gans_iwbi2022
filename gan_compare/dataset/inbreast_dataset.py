@@ -98,10 +98,13 @@ class InbreastDataset(BaseDataset):
         else:
             mask = np.zeros(ds.pixel_array.shape)
             print(f"xml_filepath Error for metapoint: {metapoint}")
-
-        mask = mask.astype("uint8")
-        x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size)
-        image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
+        if metapoint.get("healthy", False):
+            x, y, w, h = metapoint["bbox"]
+            image = image[y: y + h, x: x + w]
+        else:
+            mask = mask.astype("uint8")
+            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size)
+            image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
