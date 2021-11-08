@@ -162,13 +162,14 @@ if __name__ == "__main__":
     if args.save_dataset:
         print(f"Saving data samples...")
         save_data_path = Path("save_dataset")
-        for i, data in enumerate(tqdm(train_dataset)):
-            _, label, image = data
-            label = "healthy" if int(label) == 1 else "with_lesions"
-            out_image_dir = save_data_path / "train" / str(label)
-            out_image_dir.mkdir(parents=True, exist_ok=True)
-            out_image_path = out_image_dir / f"{i}.png" 
-            cv2.imwrite(str(out_image_path), image)
+        for i, data in enumerate(tqdm(train_dataloader)): # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
+            _, labels, images = data
+            for label, image in zip(labels, images):
+                label = "healthy" if int(label) == 1 else "with_lesions"
+                out_image_dir = save_data_path / "train" / str(label)
+                out_image_dir.mkdir(parents=True, exist_ok=True)
+                out_image_path = out_image_dir / f"{i}.png" 
+                cv2.imwrite(str(out_image_path), np.array(image))
         print(f"Saved data samples to {save_data_path.resolve()}")
 
     if not args.only_get_metrics:
