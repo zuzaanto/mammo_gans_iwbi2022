@@ -6,6 +6,7 @@ import scipy.ndimage as ndimage
 import torch
 import torchvision
 
+
 from gan_compare.data_utils.utils import get_crops_around_mask
 from gan_compare.dataset.base_dataset import BaseDataset
 
@@ -26,6 +27,7 @@ class BCDRDataset(BaseDataset):
             conditional: bool = False,
             is_condition_binary: bool = False,
             is_condition_categorical: bool = False,
+            added_noise_term:float = 0.0,
             split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             is_trained_on_calcifications: bool = False,
@@ -45,6 +47,7 @@ class BCDRDataset(BaseDataset):
             is_condition_categorical=is_condition_categorical,
             classify_binary_healthy=classify_binary_healthy,
             conditional_birads=conditional_birads,
+            added_noise_term=added_noise_term,
             split_birads_fours=split_birads_fours,
             is_trained_on_calcifications=is_trained_on_calcifications,
             is_trained_on_masses=is_trained_on_masses,
@@ -84,6 +87,7 @@ class BCDRDataset(BaseDataset):
                 )
                 print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
+
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
             idx = idx.tolist()
@@ -110,6 +114,8 @@ class BCDRDataset(BaseDataset):
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+
+        if self.transform: sample = self.transform(sample)
 
         label = self.retrieve_condition(metapoint) if self.conditional else self.determine_label(metapoint)
 

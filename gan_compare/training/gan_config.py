@@ -10,7 +10,7 @@ class GANConfig:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
     # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
     # - https://arxiv.org/pdf/1701.00160.pdf
-    weight_decay: float = 5e-06  # 0.000005
+    weight_decay: float = 0 #5e-06  # 0.000005
 
     # Number of workers for dataloader
     workers: int = 2
@@ -39,8 +39,8 @@ class GANConfig:
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.7
-    label_smoothing_end: float = 1.2
+    label_smoothing_start: float = 0.9
+    label_smoothing_end: float = 1.0
 
     # Leakiness for ReLUs
     leakiness: float = 0.2
@@ -110,6 +110,11 @@ class GANConfig:
     # the maximum possible value that the condition can have
     condition_max: int = 4
 
+    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
+    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
+    added_noise_term: float = 0.2
+
+    # 4a 4b 4c of birads are splitted into integers
     split_birads_fours: bool = True
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)

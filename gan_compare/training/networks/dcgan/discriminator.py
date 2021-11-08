@@ -1,7 +1,8 @@
+import logging
+
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import logging
 
 from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 

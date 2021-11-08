@@ -10,7 +10,10 @@ import torchvision.transforms as transforms
 from dacite import from_dict
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
-from gan_compare.constants import DATASET_DICT
+
+from gan_compare.dataset.bcdr_dataset import BCDRDataset
+from gan_compare.dataset.inbreast_dataset import InbreastDataset
+
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
@@ -51,6 +54,12 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
+DATASET_DICT = {
+    "bcdr": BCDRDataset,
+    "inbreast": InbreastDataset,
+}
+
+
 if __name__ == "__main__":
     args = parse_args()
     # Parse config file
@@ -64,42 +73,26 @@ if __name__ == "__main__":
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             # scale: min 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
-            transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
+            # transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
             # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
             # which is not present in the original images.
             #transforms.RandomAffine(),
         ])
     for dataset_name in config.dataset_names:
-        if config.is_training_data_augmented:
-            dataset = DATASET_DICT[dataset_name](
-                metadata_path=args.in_metadata_path,
-                final_shape=(config.image_size, config.image_size),
-                conditioned_on=config.conditioned_on,
-                conditional=config.conditional,
-                is_trained_on_masses=config.is_trained_on_masses,
-                is_trained_on_calcifications=config.is_trained_on_calcifications,
-                is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
-                is_condition_binary=config.is_condition_binary,
-                # https://pytorch.org/vision/stable/transforms.html
-                transform=transforms.Compose([
-                    transforms.RandomHorizontalFlip(p=0.5),
-                    transforms.RandomVerticalFlip(p=0.5),
-                    # scale: min 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
-                    transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
-                    # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
-                    # which is not present in the original images.
-                    #transforms.RandomAffine(),
-                ]))
-        else:
-            dataset = DATASET_DICT[dataset_name](
-                metadata_path=args.in_metadata_path,
-                final_shape=(config.image_size, config.image_size),
-                conditioned_on=config.conditioned_on,
-                conditional=config.conditional,
-                is_trained_on_masses=config.is_trained_on_masses,
-                is_trained_on_calcifications=config.is_trained_on_calcifications,
-                is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
-            )
+        dataset = DATASET_DICT[dataset_name](
+            metadata_path=args.in_metadata_path,
+            final_shape=(config.image_size, config.image_size),
+            conditioned_on=config.conditioned_on,
+            conditional=config.conditional,
+            is_condition_binary=config.is_condition_binary,
+            is_condition_categorical=config.is_condition_categorical,
+            added_noise_term=config.added_noise_term,
+            split_birads_fours=config.split_birads_fours,
+            is_trained_on_masses=config.is_trained_on_masses,
+            is_trained_on_calcifications=config.is_trained_on_calcifications,
+            is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
+            # https://pytorch.org/vision/stable/transforms.html
+            transform=transform_to_use)
         dataset_list.append(dataset)
     dataset = ConcatDataset(dataset_list)
 

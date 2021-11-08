@@ -133,6 +133,7 @@ class GANModel:
                 ngf=self.config.ngf,
                 nc=self.config.nc,
                 ngpu=self.config.ngpu,
+                leakiness=self.config.leakiness,
             ).to(self.device)
 
             self.netD = Discriminator(
@@ -306,7 +307,9 @@ class GANModel:
             conditions = []
             condition_value_options = list(DENSITY_DICT.values())
             for i in range(batch_size):
-                conditions.append(random.choice(condition_value_options))
+                # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
+                noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
+                conditions.append(random.choice(condition_value_options) + noise)
             condition_tensor = torch.tensor(conditions, device=self.device, requires_grad=requires_grad)
             logging.debug(f'random condition_tensor: {condition_tensor}')
             return condition_tensor
@@ -359,7 +362,7 @@ class GANModel:
         iters = 0
 
         # Training Loop
-        print(f"Starting Training.. Image size: {self.config.image_size}")
+        print(f"Starting Training on {self.device}.. Image size: {self.config.image_size}")
         if self.config.conditional:
             print(
                 f"Training conditioned on: {self.config.conditioned_on}"
@@ -444,7 +447,7 @@ class GANModel:
                 if i % self.config.num_iterations_between_prints == 0:
                     print(
                         '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
-                        % (epoch, self.config.num_epochs-1, i, len(self.dataloader),
+                        % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
                            errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
 
                     # Add loss scalars to tensorboard

@@ -1,12 +1,13 @@
-from abc import abstractmethod
 import json
+import logging
+import random
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple
 
 from torch.utils.data import Dataset
-import logging
 
-from gan_compare.dataset.constants import BCDR_VIEW_DICT, DENSITY_DICT, BIRADS_DICT, BCDR_BIRADS_DICT
+from gan_compare.dataset.constants import DENSITY_DICT, BIRADS_DICT, BCDR_BIRADS_DICT
+
 
 # TODO add option for shuffling in data from synthetic metadata file
 
@@ -14,23 +15,25 @@ class BaseDataset(Dataset):
     """Abstract dataset class."""
 
     def __init__(
-        self,
-        metadata_path: str,
-        crop: bool = True,
-        min_size: int = 160,
-        margin: int = 100,
-        final_shape: Tuple[int, int] = (400, 400),
-        conditioned_on: str = None,
-        conditional: bool = False,
-        conditional_birads: bool = False,
-        classify_binary_healthy: bool = False,
-        split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-        is_trained_on_calcifications: bool = False,
-        is_trained_on_masses: bool = True,
-        is_trained_on_other_roi_types: bool = False,
-        is_condition_binary:bool = False,
-        is_condition_categorical:bool = False,
-        transform: any = None,
+            self,
+            metadata_path: str,
+            crop: bool = True,
+            min_size: int = 160,
+            margin: int = 100,
+            final_shape: Tuple[int, int] = (400, 400),
+            conditioned_on: str = None,
+            conditional: bool = False,
+            conditional_birads: bool = False,
+            classify_binary_healthy: bool = False,
+            added_noise_term: float = 0.0,
+            split_birads_fours: bool = False,
+            # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
+            is_trained_on_calcifications: bool = False,
+            is_trained_on_masses: bool = True,
+            is_trained_on_other_roi_types: bool = False,
+            is_condition_binary: bool = False,
+            is_condition_categorical: bool = False,
+            transform: any = None,
     ):
         assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
         self.metadata = []
@@ -48,7 +51,7 @@ class BaseDataset(Dataset):
         self.conditional_birads = conditional_birads
         self.split_birads_fours = split_birads_fours
         self.transform = transform
-
+        self.added_noise_term = added_noise_term
 
     def __len__(self):
         return len(self.metadata)
@@ -90,19 +93,16 @@ class BaseDataset(Dataset):
         elif self.conditioned_on == "density":
             if self.is_condition_binary:
                 condition = metapoint["density"][0]
-                # TODO Remove the 'N' comparison after Zuzanna's fix is available
-                if not condition == 'N' and int(float(condition)) <= 2:
+                if int(float(condition)) <= 2:
                     return 0
                 return 1
             elif self.is_condition_categorical:
-                condition = metapoint["density"][0]  # 1-4
-                # TODO Remove the 'N' comparison after Zuzanna's fix is available
-                if not condition == 'N':
-                    return int(float(condition))
-                else:
-                    return 3  # TODO This is wrong. Remove after Zuzanna's fix is available
+                condition = int(float(metapoint["density"][0]))  # 1-4
             else:  # return a value between 0 and 1 using the DENSITY_DICT.
-                condition: float = DENSITY_DICT[metapoint["density"][0]]
+                # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
+                noise = round(random.uniform(-1, 1) * self.added_noise_term, 2)
+                # get the density from the dict and add noise to capture potential variations.
+                condition: float = DENSITY_DICT[metapoint["density"][0]] + noise
         return condition
 
     def determine_label(self, metapoint):
