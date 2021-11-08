@@ -309,7 +309,9 @@ class GANModel:
             for i in range(batch_size):
                 # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
                 noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
-                conditions.append(random.choice(condition_value_options) + noise)
+                # get condition with noise normalised between 0 and 1.
+                condition_w_noise = max(min(random.choice(condition_value_options) + noise, 1.), 0.)
+                conditions.append(condition_w_noise)
             condition_tensor = torch.tensor(conditions, device=self.device, requires_grad=requires_grad)
             logging.debug(f'random condition_tensor: {condition_tensor}')
             return condition_tensor
@@ -366,7 +368,7 @@ class GANModel:
         if self.config.conditional:
             print(
                 f"Training conditioned on: {self.config.conditioned_on}"
-                f"{' as a continuous and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
+                f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
             # For each batch in the dataloader

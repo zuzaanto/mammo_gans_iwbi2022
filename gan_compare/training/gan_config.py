@@ -39,11 +39,11 @@ class GANConfig:
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.9
+    label_smoothing_start: float = 0.95
     label_smoothing_end: float = 1.0
 
     # Leakiness for ReLUs
-    leakiness: float = 0.2
+    leakiness: float = 0.1
 
     # Number of channels in the training images. For color images this is 3
     nc: int = 1
@@ -112,7 +112,7 @@ class GANConfig:
 
     # To have more variation in continuous conditional variables, we can add to them some random noise drawn
     # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
-    added_noise_term: float = 0.2
+    added_noise_term: float = 0.5
 
     # 4a 4b 4c of birads are splitted into integers
     split_birads_fours: bool = True

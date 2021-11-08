@@ -13,7 +13,7 @@ is_trained_on_masses: True
 is_trained_on_calcifications: True
 is_trained_on_other_roi_types: True
 is_training_data_augmented: True
-leakiness: 0.05
+leakiness: 0.1
 num_epochs: 300
 ngpu: 1
 dataset_names: 
