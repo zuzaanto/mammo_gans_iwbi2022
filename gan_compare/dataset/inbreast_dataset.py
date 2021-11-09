@@ -18,7 +18,7 @@ class InbreastDataset(BaseDataset):
             metadata_path: str,
             crop: bool = True,
             min_size: int = 128,
-            margin: int = 100,
+            margin: int = 60,
             final_shape: Tuple[int, int] = (400, 400),
             classify_binary_healthy: bool = False,
             conditional_birads: bool = False,
@@ -85,28 +85,29 @@ class InbreastDataset(BaseDataset):
         image_path = metapoint["image_path"]
         ds = dicom.dcmread(image_path)
         image = convert_to_uint8(ds.pixel_array)
-        xml_filepath = metapoint["xml_path"]
-        expected_roi_type = metapoint["roi_type"]
-        if xml_filepath != "":
-            with open(xml_filepath, "rb") as patient_xml:
-                mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape, expected_roi_type=expected_roi_type)
-                try:
-                    mask = mask_list[0].get('mask')
-                except:
-                    print(
-                        f"Error when trying to mask_list[0].get('mask'). mask_list: {mask_list}, metapoint: {metapoint}")
-        else:
-            mask = np.zeros(ds.pixel_array.shape)
-            print(f"xml_filepath Error for metapoint: {metapoint}")
+        # xml_filepath = metapoint["xml_path"]
+        # expected_roi_type = metapoint["roi_type"]
+        # if xml_filepath != "":
+            # with open(xml_filepath, "rb") as patient_xml:
+            #     mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape, expected_roi_type=expected_roi_type)
+            #     try:
+            #         mask = mask_list[0].get('mask')
+            #     except:
+            #         print(
+            #             f"Error when trying to mask_list[0].get('mask'). mask_list: {mask_list}, metapoint: {metapoint}")
+        # else:
+            # mask = np.zeros(ds.pixel_array.shape)
+            # print(f"xml_filepath Error for metapoint: {metapoint}")
         if metapoint.get("healthy", False):
             x, y, w, h = metapoint["bbox"]
             w, h = self.get_random_size(1), self.get_random_size(0)
             image = image[y: y + h, x: x + w]
             # print(f"image.shape: {image.shape}")
         else:
-            mask = mask.astype("uint8")
-            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size)
-            image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
+            # mask = mask.astype("uint8")
+            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape)
+            # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
+            image = image[y: y + h, x: x + w]
 
             
         # scale

@@ -19,7 +19,7 @@ class BCDRDataset(BaseDataset):
             metadata_path: str,
             crop: bool = True,
             min_size: int = 128,
-            margin: int = 100,
+            margin: int = 60,
             final_shape: Tuple[int, int] = (400, 400),
             conditional_birads: bool = False,
             classify_binary_healthy: bool = False,
@@ -115,10 +115,11 @@ class BCDRDataset(BaseDataset):
             # Create a contour image by using the contour coordinates rounded to their nearest integer value
             r_mask[np.round(contour[1, :]).astype('int'), np.round(contour[0, :]).astype('int')] = 1
             # Fill in the hole created by the contour boundary
-            mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
-            mask = mask.astype("uint8")
-            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size)
-            image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
+            # mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
+            # mask = mask.astype("uint8")
+            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape)
+            # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
+            image = image[y: y + h, x: x + w]
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)

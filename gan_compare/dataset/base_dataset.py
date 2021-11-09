@@ -22,7 +22,7 @@ class BaseDataset(Dataset):
             metadata_path: str,
             crop: bool = True,
             min_size: int = 128,
-            margin: int = 100,
+            margin: int = 60,
             final_shape: Tuple[int, int] = (400, 400),
             conditioned_on: str = None,
             conditional: bool = False,

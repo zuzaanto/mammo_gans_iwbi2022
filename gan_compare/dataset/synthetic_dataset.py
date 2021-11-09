@@ -21,7 +21,7 @@ class SyntheticDataset(BaseDataset):
         metadata_path: str,
         crop: bool = True,
         min_size: int = 128,
-        margin: int = 100,
+        margin: int = 60,
         final_shape: Tuple[int, int] = (400, 400),
         classify_binary_healthy: bool = False,
         conditional_birads: bool = False,
