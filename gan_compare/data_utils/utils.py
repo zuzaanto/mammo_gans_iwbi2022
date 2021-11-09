@@ -356,8 +356,8 @@ def get_measures_for_crop(c, l, m, min_length, image_max): # coordinate, length,
     c -= r_zoom // 2 # we want to keep the crop centered here
 
     # Randomly translate the crop, while it must not be too small or large, or else the lesion won't be within the crop anymore:
-    r_transl = min(-l_new//2, int(np.random.normal(loc=0, scale=l_new/4))) # amount depends on the current length of the crop
-    if r_transl > l_new//2: r_transl = l_new//2
+    r_transl = min(-l_new//3, int(np.random.normal(loc=0, scale=l_new/4))) # amount depends on the current length of the crop
+    if r_transl > l_new//3: r_transl = l_new//3
 
     c = max(0, c + r_transl) # random translation
 
