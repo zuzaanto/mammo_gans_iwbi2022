@@ -18,7 +18,7 @@ class BCDRDataset(BaseDataset):
             self,
             metadata_path: str,
             crop: bool = True,
-            min_size: int = 160,
+            min_size: int = 128,
             margin: int = 100,
             final_shape: Tuple[int, int] = (400, 400),
             conditional_birads: bool = False,
@@ -99,7 +99,14 @@ class BCDRDataset(BaseDataset):
         contour = metapoint["contour"]
         if metapoint.get("healthy", False):
             x, y, w, h = metapoint["bbox"]
+
+            # Before: w == 128, h == 128
+            w, h = self.get_random_size(1), self.get_random_size(0)
+
             image = image[x: x + h, y: y + w] # note that the order of axis in healthy bbox is different, TODO change someday
+
+            # print(f"image.shape: {image.shape}")
+
         elif contour is not None:
             contour = np.asarray(contour)
             # Create an empty image to store the masked array

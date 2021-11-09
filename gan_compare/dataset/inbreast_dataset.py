@@ -17,7 +17,7 @@ class InbreastDataset(BaseDataset):
             self,
             metadata_path: str,
             crop: bool = True,
-            min_size: int = 160,
+            min_size: int = 128,
             margin: int = 100,
             final_shape: Tuple[int, int] = (400, 400),
             classify_binary_healthy: bool = False,
@@ -100,11 +100,15 @@ class InbreastDataset(BaseDataset):
             print(f"xml_filepath Error for metapoint: {metapoint}")
         if metapoint.get("healthy", False):
             x, y, w, h = metapoint["bbox"]
+            w, h = self.get_random_size(1), self.get_random_size(0)
             image = image[y: y + h, x: x + w]
+            # print(f"image.shape: {image.shape}")
         else:
             mask = mask.astype("uint8")
             x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size)
             image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
+
+            
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)

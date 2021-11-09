@@ -14,5 +14,5 @@ dataset_names:
   - bcdr
   - inbreast
 is_trained_on_calcifications: False
-image_size: 64
+image_size: 128
 classify_binary_healthy: True
