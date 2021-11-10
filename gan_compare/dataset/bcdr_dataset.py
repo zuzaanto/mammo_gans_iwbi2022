@@ -7,7 +7,7 @@ import torch
 import torchvision
 
 
-from gan_compare.data_utils.utils import get_crops_around_mask
+from gan_compare.data_utils.utils import get_crops_around_bbox
 from gan_compare.dataset.base_dataset import BaseDataset
 
 
@@ -117,7 +117,7 @@ class BCDRDataset(BaseDataset):
             # Fill in the hole created by the contour boundary
             # mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
             # mask = mask.astype("uint8")
-            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape)
+            x, y, w, h = get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape)
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
         # scale

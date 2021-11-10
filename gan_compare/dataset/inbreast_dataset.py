@@ -6,7 +6,7 @@ import pydicom as dicom
 import torch
 import torchvision
 
-from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8, get_crops_around_mask
+from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8, get_crops_around_bbox
 from gan_compare.dataset.base_dataset import BaseDataset
 
 
@@ -105,7 +105,7 @@ class InbreastDataset(BaseDataset):
             # print(f"image.shape: {image.shape}")
         else:
             # mask = mask.astype("uint8")
-            x, y, w, h = get_crops_around_mask(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape)
+            x, y, w, h = get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape)
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
 

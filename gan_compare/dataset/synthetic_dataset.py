@@ -8,7 +8,7 @@ import torch
 import random
 import torchvision
 
-from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8, get_crops_around_mask
+from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8, get_crops_around_bbox
 from gan_compare.dataset.base_dataset import BaseDataset
 from gan_compare.dataset.constants import BIRADS_DICT
 

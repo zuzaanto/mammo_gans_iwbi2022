@@ -337,7 +337,7 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     )
     return img_n
 
-def get_crops_around_mask(metapoint: dict, margin: int, min_size: int, image_shape: Tuple[int, int]) -> Tuple[int, int, int, int]:
+def get_crops_around_bbox(metapoint: dict, margin: int, min_size: int, image_shape: Tuple[int, int]) -> Tuple[int, int, int, int]:
     x, y, w, h = metapoint["bbox"]
 
     x_p, w_p = get_measures_for_crop(x, w, margin, min_size, image_shape[1])
@@ -346,18 +346,23 @@ def get_crops_around_mask(metapoint: dict, margin: int, min_size: int, image_sha
     return (x_p, y_p, w_p, h_p)
 
 def get_measures_for_crop(c, l, m, min_length, image_max): # coordinate, length, margin, minimum length, random translation, random zoom
+    zoom_offset = 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+    zoom_spread = 0.33 # the higher, the more variance in zooming. must be greater 0.
+    translation_spread = 0.25 # the higher, the more variance in translation. must be greater 0.
+    max_translation_offset = 0.33 # coefficient relative to the image size.
     
-    # Add the margin to the crop:
+    # Add a margin to the crop:
     l_new = l + 2 * m # add one margin left and right each
 
     # Randomly zoom the crop:
-    r_zoom = int(np.random.normal(loc=0, scale=l_new/3)) # amount depends on the current length of the crop
+    # We want to rather zoom out than in
+    r_zoom = int(np.random.normal(loc=l_new * zoom_offset, scale=l_new * zoom_spread)) # amount depends on the current length of the crop
     l_new += r_zoom // 2 # random zoom
     c -= r_zoom // 2 # we want to keep the crop centered here
 
     # Randomly translate the crop, while it must not be too small or large, or else the lesion won't be within the crop anymore:
-    r_transl = min(-l_new//3, int(np.random.normal(loc=0, scale=l_new/4))) # amount depends on the current length of the crop
-    if r_transl > l_new//3: r_transl = l_new//3
+    r_transl = min(int(-l_new * max_translation_offset), int(np.random.normal(loc=0, scale=l_new * translation_spread))) # amount depends on the current length of the crop
+    if r_transl > int(l_new * max_translation_offset): r_transl = l_new * max_translation_offset
 
     c = max(0, c + r_transl) # random translation
 
