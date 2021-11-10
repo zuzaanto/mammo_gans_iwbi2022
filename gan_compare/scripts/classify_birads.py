@@ -166,17 +166,31 @@ if __name__ == "__main__":
     net = Net128(num_labels=2).to(device)
 
     criterion = nn.CrossEntropyLoss()
+
     if args.save_dataset:
         print(f"Saving data samples...")
         save_data_path = Path("save_dataset")
-        for i, data in enumerate(tqdm(train_dataloader)): # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
-            _, labels, images = data
-            for label, image in zip(labels, images):
+
+        with open(save_data_path / "validation.txt", 'w') as f:
+            f.write('index, y_prob\n')
+        cnt = 0
+        for data in tqdm(val_dataloader): # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
+            samples, labels, images = data
+            outputs = net(samples)
+            for y_prob_logit, label, image in zip(outputs.data, labels, images):
+                y_prob = torch.exp(y_prob_logit)[1]
+                with open(save_data_path / "validation.txt", "a") as f:
+                    f.write(f'{cnt}, {y_prob}\n')
+
                 label = "healthy" if int(label) == 1 else "with_lesions"
-                out_image_dir = save_data_path / "train" / str(label)
+                out_image_dir = save_data_path / "validation" / str(label)
                 out_image_dir.mkdir(parents=True, exist_ok=True)
-                out_image_path = out_image_dir / f"{i}.png" 
+                out_image_path = out_image_dir / f"{cnt}.png" 
                 cv2.imwrite(str(out_image_path), np.array(image))
+
+                cnt += 1
+
+                
         print(f"Saved data samples to {save_data_path.resolve()}")
 
     if not args.only_get_metrics:
