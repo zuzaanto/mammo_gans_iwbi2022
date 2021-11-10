@@ -37,6 +37,7 @@ class BaseDataset(Dataset):
             is_condition_binary: bool = False,
             is_condition_categorical: bool = False,
             transform: any = None,
+            config = None
     ):
         assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
         self.metadata = []
@@ -55,6 +56,7 @@ class BaseDataset(Dataset):
         self.split_birads_fours = split_birads_fours
         self.transform = transform
         self.added_noise_term = added_noise_term
+        self.config = config
 
         self.dist_probs = get_patch_size_dist() # can't load numpy array directly here
         
@@ -138,3 +140,45 @@ class BaseDataset(Dataset):
         #     return int(np.random.poisson(100, 1)) + (self.min_size + 50)
         # else:
         #     return int(np.random.poisson(10, 1)) + (self.min_size - 10) # Poisson distribution centered around 160, nothing lower than 150
+
+    def get_crops_around_bbox(self, metapoint: dict, margin: int, min_size: int, image_shape: Tuple[int, int], config) -> Tuple[int, int, int, int]:
+        x, y, w, h = metapoint["bbox"]
+
+        x_p, w_p = self.get_measures_for_crop(x, w, margin, min_size, image_shape[1], config)
+        y_p, h_p = self.get_measures_for_crop(y, h, margin, min_size, image_shape[0], config, w_p) # second dimension depends on length of first dimension
+        
+        return (x_p, y_p, w_p, h_p)
+
+    def get_measures_for_crop(self, c, l, m, min_length, image_max, config, length_of_other_dimension=None): # coordinate, length, margin, minimum length, random translation, random zoom
+        
+        # Add a margin to the crop:
+        l_new = l + 2 * m # add one margin left and right each
+
+        # Randomly zoom the crop:
+        if length_of_other_dimension is None:
+            # We want to rather zoom out than in
+            r_zoom = int(np.random.normal(loc=l_new * config.zoom_offset, scale=l_new * config.zoom_spread)) # zoom amount depends on the current length of the crop
+        else:
+            r_zoom = int(np.random.normal(loc=length_of_other_dimension, scale=l_new * config.ratio_spread))
+        l_new += r_zoom // 2 # random zoom
+        c -= r_zoom // 2 # we want to keep the crop centered here
+
+        # Randomly translate the crop, while it must not be too small or large, or else the lesion won't be within the crop anymore:
+        r_transl = min(int(-l_new * config.max_translation_offset), int(np.random.normal(loc=0, scale=l_new * config.translation_spread))) # amount depends on the current length of the crop
+        if r_transl > int(l_new * config.max_translation_offset): r_transl = l_new * config.max_translation_offset
+
+        c = max(0, c + r_transl) # random translation
+
+        # Now make sure that the new length is at least minimum length
+        if l_new < min_length: # => new length is too small, must be at least minimum length
+            # explanation: (min_length - l) // 2 > m
+            c_new = c - (min_length - l) // 2 # in this case divide by 2 to keep patch centered
+            l_new = min_length
+        else: # => new length is large enough
+            c_new = c - m
+        
+        # Now make sure that the crop is still within the image:
+        c_new = max(0, c_new)
+        c_new -= max(0, (c_new + l_new) - image_max) # move crop back into the image if it goes beyond the image
+
+        return (c_new, l_new)

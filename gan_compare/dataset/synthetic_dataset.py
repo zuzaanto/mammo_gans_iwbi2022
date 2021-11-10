@@ -8,7 +8,7 @@ import torch
 import random
 import torchvision
 
-from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8, get_crops_around_bbox
+from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8
 from gan_compare.dataset.base_dataset import BaseDataset
 from gan_compare.dataset.constants import BIRADS_DICT
 
@@ -33,6 +33,7 @@ class SyntheticDataset(BaseDataset):
         transform: any = None,
         shuffle_proportion: Optional[int] = None,
         current_length: Optional[int] = None,
+        config = None
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -48,6 +49,7 @@ class SyntheticDataset(BaseDataset):
             is_trained_on_other_roi_types=is_trained_on_other_roi_types,
             is_condition_binary=is_condition_binary,
             transform=transform,
+            config=config
         )
         # TODO adjust along with synthetic metadata creation
         self.metadata = self.metadata_unfiltered

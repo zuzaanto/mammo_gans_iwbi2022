@@ -66,6 +66,13 @@ class ClassifierConfig:
 
     conditional: bool = False
 
+    # Variables for utils.py -> get_measures_for_crop():
+    zoom_offset: float = 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+    zoom_spread: float = 0.33 # the higher, the more variance in zooming. must be greater 0.
+    ratio_spread: float = 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
+    translation_spread: float = 0.25 # the higher, the more variance in translation. must be greater 0.
+    max_translation_offset: float = 0.33 # coefficient relative to the image size.
+
     def __post_init__(self):
         if self.classify_binary_healthy:
             self.n_cond = 2

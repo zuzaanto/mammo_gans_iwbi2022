@@ -6,7 +6,7 @@ import pydicom as dicom
 import torch
 import torchvision
 
-from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8, get_crops_around_bbox
+from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8
 from gan_compare.dataset.base_dataset import BaseDataset
 
 
@@ -33,6 +33,7 @@ class InbreastDataset(BaseDataset):
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
             transform: any = None,
+            config = None
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -52,6 +53,7 @@ class InbreastDataset(BaseDataset):
             is_trained_on_masses=is_trained_on_masses,
             is_trained_on_other_roi_types=is_trained_on_other_roi_types,
             transform=transform,
+            config=config
         )
         if self.classify_binary_healthy:
             self.metadata.extend(
@@ -105,7 +107,7 @@ class InbreastDataset(BaseDataset):
             # print(f"image.shape: {image.shape}")
         else:
             # mask = mask.astype("uint8")
-            x, y, w, h = get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape)
+            x, y, w, h = self.get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape, config=self.config)
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
 

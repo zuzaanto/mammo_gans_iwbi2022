@@ -76,6 +76,7 @@ if __name__ == "__main__":
             conditional_birads=True,
             transform=train_transform,
             is_trained_on_calcifications=config.is_trained_on_calcifications,
+            config=config
             # synthetic_metadata_path=config.synthetic_metadata_path,
             # synthetic_shuffle_proportion=config.train_shuffle_proportion,
             )
@@ -88,6 +89,7 @@ if __name__ == "__main__":
                 conditional_birads=True,
                 transform=val_transform,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
+                config=config
                 # synthetic_metadata_path=config.synthetic_metadata_path,
                 # synthetic_shuffle_proportion=config.validation_shuffle_proportion,
             )
@@ -100,6 +102,7 @@ if __name__ == "__main__":
                 conditional_birads=True,
                 transform=val_transform,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
+                config=config
             )
         )
     train_dataset = ConcatDataset(train_dataset_list)
@@ -114,7 +117,8 @@ if __name__ == "__main__":
             conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
-            current_length=len(train_dataset)
+            current_length=len(train_dataset),
+            config=config
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
         synth_val_images = SyntheticDataset(
@@ -124,7 +128,8 @@ if __name__ == "__main__":
             conditional_birads=True,
             transform=val_transform,
             shuffle_proportion=config.train_shuffle_proportion,
-            current_length=len(val_dataset)
+            current_length=len(val_dataset),
+            config=config
         )
         val_dataset = ConcatDataset([val_dataset, synth_val_images])
 
@@ -156,7 +161,9 @@ if __name__ == "__main__":
 
     print(f"Device: {device}")
 
-    net = CLASSIFIERS_DICT[config.model_name](num_classes=config.n_cond, img_size=config.image_size).to(device)
+    # net = CLASSIFIERS_DICT[config.model_name](num_classes=config.n_cond, img_size=config.image_size).to(device)
+    from gan_compare.training.networks.classification.classifier_128 import Net as Net128
+    net = Net128(num_labels=2).to(device)
 
     criterion = nn.CrossEntropyLoss()
     if args.save_dataset:

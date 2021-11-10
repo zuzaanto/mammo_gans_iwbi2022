@@ -337,49 +337,6 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     )
     return img_n
 
-def get_crops_around_bbox(metapoint: dict, margin: int, min_size: int, image_shape: Tuple[int, int]) -> Tuple[int, int, int, int]:
-    x, y, w, h = metapoint["bbox"]
-
-    x_p, w_p = get_measures_for_crop(x, w, margin, min_size, image_shape[1])
-    y_p, h_p = get_measures_for_crop(y, h, margin, min_size, image_shape[0])
-    
-    return (x_p, y_p, w_p, h_p)
-
-def get_measures_for_crop(c, l, m, min_length, image_max): # coordinate, length, margin, minimum length, random translation, random zoom
-    zoom_offset = 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-    zoom_spread = 0.33 # the higher, the more variance in zooming. must be greater 0.
-    translation_spread = 0.25 # the higher, the more variance in translation. must be greater 0.
-    max_translation_offset = 0.33 # coefficient relative to the image size.
-    
-    # Add a margin to the crop:
-    l_new = l + 2 * m # add one margin left and right each
-
-    # Randomly zoom the crop:
-    # We want to rather zoom out than in
-    r_zoom = int(np.random.normal(loc=l_new * zoom_offset, scale=l_new * zoom_spread)) # amount depends on the current length of the crop
-    l_new += r_zoom // 2 # random zoom
-    c -= r_zoom // 2 # we want to keep the crop centered here
-
-    # Randomly translate the crop, while it must not be too small or large, or else the lesion won't be within the crop anymore:
-    r_transl = min(int(-l_new * max_translation_offset), int(np.random.normal(loc=0, scale=l_new * translation_spread))) # amount depends on the current length of the crop
-    if r_transl > int(l_new * max_translation_offset): r_transl = l_new * max_translation_offset
-
-    c = max(0, c + r_transl) # random translation
-
-    # Now make sure that the new length is at least minimum length
-    if l_new < min_length: # => new length is too small, must be at least minimum length
-        # explanation: (min_length - l) // 2 > m
-        c_new = c - (min_length - l) // 2 # in this case divide by 2 to keep patch centered
-        l_new = min_length
-    else: # => new length is large enough
-        c_new = c - m
-    
-    # Now make sure that the crop is still within the image:
-    c_new = max(0, c_new)
-    c_new -= max(0, (c_new + l_new) - image_max) # move crop back into the image if it goes beyond the image
-
-    return (c_new, l_new)
-
 # deprecated
 def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
