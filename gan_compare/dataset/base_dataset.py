@@ -89,7 +89,7 @@ class BaseDataset(Dataset):
         elif self.conditioned_on == "density":
             if self.is_condition_binary:
                 condition = metapoint["density"][0]
-                if int(float(condition)) <= 2:
+                if condition is not "N" and int(float(condition)) <= 2:
                     return 0
                 return 1
             elif self.is_condition_categorical:
