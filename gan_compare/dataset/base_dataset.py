@@ -149,33 +149,37 @@ class BaseDataset(Dataset):
         
         return (x_p, y_p, w_p, h_p)
 
-    def get_measures_for_crop(self, c, l, m, min_length, image_max, config, length_of_other_dimension=None): # coordinate, length, margin, minimum length, random translation, random zoom
-        
-        # Add a margin to the crop:
-        l_new = l + 2 * m # add one margin left and right each
-
-        # Randomly zoom the crop:
+    def get_measures_for_crop(self, coord, length, margin, min_length, image_max, config, length_of_other_dimension=None): # coordinate, length, margin, minimum length, random translation, random zoom
         if length_of_other_dimension is None:
+            # Add a margin to the crop:
+            l_new = length + 2 * margin # add one margin left and right each
+        
             # We want to rather zoom out than in
             r_zoom = int(np.random.normal(loc=l_new * config.zoom_offset, scale=l_new * config.zoom_spread)) # zoom amount depends on the current length of the crop
         else:
-            r_zoom = int(np.random.normal(loc=length_of_other_dimension, scale=l_new * config.ratio_spread))
+            # here we want to set the length and coordinate in relation to the other dimension, to preserve the image ratio
+            # We don't add a margin but set l_new to the same value as the other dimension
+            coord -= (length_of_other_dimension - length) // 2 # required to keep the patch centered
+            l_new = length_of_other_dimension
+            r_zoom = int(np.random.normal(loc=0, scale=l_new * config.ratio_spread)) # we still introduce some randomness while preserving image ratio only roughly
+
+        # Randomly zoom the crop:
         l_new += r_zoom // 2 # random zoom
-        c -= r_zoom // 2 # we want to keep the crop centered here
+        coord -= r_zoom // 2 # we want to keep the crop centered here
 
         # Randomly translate the crop, while it must not be too small or large, or else the lesion won't be within the crop anymore:
         r_transl = min(int(-l_new * config.max_translation_offset), int(np.random.normal(loc=0, scale=l_new * config.translation_spread))) # amount depends on the current length of the crop
         if r_transl > int(l_new * config.max_translation_offset): r_transl = l_new * config.max_translation_offset
 
-        c = max(0, c + r_transl) # random translation
+        coord = max(0, coord + r_transl) # random translation
 
         # Now make sure that the new length is at least minimum length
         if l_new < min_length: # => new length is too small, must be at least minimum length
             # explanation: (min_length - l) // 2 > m
-            c_new = c - (min_length - l) // 2 # in this case divide by 2 to keep patch centered
+            c_new = coord - (min_length - length) // 2 # in this case divide by 2 to keep patch centered
             l_new = min_length
         else: # => new length is large enough
-            c_new = c - m
+            c_new = coord - margin
         
         # Now make sure that the crop is still within the image:
         c_new = max(0, c_new)
