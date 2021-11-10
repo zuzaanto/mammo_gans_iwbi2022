@@ -137,8 +137,8 @@ class GANConfig:
                 self.condition_max = 4
             elif self.conditioned_on == "birads":
                 if self.split_birads_fours:
-                    self.birads_min = 1
-                    self.birads_max = 7
+                    self.condition_min = 1
+                    self.condition_max = 7
                 else:
                     self.condition_min = 2
                     self.condition_max = 6

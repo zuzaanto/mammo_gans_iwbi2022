@@ -9,7 +9,7 @@ from gan_compare.training.networks.base_discriminator import BaseDiscriminator
 
 class Discriminator(BaseDiscriminator):
     def __init__(
-            self, ndf: int, nc: int, ngpu: int, image_size: int, conditional: bool, leakiness: float = 0.2,
+            self, ndf: int, nc: int, ngpu: int, image_size: int, conditional: bool, leakiness: float,
             bias: bool = False, n_cond: int = 10, is_condition_categorical: bool = False,
             num_embedding_dimensions: int = 50, kernel_size: int = 6,
     ):
@@ -65,7 +65,7 @@ class Discriminator(BaseDiscriminator):
                 # input is (self.nc) x 64 x 64
                 nn.Conv2d(self.nc, self.ndf, kernel_size=self.kernel_size, stride=stride, padding=padding,
                           bias=self.bias),
-                nn.LeakyReLU(leakiness, inplace=True),
+                nn.LeakyReLU(self.leakiness, inplace=True),
             )
         else:
             raise ValueError(f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust.")

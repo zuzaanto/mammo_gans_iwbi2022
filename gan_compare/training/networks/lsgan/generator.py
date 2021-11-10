@@ -14,7 +14,7 @@ class Generator(BaseGenerator):
         ngf: int,
         nc: int,
         ngpu: int,
-        leakiness: float = 0.2,
+        leakiness: float,
         bias: bool = False,
     ):
         super(Generator, self).__init__(

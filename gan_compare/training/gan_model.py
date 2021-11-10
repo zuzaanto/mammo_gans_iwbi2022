@@ -99,6 +99,7 @@ class GANModel:
                 is_condition_categorical=self.config.is_condition_categorical,
                 num_embedding_dimensions=self.config.num_embedding_dimensions,
                 kernel_size=self.config.kernel_size,
+                leakiness=self.config.leakiness,
             ).to(self.device)
 
             from gan_compare.training.networks.dcgan.generator import (
@@ -114,6 +115,7 @@ class GANModel:
                 n_cond=self.config.n_cond,
                 is_condition_categorical=self.config.is_condition_categorical,
                 num_embedding_dimensions=self.config.num_embedding_dimensions,
+                leakiness=self.config.leakiness,
             ).to(self.device)
 
         elif self.model_name == "lsgan":
