@@ -120,7 +120,6 @@ if __name__ == "__main__":
             )
             out_image_path = f"{i}_{config.conditioned_on}_{condition}.png" if config.conditional else f"{i}.png"
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
-
     print("Loading model...")
     model = GANModel(
         model_name=args.model_name,
