@@ -141,8 +141,8 @@ class BaseDataset(Dataset):
         # else:
         #     return int(np.random.poisson(10, 1)) + (self.min_size - 10) # Poisson distribution centered around 160, nothing lower than 150
 
-    def get_crops_around_bbox(self, metapoint: dict, margin: int, min_size: int, image_shape: Tuple[int, int], config) -> Tuple[int, int, int, int]:
-        x, y, w, h = metapoint["bbox"]
+    def get_crops_around_bbox(self, bbox: Tuple[int, int, int, int], margin: int, min_size: int, image_shape: Tuple[int, int], config) -> Tuple[int, int, int, int]:
+        x, y, w, h = bbox
 
         x_p, w_p = self.get_measures_for_crop(x, w, margin, min_size, image_shape[1], config)
         y_p, h_p = self.get_measures_for_crop(y, h, margin, min_size, image_shape[0], config, w_p) # second dimension depends on length of first dimension
