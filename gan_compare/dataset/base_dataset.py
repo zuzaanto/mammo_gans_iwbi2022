@@ -161,7 +161,8 @@ class BaseDataset(Dataset):
             # We don't add a margin but set l_new to the same value as the other dimension
             coord -= (length_of_other_dimension - length) // 2 # required to keep the patch centered
             l_new = length_of_other_dimension
-            r_zoom = int(np.random.normal(loc=0, scale=l_new * config.ratio_spread)) # we still introduce some randomness while preserving image ratio only roughly
+            # r_zoom = int(np.random.normal(loc=0, scale=l_new * config.ratio_spread)) # we still introduce some randomness while preserving image ratio only roughly
+            r_zoom = 0 # no randomness anymore
 
         # Randomly zoom the crop:
         l_new += r_zoom // 2 # random zoom
