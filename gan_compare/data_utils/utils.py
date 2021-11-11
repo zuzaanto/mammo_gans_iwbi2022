@@ -348,7 +348,3 @@ def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path:
         num_of_synth_metapoints = len(synthetic_metadata)
         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
-
-def get_patch_size_dist():
-    x = np.load('patch_size_dist.npz')
-    return x['height'], x['width']
