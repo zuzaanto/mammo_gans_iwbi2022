@@ -380,11 +380,11 @@ class GANModel:
                 self.netD.zero_grad()
 
                 # Unpack data (=image batch) alongside condition (i.e. birads number). Conditions are all -1 if unconditioned.
-                samples, conditions, _ = data
+                data, conditions, _ = data
 
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = samples.to(self.device)
+                real_images = data.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)
@@ -400,6 +400,7 @@ class GANModel:
                     real_conditions = conditions.to(self.device)
                     # generate fake conditions
                     fake_conditions = self._get_random_conditions(batch_size=b_size)
+                    logging.debug(f"fake_conditions: {fake_conditions}")
                     # Generate fake image batch with G (conditional_res64)
                     fake_images = self.netG(noise, fake_conditions)
                 else:
@@ -485,7 +486,7 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
-            if (epoch % 5 == 0 and epoch >= 50):
+            if (epoch % 20 == 0 and epoch >= 50):
                 # Save on each 5th epoch starting at epoch 50.
                 self._save_model(epoch)
         self._save_model()
@@ -514,8 +515,7 @@ class GANModel:
                 fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
             else:
                 fake = self.netG(fixed_noise).detach().cpu().numpy()
-            for j, img_ in enumerate(fake):
-                img_list.extend(fake)
+            img_list.extend(fake)
         return img_list
 
     def visualize(self, fixed_noise=None, fixed_condition=None):

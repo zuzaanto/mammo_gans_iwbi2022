@@ -2,10 +2,8 @@ from typing import Tuple
 
 import cv2
 import numpy as np
-import scipy.ndimage as ndimage
 import torch
 import torchvision
-
 
 from gan_compare.dataset.base_dataset import BaseDataset
 
@@ -26,14 +24,14 @@ class BCDRDataset(BaseDataset):
             conditional: bool = False,
             is_condition_binary: bool = False,
             is_condition_categorical: bool = False,
-            added_noise_term:float = 0.0,
+            added_noise_term: float = 0.0,
             split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             is_trained_on_calcifications: bool = False,
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
             transform: any = None,
-            config = None
+            config=None
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -72,22 +70,21 @@ class BCDRDataset(BaseDataset):
                 # TODO add these keywords to a dedicated constants file
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered \
-                    if "calcification" in metapoint["roi_type"] \
-                    or "microcalcification" in metapoint["roi_type"]
-                    ]
+                     if "calcification" in metapoint["roi_type"] \
+                     or "microcalcification" in metapoint["roi_type"]
+                     ]
                 )
                 print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if is_trained_on_other_roi_types:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered \
-                    if "axillary_adenopathy" in metapoint["roi_type"] \
-                    or "architectural_distortion" in metapoint["roi_type"] \
-                    or "stroma_distortion" in metapoint["roi_type"]
-                    ]
+                     if "axillary_adenopathy" in metapoint["roi_type"] \
+                     or "architectural_distortion" in metapoint["roi_type"] \
+                     or "stroma_distortion" in metapoint["roi_type"]
+                     ]
                 )
                 print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
-
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -104,7 +101,8 @@ class BCDRDataset(BaseDataset):
             # Before: w == 128, h == 128
             w, h = self.get_random_size(1), self.get_random_size(0)
 
-            image = image[x: x + h, y: y + w] # note that the order of axis in healthy bbox is different, TODO change someday
+            image = image[x: x + h,
+                    y: y + w]  # note that the order of axis in healthy bbox is different, TODO change someday
 
             # print(f"image.shape: {image.shape}")
 
@@ -118,7 +116,8 @@ class BCDRDataset(BaseDataset):
             # Fill in the hole created by the contour boundary
             # mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
             # mask = mask.astype("uint8")
-            x, y, w, h = self.get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape, config=self.config)
+            x, y, w, h = self.get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size,
+                                                    image_shape=image.shape, config=self.config)
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
         # scale

@@ -6,7 +6,7 @@ import pydicom as dicom
 import torch
 import torchvision
 
-from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8
+from gan_compare.data_utils.utils import convert_to_uint8
 from gan_compare.dataset.base_dataset import BaseDataset
 
 
@@ -33,7 +33,7 @@ class InbreastDataset(BaseDataset):
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
             transform: any = None,
-            config = None
+            config=None
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -78,7 +78,6 @@ class InbreastDataset(BaseDataset):
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Other'])
                 print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
-
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
             idx = idx.tolist()
@@ -90,16 +89,16 @@ class InbreastDataset(BaseDataset):
         # xml_filepath = metapoint["xml_path"]
         # expected_roi_type = metapoint["roi_type"]
         # if xml_filepath != "":
-            # with open(xml_filepath, "rb") as patient_xml:
-            #     mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape, expected_roi_type=expected_roi_type)
-            #     try:
-            #         mask = mask_list[0].get('mask')
-            #     except:
-            #         print(
-            #             f"Error when trying to mask_list[0].get('mask'). mask_list: {mask_list}, metapoint: {metapoint}")
+        # with open(xml_filepath, "rb") as patient_xml:
+        #     mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape, expected_roi_type=expected_roi_type)
+        #     try:
+        #         mask = mask_list[0].get('mask')
+        #     except:
+        #         print(
+        #             f"Error when trying to mask_list[0].get('mask'). mask_list: {mask_list}, metapoint: {metapoint}")
         # else:
-            # mask = np.zeros(ds.pixel_array.shape)
-            # print(f"xml_filepath Error for metapoint: {metapoint}")
+        # mask = np.zeros(ds.pixel_array.shape)
+        # print(f"xml_filepath Error for metapoint: {metapoint}")
         if metapoint.get("healthy", False):
             x, y, w, h = metapoint["bbox"]
             w, h = self.get_random_size(1), self.get_random_size(0)
@@ -107,11 +106,11 @@ class InbreastDataset(BaseDataset):
             # print(f"image.shape: {image.shape}")
         else:
             # mask = mask.astype("uint8")
-            x, y, w, h = self.get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size, image_shape=image.shape, config=self.config)
+            x, y, w, h = self.get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size,
+                                                    image_shape=image.shape, config=self.config)
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
 
-            
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
@@ -119,7 +118,7 @@ class InbreastDataset(BaseDataset):
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 
         if self.transform: sample = self.transform(sample)
-        
+
         label = self.retrieve_condition(metapoint) if self.conditional else self.determine_label(metapoint)
-        
+
         return sample, label, image

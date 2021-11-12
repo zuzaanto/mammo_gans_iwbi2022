@@ -80,6 +80,7 @@ if __name__ == "__main__":
         ])
     for dataset_name in config.dataset_names:
         dataset = DATASET_DICT[dataset_name](
+            # TODO Remove passing all the config variables one by one. Instead let's only pass the config dict and hhandle its keys internally.
             metadata_path=args.in_metadata_path,
             final_shape=(config.image_size, config.image_size),
             conditioned_on=config.conditioned_on,
@@ -92,18 +93,22 @@ if __name__ == "__main__":
             is_trained_on_calcifications=config.is_trained_on_calcifications,
             is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
             # https://pytorch.org/vision/stable/transforms.html
-            transform=transform_to_use)
+            transform=transform_to_use,
+            config=config)
         dataset_list.append(dataset)
     dataset = ConcatDataset(dataset_list)
 
     print(f"Loaded dataset {dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}")
 
+    # drop_last is true to avoid batch_sie of 1 that throws an Value Error in BatchNorm. https://discuss.pytorch.org/t/error-expected-more-than-1-value-per-channel-when-training/26274/5
     dataloader = DataLoader(
         dataset,
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=config.workers,
+        drop_last=True,
     )
+
 
     if args.save_dataset:
         output_dataset_dir = Path(args.out_dataset_path)

@@ -11,10 +11,10 @@ is_condition_categorical: False
 split_birads_fours: False
 is_trained_on_masses: True
 is_trained_on_calcifications: False
-is_trained_on_other_roi_types: True
+is_trained_on_other_roi_types: False
 is_training_data_augmented: True
 leakiness: 0.1
-num_epochs: 300
+num_epochs: 5000
 ngpu: 1
 dataset_names: 
   - bcdr

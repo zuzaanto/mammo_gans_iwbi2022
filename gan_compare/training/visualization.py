@@ -144,3 +144,4 @@ class VisualizationUtils:
             plt.show()
         if is_saved:
             fig.savefig(str((self.output_model_dir / "training_progress.png").resolve()), dpi=fig.dpi)
+        plt.close()
