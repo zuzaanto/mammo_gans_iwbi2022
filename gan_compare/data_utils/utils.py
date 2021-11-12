@@ -199,6 +199,7 @@ def generate_healthy_inbreast_metapoints(
         for _ in range(per_image_count):
             img = dicom.dcmread(image_path).pixel_array
             img_crop = np.zeros(shape=(size, size))
+            # TODO maybe instead of countNonZero do count(pixelvalue>10)
             while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
                 img_crop, bbox = _random_crop(img, size)
             metapoint = {
@@ -264,6 +265,7 @@ def generate_healthy_bcdr_metapoints(
     for _ in range(per_image_count):
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         img_crop = np.zeros(shape=(size, size))
+        # TODO maybe instead of countNonZero do count(pixelvalue>10)
         while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
             img_crop, bbox = _random_crop(img, size)
         metapoint = {
