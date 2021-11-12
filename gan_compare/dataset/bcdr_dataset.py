@@ -96,11 +96,9 @@ class BCDRDataset(BaseDataset):
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         contour = metapoint["contour"]
         if metapoint.get("healthy", False):
-            x, y, w, h = metapoint["bbox"]
 
-            # Before: w == 128, h == 128
-            w, h = self.get_random_size(1), self.get_random_size(0)
-
+            x, y, w, h = self.get_crops_around_bbox(metapoint["bbox"], margin=0, min_size=self.min_size,
+                                                    image_shape=image.shape, config=self.config)
             image = image[x: x + h,
                     y: y + w]  # note that the order of axis in healthy bbox is different, TODO change someday
 
@@ -116,8 +114,10 @@ class BCDRDataset(BaseDataset):
             # Fill in the hole created by the contour boundary
             # mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
             # mask = mask.astype("uint8")
-            x, y, w, h = self.get_crops_around_bbox(metapoint, margin=self.margin, min_size=self.min_size,
+
+            x, y, w, h = self.get_crops_around_bbox(metapoint['bbox'], margin=self.margin, min_size=self.min_size,
                                                     image_shape=image.shape, config=self.config)
+
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
         # scale

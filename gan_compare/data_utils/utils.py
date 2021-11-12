@@ -199,7 +199,8 @@ def generate_healthy_inbreast_metapoints(
         for _ in range(per_image_count):
             img = dicom.dcmread(image_path).pixel_array
             img_crop = np.zeros(shape=(size, size))
-            while cv2.countNonZero(img_crop) < bg_pixels_max_ratio * size * size:
+            # TODO maybe instead of countNonZero do count(pixelvalue>10)
+            while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
                 img_crop, bbox = _random_crop(img, size)
             metapoint = {
                 "healthy": True,
@@ -264,7 +265,8 @@ def generate_healthy_bcdr_metapoints(
     for _ in range(per_image_count):
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         img_crop = np.zeros(shape=(size, size))
-        while cv2.countNonZero(img_crop) < bg_pixels_max_ratio * size * size:
+        # TODO maybe instead of countNonZero do count(pixelvalue>10)
+        while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
             img_crop, bbox = _random_crop(img, size)
         metapoint = {
             "healthy": True,
@@ -348,7 +350,3 @@ def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path:
         num_of_synth_metapoints = len(synthetic_metadata)
         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
-
-def get_patch_size_dist():
-    x = np.load('patch_size_dist.npz')
-    return x['height'], x['width']

@@ -10,8 +10,6 @@ from gan_compare.dataset.constants import DENSITY_DICT, BIRADS_DICT, BCDR_BIRADS
 
 import numpy as np
 
-from gan_compare.data_utils.utils import get_patch_size_dist
-
 # TODO add option for shuffling in data from synthetic metadata file
 
 class BaseDataset(Dataset):
@@ -58,8 +56,6 @@ class BaseDataset(Dataset):
         self.added_noise_term = added_noise_term
         self.config = config
 
-        self.dist_probs = get_patch_size_dist() # can't load numpy array directly here
-        
 
     def __len__(self):
         return len(self.metadata)
@@ -131,20 +127,8 @@ class BaseDataset(Dataset):
                 return int(condition)
         else: return -1 # None does not work
 
-    # Draw height and width of a healthy patch from the same distribution (individually!) as the non-healthy patches come from (i.e. dist_probs)
-    def get_random_size(self, dim): # dim is either 1 (height) or 0 (width)
-        probs = self.dist_probs[dim]
-        return np.random.choice(a=np.arange(len(probs)) + self.min_size, p=probs)
-        # random_number = np.random.uniform()
-        # if random_number < 0.8:
-        #     return self.min_size
-        # elif random_number < 0.9:
-        #     return int(np.random.poisson(100, 1)) + (self.min_size + 50)
-        # else:
-        #     return int(np.random.poisson(10, 1)) + (self.min_size - 10) # Poisson distribution centered around 160, nothing lower than 150
-
-    def get_crops_around_bbox(self, metapoint: dict, margin: int, min_size: int, image_shape: Tuple[int, int], config) -> Tuple[int, int, int, int]:
-        x, y, w, h = metapoint["bbox"]
+    def get_crops_around_bbox(self, bbox: Tuple[int, int, int, int], margin: int, min_size: int, image_shape: Tuple[int, int], config) -> Tuple[int, int, int, int]:
+        x, y, w, h = bbox
 
         x_p, w_p = self.get_measures_for_crop(x, w, margin, min_size, image_shape[1], config)
         y_p, h_p = self.get_measures_for_crop(y, h, margin, min_size, image_shape[0], config, w_p) # second dimension depends on length of first dimension
@@ -163,7 +147,8 @@ class BaseDataset(Dataset):
             # We don't add a margin but set l_new to the same value as the other dimension
             coord -= (length_of_other_dimension - length) // 2 # required to keep the patch centered
             l_new = length_of_other_dimension
-            r_zoom = int(np.random.normal(loc=0, scale=l_new * config.ratio_spread)) # we still introduce some randomness while preserving image ratio only roughly
+            # r_zoom = int(np.random.normal(loc=0, scale=l_new * config.ratio_spread)) # we still introduce some randomness while preserving image ratio only roughly
+            r_zoom = 0 # no randomness anymore
 
         # Randomly zoom the crop:
         l_new += r_zoom // 2 # random zoom
