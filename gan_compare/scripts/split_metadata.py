@@ -7,6 +7,7 @@ from typing import List, Tuple, Union
 from sklearn.model_selection import train_test_split
 import pandas as pd
 from gan_compare.constants import DENSITIES
+from gan_compare.data_utils.utils import save_metadata_to_file
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,14 +34,6 @@ def split_df_into_folds(metadata_df: pd.DataFrame, proportion: float) -> Tuple[p
     fold1 = metadata_df[~fold2_index]
     return fold1, fold2
 
-
-def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
-    if len(metadata_df) > 0:
-        if not out_path.parent.exists():
-            os.makedirs(out_path.parent)
-        with open(str(out_path.resolve()), "w") as out_file:
-            json.dump(list(metadata_df.replace({np.nan:None}).T.to_dict().values()), out_file, indent=4)
-            
 
 def split_array_into_folds(patients_list: np.ndarray, proportion: float) -> Tuple[np.ndarray]:
     fold2_index = np.random.uniform(size=len(patients_list)) > proportion

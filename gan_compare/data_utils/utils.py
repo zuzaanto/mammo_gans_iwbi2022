@@ -347,6 +347,15 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     )
     return img_n
 
+
+def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
+    if len(metadata_df) > 0:
+        if not out_path.parent.exists():
+            os.makedirs(out_path.parent)
+        with open(str(out_path.resolve()), "w") as out_file:
+            json.dump(list(metadata_df.replace({np.nan:None}).T.to_dict().values()), out_file, indent=4)
+            
+
 # deprecated
 def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
