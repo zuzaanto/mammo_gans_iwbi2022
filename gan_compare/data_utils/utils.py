@@ -199,11 +199,14 @@ def generate_healthy_inbreast_metapoints(
     lesion_metapoints = []
     if int(csv_metadata["Bi-Rads"][:1]) == 1:
         for _ in range(per_image_count):
-            img = dicom.dcmread(image_path).pixel_array
+            img = convert_to_uint8(dicom.dcmread(image_path).pixel_array)
             img_crop = np.zeros(shape=(size, size))
-            # TODO maybe instead of countNonZero do count(pixelvalue>10)
-            while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
+            thres = 10
+            bin_img_crop = img_crop.copy()
+            while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
                 img_crop, bbox = _random_crop(img, size)
+                _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
+
             metapoint = {
                 "healthy": True,
                 "image_id": image_id,
@@ -267,9 +270,14 @@ def generate_healthy_bcdr_metapoints(
     for _ in range(per_image_count):
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         img_crop = np.zeros(shape=(size, size))
-        # TODO maybe instead of countNonZero do count(pixelvalue>10)
-        while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
+        bin_img_crop = img_crop.copy()
+        thres = 10
+        while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
             img_crop, bbox = _random_crop(img, size)
+            _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
+        if cv2.countNonZero(bin_img_crop) < 128*12:
+            print(cv2.countNonZero(bin_img_crop))
+
         metapoint = {
             "healthy": True,
             "image_id": row_df["study_id"],
