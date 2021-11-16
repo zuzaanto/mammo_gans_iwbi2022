@@ -17,6 +17,8 @@ from deprecation import deprecated
 from gan_compare.paths import INBREAST_IMAGE_PATH
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 
+import os
+
 
 def load_inbreast_mask(
         mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 3328),
@@ -287,6 +289,10 @@ def generate_healthy_bcdr_metapoints(
         }
         metapoints.append(metapoint)
         start_index += 1
+
+        # os.makedirs('save_dataset/mymeta', exist_ok=True)
+        # cv2.imwrite(f'save_dataset/mymeta/{start_index}.png', np.array(img_crop))
+
     return metapoints, start_index
 
 

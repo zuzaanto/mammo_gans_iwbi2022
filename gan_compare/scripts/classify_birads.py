@@ -121,17 +121,21 @@ if __name__ == "__main__":
             config=config
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
-        synth_val_images = SyntheticDataset(
-            metadata_path=config.synthetic_metadata_path,
-            final_shape=(config.image_size, config.image_size),
-            classify_binary_healthy=config.classify_binary_healthy,
-            conditional_birads=True,
-            transform=val_transform,
-            shuffle_proportion=config.train_shuffle_proportion,
-            current_length=len(val_dataset),
-            config=config
-        )
-        val_dataset = ConcatDataset([val_dataset, synth_val_images])
+        print(f'Number of samples added to synthetic training set: {len(synth_train_images)}')
+
+        # synth_val_images = SyntheticDataset(
+        #     metadata_path=config.synthetic_metadata_path,
+        #     final_shape=(config.image_size, config.image_size),
+        #     classify_binary_healthy=config.classify_binary_healthy,
+        #     conditional_birads=True,
+        #     transform=val_transform,
+        #     shuffle_proportion=config.train_shuffle_proportion,
+        #     current_length=len(val_dataset),
+        #     config=config,
+        #     indices=None
+        # )
+        # val_dataset = ConcatDataset([val_dataset, synth_val_images])
+        # print(f'Number of samples added to synthetic validation set: {len(synth_val_images)}')
 
     train_dataloader = DataLoader(
         train_dataset,
