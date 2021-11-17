@@ -5,7 +5,7 @@ import numpy as np
 import scipy.ndimage as ndimage
 import torch
 import torchvision
-
+import logging
 
 from gan_compare.dataset.base_dataset import BaseDataset
 
@@ -58,7 +58,7 @@ class BCDRDataset(BaseDataset):
         if self.classify_binary_healthy:
             self.metadata.extend(
                 [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr'])
-            print(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
+            logging.info(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
         else:
             assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
                 f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
@@ -66,7 +66,7 @@ class BCDRDataset(BaseDataset):
             if is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if "nodule" in metapoint["roi_type"]])
-                print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
 
             if is_trained_on_calcifications:
                 # TODO add these keywords to a dedicated constants file
@@ -76,7 +76,7 @@ class BCDRDataset(BaseDataset):
                     or "microcalcification" in metapoint["roi_type"]
                     ]
                 )
-                print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if is_trained_on_other_roi_types:
                 self.metadata.extend(
@@ -86,7 +86,7 @@ class BCDRDataset(BaseDataset):
                     or "stroma_distortion" in metapoint["roi_type"]
                     ]
                 )
-                print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
 
     def __getitem__(self, idx: int):
@@ -102,12 +102,12 @@ class BCDRDataset(BaseDataset):
             x, y, w, h = self.get_crops_around_bbox(metapoint["bbox"], margin=0, min_size=self.min_size, image_shape=image.shape, config=self.config)
             image = image[x: x + h, y: y + w] # note that the order of axis in healthy bbox is different, TODO change someday
 
-            # print(f"image.shape: {image.shape}")
+            # logging.info(f"image.shape: {image.shape}")
 
         elif contour is not None:
             contour = np.asarray(contour)
             # Create an empty image to store the masked array
-            # print(f"Image path: {image_path}")
+            # logging.info(f"Image path: {image_path}")
             r_mask = np.zeros((image.shape[0] + 1, image.shape[1] + 1), dtype='bool')
             # Create a contour image by using the contour coordinates rounded to their nearest integer value
             r_mask[np.round(contour[1, :]).astype('int'), np.round(contour[0, :]).astype('int')] = 1

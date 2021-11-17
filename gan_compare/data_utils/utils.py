@@ -17,7 +17,7 @@ from deprecation import deprecated
 from gan_compare.paths import INBREAST_IMAGE_PATH
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 
-import os
+import logging
 
 
 def load_inbreast_mask(
@@ -65,7 +65,7 @@ def load_inbreast_mask(
                     mask_calcifications[int(point[1]), int(point[0])] = 1
                 else:
                     mask_other[int(point[1]), int(point[0])] = 1
-                    # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
+                    # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
                     # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
         else:
             x, y = zip(*points)
@@ -83,7 +83,7 @@ def load_inbreast_mask(
             else:
                 mask_other[poly_x, poly_y] = 1
                 #mask[poly_x, poly_y] = 1
-                # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
+                # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
                 # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
 
     # TODO I don't see the reason for creating dictionaries here, especially that they're not handled later. Ideas @Richard?
@@ -173,7 +173,7 @@ def generate_inbreast_metapoints(
             # "contour": c.tolist(),
         }
         start_index += 1
-        # print(f' patent = {patient_id}, start_index = {start_index}')
+        # logging.info(f' patent = {patient_id}, start_index = {start_index}')
         lesion_metapoints.append(metapoint)
     return lesion_metapoints, start_index
 
@@ -276,7 +276,7 @@ def generate_healthy_bcdr_metapoints(
             img_crop, bbox = _random_crop(img, size)
             _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
         if cv2.countNonZero(bin_img_crop) < 128*12:
-            print(cv2.countNonZero(bin_img_crop))
+            logging.info(str(cv2.countNonZero(bin_img_crop)))
 
         metapoint = {
             "healthy": True,
