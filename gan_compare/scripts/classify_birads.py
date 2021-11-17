@@ -48,11 +48,12 @@ if __name__ == "__main__":
     # Set up logger such that it writes to stdout and file
     # From https://stackoverflow.com/a/46098711/3692004
     Path('logs').mkdir(exist_ok=True)
+    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
-            logging.FileHandler(Path('logs') / f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'),
+            logging.FileHandler(Path('logs') / logfilename),
             logging.StreamHandler()
         ]
     )
@@ -63,6 +64,8 @@ if __name__ == "__main__":
     config = from_dict(ClassifierConfig, config_dict)
     logging.info(str(asdict(config)))
     logging.info("Loading dataset...")  # When we have more datasets implemented, we can specify which one(s) to load in config.
+
+    config.out_checkpoint_path += logfilename + '.pt'
 
     train_transform = transforms.Compose(
         [
