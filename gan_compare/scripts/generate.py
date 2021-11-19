@@ -123,6 +123,9 @@ if __name__ == "__main__":
     # Save the images to model checkpoint folder
     if args.out_images_path is None and args.save_images:
         args.out_images_path = Path(args.model_checkpoint_dir)
+    elif args.out_images_path is not None:
+        args.out_images_path = Path(args.out_images_path)
+
 
     if args.save_images:
         for i, img_ in enumerate(img_list):

@@ -497,7 +497,7 @@ class GANModel:
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
-        checkpoint = torch.load(model_checkpoint_path)
+        checkpoint = torch.load(model_checkpoint_path, self.device)
         self.netG.load_state_dict(checkpoint["generator"])
         self.optimizerG.load_state_dict(checkpoint["optim_generator"])
         self.netG.eval()

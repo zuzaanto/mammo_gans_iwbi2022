@@ -14,8 +14,8 @@ class ClassifierConfig:
     
     # Path to synthetic metadata used for data augmentation
     synthetic_metadata_path: str
-    train_shuffle_proportion: float
-    validation_shuffle_proportion: float
+    train_shuffle_proportion: float = 0.5
+    validation_shuffle_proportion: float  = 0.5
     
     # Proportion of training artificial images
     gan_images_ratio: float = 0.4

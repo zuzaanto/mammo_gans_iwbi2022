@@ -19,6 +19,8 @@ import torch.nn as nn
 import torch
 import cv2
 from tqdm import tqdm
+import logging
+from datetime import datetime
 
 
 def parse_args():
@@ -43,14 +45,27 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    # Set up logger such that it writes to stdout and file
+    # From https://stackoverflow.com/a/46098711/3692004
+    Path('logs').mkdir(exist_ok=True)
+    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(Path('logs') / logfilename),
+            logging.StreamHandler()
+        ]
+    )
+
     args = parse_args()
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(ClassifierConfig, config_dict)
-    print(asdict(config))
-    print(
-        "Loading dataset..."
-    )  # When we have more datasets implemented, we can specify which one(s) to load in config.
+    logging.info(str(asdict(config)))
+    logging.info("Loading dataset...")  # When we have more datasets implemented, we can specify which one(s) to load in config.
+
+    config.out_checkpoint_path += logfilename + '.pt'
 
     train_transform = transforms.Compose(
         [
@@ -121,17 +136,24 @@ if __name__ == "__main__":
             config=config
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
-        synth_val_images = SyntheticDataset(
-            metadata_path=config.synthetic_metadata_path,
-            final_shape=(config.image_size, config.image_size),
-            classify_binary_healthy=config.classify_binary_healthy,
-            conditional_birads=True,
-            transform=val_transform,
-            shuffle_proportion=config.train_shuffle_proportion,
-            current_length=len(val_dataset),
-            config=config
-        )
-        val_dataset = ConcatDataset([val_dataset, synth_val_images])
+        logging.info(f'Number of samples added to synthetic training set: {len(synth_train_images)}')
+
+        # synth_val_images = SyntheticDataset(
+        #     metadata_path=config.synthetic_metadata_path,
+        #     final_shape=(config.image_size, config.image_size),
+        #     classify_binary_healthy=config.classify_binary_healthy,
+        #     conditional_birads=True,
+        #     transform=val_transform,
+        #     shuffle_proportion=config.train_shuffle_proportion,
+        #     current_length=len(val_dataset),
+        #     config=config,
+        #     indices=None
+        # )
+        # val_dataset = ConcatDataset([val_dataset, synth_val_images])
+        # logging.info(f'Number of samples added to synthetic validation set: {len(synth_val_images)}')
+
+    
+
 
     train_dataloader = DataLoader(
         train_dataset,
@@ -159,7 +181,7 @@ if __name__ == "__main__":
         "cuda" if (torch.cuda.is_available() and config.ngpu > 0) else "cpu"
     )
 
-    print(f"Device: {device}")
+    logging.info(f"Device: {device}")
 
     # net = CLASSIFIERS_DICT[config.model_name](num_classes=config.n_cond, img_size=config.image_size).to(device)
     from gan_compare.training.networks.classification.classifier_128 import Net as Net128
@@ -168,37 +190,54 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
 
     if args.save_dataset:
-        print(f"Saving data samples...")
+        logging.info(f"Saving data samples...")
+
+        net.load_state_dict(torch.load('model_checkpoints/classifier 50 no synth/classifier.pt'))
+        net.eval()
         save_data_path = Path("save_dataset")
 
         with open(save_data_path / "validation.txt", 'w') as f:
             f.write('index, y_prob\n')
         cnt = 0
-        for data in tqdm(val_dataloader): # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
-            samples, labels, images = data
-            outputs = net(samples)
-            for y_prob_logit, label, image in zip(outputs.data, labels, images):
-                y_prob = torch.exp(y_prob_logit)[1]
-                with open(save_data_path / "validation.txt", "a") as f:
-                    f.write(f'{cnt}, {y_prob}\n')
+        metapoints = []
+        for data in tqdm(test_dataset): # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
+            sample, label, image, r, d = data
+            outputs = net(sample[np.newaxis, ...])
+            
+            # for y_prob_logit, label, image, r, d in zip(outputs.data, labels, images, rs, ds):
+            y_prob_logit = outputs.data
+            y_prob = torch.exp(y_prob_logit)
+            metapoint = {
+                'label': label,
+                'roi_type': r,
+                'dataset': d,
+                'cnt': cnt,
+                'y_prob': y_prob.numpy().tolist()
+            }
+            metapoints.append(metapoint)
 
-                label = "healthy" if int(label) == 1 else "with_lesions"
-                out_image_dir = save_data_path / "validation" / str(label)
-                out_image_dir.mkdir(parents=True, exist_ok=True)
-                out_image_path = out_image_dir / f"{cnt}.png" 
-                cv2.imwrite(str(out_image_path), np.array(image))
+                # with open(save_data_path / "validation.txt", "a") as f:
+                #     f.write(f'{cnt}, {y_prob}\n')
 
-                cnt += 1
+            label = "healthy" if int(label) == 1 else "with_lesions"
+            out_image_dir = save_data_path / "validation" / str(label)
+            out_image_dir.mkdir(parents=True, exist_ok=True)
+            out_image_path = out_image_dir / f"{cnt}.png" 
+            cv2.imwrite(str(out_image_path), np.array(image))
 
-                
-        print(f"Saved data samples to {save_data_path.resolve()}")
+            cnt += 1
+        with open(save_data_path / 'validation.json', 'w') as f:
+            f.write(json.dumps(metapoints))
+
+        logging.info(f"Saved data samples to {save_data_path.resolve()}")
+        exit()
 
     if not args.only_get_metrics:
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
         best_loss = 10000
         for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
             running_loss = 0.0
-            print("\nTraining...")
+            logging.info("Training...")
             for i, data in enumerate(tqdm(train_dataloader)):
                 # get the inputs; data is a list of [inputs, labels]
                 samples, labels, _ = data
@@ -216,7 +255,7 @@ if __name__ == "__main__":
                 # print statistics
                 running_loss += loss.item()
                 if i % 2000 == 1999:  # print every 2000 mini-batches
-                    print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
+                    logging.info("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
                     running_loss = 0.0
                     
             # validate
@@ -225,10 +264,10 @@ if __name__ == "__main__":
                 y_true = []
                 y_prob_logit = []
                 net.eval()
-                print("\nValidating...")
+                logging.info("Validating...")
                 for i, data in enumerate(tqdm(val_dataloader)):
                     samples, labels, _ = data
-                    # print(images.size())
+                    # logging.info(images.size())
                     outputs = net(samples.to(device))
                     val_loss.append(criterion(outputs.cpu(), labels))
                     y_true.append(labels)
@@ -238,20 +277,20 @@ if __name__ == "__main__":
                     torch.save(net.state_dict(), config.out_checkpoint_path)
                 calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
 
-        print("Finished Training")
-        print(f"Saved model state dict to {config.out_checkpoint_path}")
+        logging.info("Finished Training")
+        logging.info(f"Saved model state dict to {config.out_checkpoint_path}")
 
-    print("Beginning test...")
+    logging.info("Beginning test...")
     net.load_state_dict(torch.load(config.out_checkpoint_path))
     with torch.no_grad():
         y_true = []
         y_prob_logit = []
         test_loss = []
         net.eval()
-        print("\nTesting...")
+        logging.info("Testing...")
         for i, data in enumerate(tqdm(test_dataloader)):
             samples, labels, _ = data
-            # print(images.size())
+            # logging.info(images.size())
             outputs = net(samples.to(device))
             test_loss.append(criterion(outputs.cpu(), labels))
             y_true.append(labels)
@@ -261,5 +300,5 @@ if __name__ == "__main__":
         y_prob_logit = torch.cat(y_prob_logit)
         calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
         if config.classify_binary_healthy: output_ROC_curve(y_true, y_prob_logit, "Test")
-    print("Finished testing.")
+    logging.info("Finished testing.")
     

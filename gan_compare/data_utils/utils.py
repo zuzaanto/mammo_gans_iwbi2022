@@ -17,6 +17,8 @@ from deprecation import deprecated
 from gan_compare.paths import INBREAST_IMAGE_PATH
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 
+import logging
+
 
 def load_inbreast_mask(
         mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 3328),
@@ -63,7 +65,7 @@ def load_inbreast_mask(
                     mask_calcifications[int(point[1]), int(point[0])] = 1
                 else:
                     mask_other[int(point[1]), int(point[0])] = 1
-                    # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
+                    # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
                     # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
         else:
             x, y = zip(*points)
@@ -81,7 +83,7 @@ def load_inbreast_mask(
             else:
                 mask_other[poly_x, poly_y] = 1
                 #mask[poly_x, poly_y] = 1
-                # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
+                # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
                 # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
 
     # TODO I don't see the reason for creating dictionaries here, especially that they're not handled later. Ideas @Richard?
@@ -171,7 +173,7 @@ def generate_inbreast_metapoints(
             # "contour": c.tolist(),
         }
         start_index += 1
-        # print(f' patent = {patient_id}, start_index = {start_index}')
+        # logging.info(f' patent = {patient_id}, start_index = {start_index}')
         lesion_metapoints.append(metapoint)
     return lesion_metapoints, start_index
 
@@ -197,11 +199,14 @@ def generate_healthy_inbreast_metapoints(
     lesion_metapoints = []
     if int(csv_metadata["Bi-Rads"][:1]) == 1:
         for _ in range(per_image_count):
-            img = dicom.dcmread(image_path).pixel_array
+            img = convert_to_uint8(dicom.dcmread(image_path).pixel_array)
             img_crop = np.zeros(shape=(size, size))
-            # TODO maybe instead of countNonZero do count(pixelvalue>10)
-            while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
+            thres = 10
+            bin_img_crop = img_crop.copy()
+            while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
                 img_crop, bbox = _random_crop(img, size)
+                _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
+
             metapoint = {
                 "healthy": True,
                 "image_id": image_id,
@@ -265,9 +270,14 @@ def generate_healthy_bcdr_metapoints(
     for _ in range(per_image_count):
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         img_crop = np.zeros(shape=(size, size))
-        # TODO maybe instead of countNonZero do count(pixelvalue>10)
-        while cv2.countNonZero(img_crop) < (1 - bg_pixels_max_ratio) * size * size:
+        bin_img_crop = img_crop.copy()
+        thres = 10
+        while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
             img_crop, bbox = _random_crop(img, size)
+            _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
+        if cv2.countNonZero(bin_img_crop) < 128*12:
+            logging.info(str(cv2.countNonZero(bin_img_crop)))
+
         metapoint = {
             "healthy": True,
             "image_id": row_df["study_id"],
@@ -287,6 +297,10 @@ def generate_healthy_bcdr_metapoints(
         }
         metapoints.append(metapoint)
         start_index += 1
+
+        # os.makedirs('save_dataset/mymeta', exist_ok=True)
+        # cv2.imwrite(f'save_dataset/mymeta/{start_index}.png', np.array(img_crop))
+
     return metapoints, start_index
 
 

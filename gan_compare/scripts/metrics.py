@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, auc, roc_curve
 import torch
+import logging
 
 def calc_all_scores(y_true, y_prob_logit, v_loss, run_type, epoch=None):
     y_prob = torch.exp(y_prob_logit) # probabilities of all classes for each sample
@@ -13,26 +14,26 @@ def calc_all_scores(y_true, y_prob_logit, v_loss, run_type, epoch=None):
 
 def calc_loss(v_loss, run_type, epoch=None):
     loss = np.mean(v_loss)
-    if epoch is None: print(f'{run_type} loss: {loss}')
-    else: print(f'{run_type} loss in {epoch} epoch: {loss}')
+    if epoch is None: logging.info(f'{run_type} loss: {loss}')
+    else: logging.info(f'{run_type} loss in {epoch} epoch: {loss}')
     return loss
 
 def calc_accuracy(y_true, y_pred, run_type, epoch=None):
     score = accuracy_score(y_true, y_pred)
-    if epoch is None: print(f'{run_type} accuracy: {score}')
-    else: print(f'{run_type} accuracy in {epoch} epoch: {score}')
+    if epoch is None: logging.info(f'{run_type} accuracy: {score}')
+    else: logging.info(f'{run_type} accuracy in {epoch} epoch: {score}')
     return score
 
 def calc_prec_rec_f1_scores(y_true, y_pred, run_type, epoch=None):
     prec, rec, f1, _ = np.array(precision_recall_fscore_support(y_true, y_pred))[:,-1] # keep scores for label==1
     if epoch is None:
-        print(f'{run_type} Precision: {prec}')
-        print(f'{run_type} Recall:    {rec}')
-        print(f'{run_type} F1-Score:  {f1}')
+        logging.info(f'{run_type} Precision: {prec}')
+        logging.info(f'{run_type} Recall:    {rec}')
+        logging.info(f'{run_type} F1-Score:  {f1}')
     else:
-        print(f'{run_type} Precision in {epoch} epoch: {prec}')
-        print(f'{run_type} Recall in {epoch} epoch:    {rec}')
-        print(f'{run_type} F1-Score in {epoch} epoch:  {f1}')
+        logging.info(f'{run_type} Precision in {epoch} epoch: {prec}')
+        logging.info(f'{run_type} Recall in {epoch} epoch:    {rec}')
+        logging.info(f'{run_type} F1-Score in {epoch} epoch:  {f1}')
     return prec, rec, f1
 
 def output_ROC_curve(y_true, y_prob_logit, run_type):

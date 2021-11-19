@@ -121,6 +121,11 @@ class Generator(BaseGenerator):
                 # If labels are continuous (not modelled as categorical), use floats instead of integers for labels.
                 # Also adjust dimensions to (batch_size x 1) as needed for input into linear layer
                 # labels should already be of type float, no change expected in .float() conversion (it is only a safety check)
+
+                # Just for testing:
+                conditions *= 0
+                conditions += 1
+
                 conditions = conditions.view(conditions.size(0), -1).float()
             logging.debug(f'Conditions in generator: {conditions}')
             embedded_conditions = self.embed_nn(conditions)

@@ -1,3 +1,5 @@
+import logging
+from pathlib import Path
 from typing import Tuple
 
 import cv2
@@ -56,7 +58,7 @@ class BCDRDataset(BaseDataset):
         if self.classify_binary_healthy:
             self.metadata.extend(
                 [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr'])
-            print(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
+            logging.info(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
         else:
             assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
                 f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
@@ -64,7 +66,7 @@ class BCDRDataset(BaseDataset):
             if is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if "nodule" in metapoint["roi_type"]])
-                print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
 
             if is_trained_on_calcifications:
                 # TODO add these keywords to a dedicated constants file
@@ -74,7 +76,7 @@ class BCDRDataset(BaseDataset):
                      or "microcalcification" in metapoint["roi_type"]
                      ]
                 )
-                print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if is_trained_on_other_roi_types:
                 self.metadata.extend(
@@ -84,7 +86,7 @@ class BCDRDataset(BaseDataset):
                      or "stroma_distortion" in metapoint["roi_type"]
                      ]
                 )
-                print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -94,6 +96,11 @@ class BCDRDataset(BaseDataset):
         image_path = metapoint["image_path"]
         # TODO read as grayscale
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            logging.warning(
+                f"image in path {image_path} was not read in properly. Is file there (?): {Path(image_path).is_file()}. "
+                f"Fallback: Using next file at index {idx + 1} instead. Please check your metadata file.")
+            return self.__getitem__(idx + 1)
         contour = metapoint["contour"]
         if metapoint.get("healthy", False):
 
@@ -102,12 +109,12 @@ class BCDRDataset(BaseDataset):
             image = image[x: x + h,
                     y: y + w]  # note that the order of axis in healthy bbox is different, TODO change someday
 
-            # print(f"image.shape: {image.shape}")
+            # logging.info(f"image.shape: {image.shape}")
 
         elif contour is not None:
             contour = np.asarray(contour)
             # Create an empty image to store the masked array
-            # print(f"Image path: {image_path}")
+            # logging.info(f"Image path: {image_path}")
             r_mask = np.zeros((image.shape[0] + 1, image.shape[1] + 1), dtype='bool')
             # Create a contour image by using the contour coordinates rounded to their nearest integer value
             r_mask[np.round(contour[1, :]).astype('int'), np.round(contour[0, :]).astype('int')] = 1

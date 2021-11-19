@@ -5,10 +5,12 @@ import numpy as np
 import pydicom as dicom
 import torch
 import torchvision
+from pathlib import Path
 
 from gan_compare.data_utils.utils import convert_to_uint8
 from gan_compare.dataset.base_dataset import BaseDataset
 
+import logging
 
 class InbreastDataset(BaseDataset):
     """Inbreast dataset."""
@@ -58,7 +60,7 @@ class InbreastDataset(BaseDataset):
         if self.classify_binary_healthy:
             self.metadata.extend(
                 [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'inbreast'])
-            print(f'Appended InBreast metadata. Metadata size: {len(self.metadata)}')
+            logging.info(f'Appended InBreast metadata. Metadata size: {len(self.metadata)}')
         else:
             assert is_trained_on_masses or is_trained_on_calcifications or is_trained_on_other_roi_types, \
                 f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
@@ -66,17 +68,17 @@ class InbreastDataset(BaseDataset):
             if is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Mass'])
-                print(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
 
             if is_trained_on_calcifications:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Calcification'])
-                print(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if is_trained_on_other_roi_types:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Other'])
-                print(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -85,7 +87,13 @@ class InbreastDataset(BaseDataset):
         assert metapoint.get("dataset") == "inbreast", "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
         ds = dicom.dcmread(image_path)
+        if ds is None:
+            logging.warning(
+                f"image in path {image_path} was not read in properly. Is file there (?): {Path(image_path).is_file()}. "
+                f"Fallback: Using next file at index {idx + 1} instead. Please check your metadata file.")
+            return self.__getitem__(idx + 1)
         image = convert_to_uint8(ds.pixel_array)
+
         # xml_filepath = metapoint["xml_path"]
         # expected_roi_type = metapoint["roi_type"]
         # if xml_filepath != "":
@@ -103,7 +111,7 @@ class InbreastDataset(BaseDataset):
             x, y, w, h = self.get_crops_around_bbox(metapoint["bbox"], margin=0, min_size=self.min_size,
                                                     image_shape=image.shape, config=self.config)
             image = image[y: y + h, x: x + w]
-            # print(f"image.shape: {image.shape}")
+            # logging.info(f"image.shape: {image.shape}")
         else:
             # mask = mask.astype("uint8")
             x, y, w, h = self.get_crops_around_bbox(metapoint['bbox'], margin=self.margin, min_size=self.min_size,
