@@ -178,10 +178,10 @@ def generate_inbreast_metapoints(
     return lesion_metapoints, start_index
 
 
-def _random_crop(image: np.ndarray, size: int) -> Tuple[np.ndarray, List[int]]:
+def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[int]]:
     height, width = image.shape
-    ys = np.random.randint(0, height - size + 1)
-    xs = np.random.randint(0, width - size + 1)
+    ys = int(rng.integers(0, height - size + 1))
+    xs = int(rng.integers(0, width - size + 1))
     image_crop = image[ys:ys+size, xs:xs+size]
     return image_crop, [ys, xs, size, size]
 
@@ -195,6 +195,7 @@ def generate_healthy_inbreast_metapoints(
     size: int,
     bg_pixels_max_ratio: float = 0.4,
     start_index: int = 0,
+    rng = np.random.default_rng()
 ) -> Tuple[list, int]:
     lesion_metapoints = []
     if int(csv_metadata["Bi-Rads"][:1]) == 1:
@@ -204,7 +205,7 @@ def generate_healthy_inbreast_metapoints(
             thres = 10
             bin_img_crop = img_crop.copy()
             while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
-                img_crop, bbox = _random_crop(img, size)
+                img_crop, bbox = _random_crop(img, size, rng)
                 _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
 
             metapoint = {
@@ -261,6 +262,7 @@ def generate_healthy_bcdr_metapoints(
     size: int,
     start_index: int,
     bg_pixels_max_ratio: float = 0.4,
+    rng = np.random.default_rng()
 ):
     laterality, view = get_bcdr_laterality_and_view(row_df, healthy=True)
     if row_df["image_filename"][0] == " ":
@@ -273,7 +275,7 @@ def generate_healthy_bcdr_metapoints(
         bin_img_crop = img_crop.copy()
         thres = 10
         while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
-            img_crop, bbox = _random_crop(img, size)
+            img_crop, bbox = _random_crop(img, size, rng)
             _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
         if cv2.countNonZero(bin_img_crop) < 128*12:
             logging.info(str(cv2.countNonZero(bin_img_crop)))
