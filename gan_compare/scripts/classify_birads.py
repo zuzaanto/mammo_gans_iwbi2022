@@ -67,6 +67,8 @@ if __name__ == "__main__":
 
     config.out_checkpoint_path += logfilename + '.pt'
 
+    if config.use_synthetic: assert (config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.')
+
     train_transform = transforms.Compose(
         [
             # transforms.RandomResizedCrop(224),
