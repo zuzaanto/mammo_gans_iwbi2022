@@ -67,6 +67,8 @@ if __name__ == "__main__":
 
     config.out_checkpoint_path += logfilename + '.pt'
 
+    if config.use_synthetic: assert (config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.')
+
     train_transform = transforms.Compose(
         [
             # transforms.RandomResizedCrop(224),
@@ -136,7 +138,27 @@ if __name__ == "__main__":
             config=config
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
-        logging.info(f'Number of samples added to synthetic training set: {len(synth_train_images)}')
+        logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
+
+        # append healthy patches for balancing the synthetic patches (which are all lesioned)
+        train_dataset_list = []
+        for dataset_name in config.dataset_names:
+            train_dataset_list.append(
+                DATASET_DICT[dataset_name](
+                metadata_path=config.synthetic_metadata_path,
+                final_shape=(config.image_size, config.image_size),
+                classify_binary_healthy=config.classify_binary_healthy,
+                conditional_birads=True,
+                transform=train_transform,
+                is_trained_on_calcifications=config.is_trained_on_calcifications,
+                config=config
+                # synthetic_metadata_path=config.synthetic_metadata_path,
+                # synthetic_shuffle_proportion=config.train_shuffle_proportion,
+                )
+            )
+        train_dataset = ConcatDataset([train_dataset, ConcatDataset(train_dataset_list)])
+        logging.info('Added healthy patches for balancing.')
+        
 
         # synth_val_images = SyntheticDataset(
         #     metadata_path=config.synthetic_metadata_path,
