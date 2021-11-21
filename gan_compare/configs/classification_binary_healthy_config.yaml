@@ -1,9 +1,11 @@
 model_name: "swin_transformer"
-batch_size: 8
+batch_size: 2
 num_epochs: 300
-train_metadata_path: metadata/classifier_binary_merged/train_metadata.json
-validation_metadata_path: metadata/classifier_binary_merged/val_metadata.json
-test_metadata_path: metadata/classifier_binary_merged/test_metadata.json
+train_metadata_path: setup/classifier_binary_merged/train_metadata.json
+# train_metadata_path: /Users/zuzanna/Desktop/eucanimage/mammo_gans/metadata/healthy_inbreast_bcdr_metadata_2.json
+validation_metadata_path: setup/classifier_binary_merged/val_metadata.json
+# validation_metadata_path: /Users/zuzanna/Desktop/eucanimage/mammo_gans/metadata/healthy_inbreast_bcdr_metadata_2.json
+test_metadata_path: setup/classifier_binary_merged/test_metadata.json
 synthetic_metadata_path: metadata/synthetic_metadata.json
 train_shuffle_proportion: 0.
 out_checkpoint_path: model_checkpoints/classifier/classifier.pt
@@ -14,5 +16,5 @@ dataset_names:
   - bcdr
   - inbreast
 is_trained_on_calcifications: True
-image_size: 64
+image_size: 128
 classify_binary_healthy: True
