@@ -492,26 +492,25 @@ class GANModel:
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
-        checkpoint = torch.load(model_checkpoint_path)
+        checkpoint = torch.load(model_checkpoint_path, self.device)
         self.netG.load_state_dict(checkpoint["generator"])
         self.optimizerG.load_state_dict(checkpoint["optim_generator"])
         self.netG.eval()
 
         img_list = []
-        for ind in range(num_samples):
-            if fixed_noise is None:
-                fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
-            if self.config.conditional:
-                if fixed_condition is None:
-                    fixed_condition = self._get_random_conditions(batch_size=num_samples)
-                elif isinstance(fixed_condition, int):
-                    fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
-                                                                  batch_size=num_samples)
-                fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
-            else:
-                fake = self.netG(fixed_noise).detach().cpu().numpy()
-            for j, img_ in enumerate(fake):
-                img_list.extend(fake)
+        if fixed_noise is None:
+            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
+        if self.config.conditional:
+            if fixed_condition is None:
+                fixed_condition = self._get_random_conditions(batch_size=num_samples)
+            elif isinstance(fixed_condition, int):
+                fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
+                                                                batch_size=num_samples)
+            fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
+        else:
+            fake = self.netG(fixed_noise).detach().cpu().numpy()
+        # for j, img_ in enumerate(fake):
+        img_list = fake
         return img_list
 
     def visualize(self, fixed_noise=None, fixed_condition=None):

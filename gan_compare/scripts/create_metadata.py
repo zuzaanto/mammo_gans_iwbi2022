@@ -56,6 +56,7 @@ def create_inbreast_metadata(
     healthy: bool = False, 
     per_image_count: int = 5, 
     target_size: int = 128,
+    rng = np.random.default_rng()
 ) -> List[dict]:
     metadata = []
     inbreast_df = read_csv(INBREAST_CSV_PATH)
@@ -75,6 +76,7 @@ def create_inbreast_metadata(
                 size=target_size,
                 bg_pixels_max_ratio=0.4,
                 start_index=start_index,
+                rng=rng
             )
             start_index = idx
             metadata.extend(metapoints)
@@ -109,6 +111,7 @@ def create_bcdr_metadata(
     healthy: bool = False,
     per_image_count: int = 5, 
     target_size: int = 128,
+    rng = np.random.default_rng()
 ) -> List[dict]:
     metadata = []
     if healthy:
@@ -125,6 +128,7 @@ def create_bcdr_metadata(
                     size=target_size,
                     start_index=start_index,
                     bg_pixels_max_ratio=0.4,
+                    rng=rng
                 )
                 metadata.extend(metapoints)
     else:
@@ -141,12 +145,14 @@ def create_bcdr_metadata(
 
 if __name__ == "__main__":
     args = parse_args()
+    rng = np.random.default_rng(2021) # seed random generator
     metadata = []
     if "inbreast" in args.dataset:
         metadata.extend(create_inbreast_metadata(
             healthy=args.healthy, 
             per_image_count=args.per_image_count, 
             target_size=args.healthy_size,
+            rng=rng
         ))
     if "bcdr" in args.dataset:
         metadata.extend(create_bcdr_metadata(
@@ -154,6 +160,7 @@ if __name__ == "__main__":
             healthy=args.healthy,
             per_image_count=args.per_image_count, 
             target_size=args.healthy_size,
+            rng=rng
         ))
     # Output metadata as json file to specified location on disk
     outpath = Path(args.output_path)

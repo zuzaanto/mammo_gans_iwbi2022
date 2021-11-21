@@ -9,3 +9,5 @@ visualisation/
 *.egg-info
 *.png
 *.DS_Store
+logs
+save_dataset
