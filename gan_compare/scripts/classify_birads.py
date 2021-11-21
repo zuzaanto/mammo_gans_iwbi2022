@@ -69,14 +69,20 @@ if __name__ == "__main__":
 
     if config.use_synthetic: 
         assert config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.'
-
-    train_transform = transforms.Compose(
-        [
-            # transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.Normalize((0.5), (0.5)),
-        ]
-    )    
+    if config.no_transforms:
+        train_transform = transforms.Compose(
+            [
+                transforms.Normalize((0.5), (0.5)),
+            ]
+        )
+    else:
+        train_transform = transforms.Compose(
+            [
+                # transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.Normalize((0.5), (0.5)),
+            ]
+        )    
     val_transform = transforms.Compose(
         [
             transforms.Normalize((0.5), (0.5)),

@@ -29,6 +29,8 @@ class ClassifierConfig:
 
     split_birads_fours: bool = True
 
+    no_transforms: bool = False
+
     # Whether to do binary classification of healthy/non-healthy patches
     classify_binary_healthy: bool = False
 
