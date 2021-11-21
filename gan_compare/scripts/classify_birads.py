@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from torch.utils.data import DataLoader
 
-from gan_compare.constants import DATASET_DICT, CLASSIFIERS_DICT
+from gan_compare.constants import DATASET_DICT, get_classifier
 
 from dataclasses import asdict
 from gan_compare.training.io import load_yaml
@@ -67,7 +67,8 @@ if __name__ == "__main__":
 
     config.out_checkpoint_path += logfilename + '.pt'
 
-    if config.use_synthetic: assert (config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.')
+    if config.use_synthetic: 
+        assert config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.'
 
     train_transform = transforms.Compose(
         [
@@ -205,9 +206,10 @@ if __name__ == "__main__":
 
     logging.info(f"Device: {device}")
 
-    # net = CLASSIFIERS_DICT[config.model_name](num_classes=config.n_cond, img_size=config.image_size).to(device)
-    from gan_compare.training.networks.classification.classifier_128 import Net as Net128
-    net = Net128(num_labels=2).to(device)
+    net = get_classifier(name=config.model_name, num_classes=config.n_cond, img_size=config.image_size).to(device)
+    # from gan_compare.training.networks.classification.classifier_128 import Net as Net128
+    # net = Net128(num_labels=2).to(device)
+    # net = Net128(num_labels=2)
 
     criterion = nn.CrossEntropyLoss()
 
