@@ -11,3 +11,4 @@ visualisation/
 *.DS_Store
 logs
 save_dataset
+combined_synthetic/
