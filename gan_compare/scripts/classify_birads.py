@@ -265,6 +265,7 @@ if __name__ == "__main__":
     if not args.only_get_metrics:
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
         best_loss = 10000
+        best_f1 = 0
         best_epoch = 0
         for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
             running_loss = 0.0
@@ -304,13 +305,16 @@ if __name__ == "__main__":
                     y_true.append(labels)
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
-                if val_loss < best_loss:
+                _, _, prec_rec_f1 = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
+                val_f1 = prec_rec_f1[-1:][0]
+                # if val_loss < best_loss:
+                if val_f1 > best_f1:
                     best_loss = val_loss
+                    best_f1 = val_f1
                     best_epoch = epoch
                     torch.save(net.state_dict(), config.out_checkpoint_path)
-                    logging.info(f"Saving best model so far at epoch {epoch}")
+                    logging.info(f"Saving best model so far at epoch {epoch} with f1 = {val_f1}")
 
-                calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
 
         logging.info("Finished Training")
         logging.info(f"Saved best model state dict to {config.out_checkpoint_path}")
