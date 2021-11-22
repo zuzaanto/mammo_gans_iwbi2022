@@ -308,6 +308,8 @@ if __name__ == "__main__":
                     best_loss = val_loss
                     best_epoch = epoch
                     torch.save(net.state_dict(), config.out_checkpoint_path)
+                    logging.info(f"Saving best model so far at epoch {epoch}")
+
                 calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
 
         logging.info("Finished Training")
