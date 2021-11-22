@@ -211,7 +211,7 @@ if __name__ == "__main__":
     )
 
     logging.info(f"Device: {device}")
-
+    
     net = get_classifier(name=config.model_name, num_classes=config.n_cond, img_size=config.image_size).to(device)
     # from gan_compare.training.networks.classification.classifier_128 import Net as Net128
     # net = Net128(num_labels=2).to(device)
@@ -265,6 +265,7 @@ if __name__ == "__main__":
     if not args.only_get_metrics:
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
         best_loss = 10000
+        best_epoch = 0
         for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
             running_loss = 0.0
             logging.info("Training...")
@@ -304,6 +305,8 @@ if __name__ == "__main__":
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
                 if val_loss < best_loss:
+                    best_loss = val_loss
+                    best_epoch = epoch
                     torch.save(net.state_dict(), config.out_checkpoint_path)
                 calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
 
