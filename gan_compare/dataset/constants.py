@@ -24,6 +24,9 @@ DENSITY_DICT = {
 BCDR_SUBDIRECTORIES = {
     "d01": "BCDR-D01_dataset",
     "d02": "BCDR-D02_dataset",
+    "f01": "BCDR-F01_dataset",
+    "f02": "BCDR-F02_dataset",
+    "f03": "BCDR-F03",
 }
 
 BCDR_HEALTHY_SUBDIRECTORIES = {
