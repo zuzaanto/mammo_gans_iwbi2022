@@ -211,7 +211,7 @@ if __name__ == "__main__":
     )
 
     logging.info(f"Device: {device}")
-    
+
     net = get_classifier(name=config.model_name, num_classes=config.n_cond, img_size=config.image_size).to(device)
     # from gan_compare.training.networks.classification.classifier_128 import Net as Net128
     # net = Net128(num_labels=2).to(device)
@@ -311,8 +311,8 @@ if __name__ == "__main__":
                 calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
 
         logging.info("Finished Training")
-        logging.info(f"Saved model state dict to {config.out_checkpoint_path}")
-
+        logging.info(f"Saved best model state dict to {config.out_checkpoint_path}")
+        logging.info(f"Best model was achieved after {best_epoch} epochs, with val loss = {best_loss}")
     logging.info("Beginning test...")
     net.load_state_dict(torch.load(config.out_checkpoint_path))
     with torch.no_grad():
