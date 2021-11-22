@@ -237,10 +237,17 @@ def generate_bcdr_metapoints(
     laterality, view = get_bcdr_laterality_and_view(row_df)
     if row_df["image_filename"][0] == " ":
         row_df["image_filename"] = row_df["image_filename"][1:]
+    if type(row_df["density"]) == str:
+        if row_df["density"].strip().startswith("N"):
+            density = None
+        else:
+            density = int(row_df["density"].strip())
+    else:
+        density = row_df["density"]
     metapoint = {
         "image_id": row_df["study_id"],
         "patient_id": row_df["patient_id"],
-        "density": int(row_df["density"].strip()),
+        "density": density,
         "birads": None,
         "laterality": laterality,
         "view": view,
@@ -251,7 +258,8 @@ def generate_bcdr_metapoints(
         "roi_type": get_bcdr_lesion_type(row_df),
         "biopsy_proven_status": row_df["classification"].strip(),
         "dataset": "bcdr",
-        "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        # "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        "contour": None,
     }
     return metapoint
 

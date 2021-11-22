@@ -63,7 +63,7 @@ class ClassifierConfig:
 
     ngpu: int = 1
 
-    out_checkpoint_path: str = "model_checkpoints//classifier/classifier.pt"
+    out_checkpoint_path: str = "model_checkpoints//classifier/best_classifier.pt"
 
     dataset_names: List[str] = field(default_factory=list)
     
