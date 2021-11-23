@@ -34,7 +34,10 @@ class InbreastDataset(BaseDataset):
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
             transform: any = None,
-            config = None
+            config = None,
+            sampling_ratio: float = 1.0,
+            calcifications_only: bool = False,
+            masses_only: bool = False,
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -54,7 +57,10 @@ class InbreastDataset(BaseDataset):
             is_trained_on_masses=is_trained_on_masses,
             is_trained_on_other_roi_types=is_trained_on_other_roi_types,
             transform=transform,
-            config=config
+            config=config,
+            sampling_ratio=sampling_ratio,
+            calcifications_only=calcifications_only,
+            masses_only=masses_only
         )
         if self.classify_binary_healthy:
             self.metadata.extend(
