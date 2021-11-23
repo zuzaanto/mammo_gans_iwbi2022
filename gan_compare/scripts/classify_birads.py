@@ -37,6 +37,12 @@ def parse_args():
         help="Whether to skip training and just evaluate the model saved in the default location.",
     )
     parser.add_argument(
+        "--in_checkpoint_path",
+        type=str,
+        default="model_checkpoints/classifier/classifier.pt",
+        help="Only required if --only_get_metrics is set. Path to checkpoint to be loaded.",
+    )
+    parser.add_argument(
         "--save_dataset", action="store_true", help="Whether to save image patches to images_classifier dir",
     )
 
@@ -62,10 +68,13 @@ if __name__ == "__main__":
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(ClassifierConfig, config_dict)
+
+    config.out_checkpoint_path += logfilename + '.pt'
+
     logging.info(str(asdict(config)))
     logging.info("Loading dataset...")  # When we have more datasets implemented, we can specify which one(s) to load in config.
 
-    config.out_checkpoint_path += logfilename + '.pt'
+    
 
     if config.use_synthetic: 
         assert config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.'
@@ -305,7 +314,7 @@ if __name__ == "__main__":
                     y_true.append(labels)
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
-                _, _, prec_rec_f1 = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
+                _, _, prec_rec_f1, _, _ = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
                 if val_f1 > best_f1:
@@ -320,7 +329,9 @@ if __name__ == "__main__":
         logging.info(f"Saved best model state dict to {config.out_checkpoint_path}")
         logging.info(f"Best model was achieved after {best_epoch} epochs, with val loss = {best_loss}")
     logging.info("Beginning test...")
-    net.load_state_dict(torch.load(config.out_checkpoint_path))
+    model_path = args.in_checkpoint_path if args.only_get_metrics else config.out_checkpoint_path
+    logging.info(f"Loading model from {model_path}")
+    net.load_state_dict(torch.load(model_path))
     with torch.no_grad():
         y_true = []
         y_prob_logit = []
@@ -338,6 +349,6 @@ if __name__ == "__main__":
         y_true = torch.cat(y_true)
         y_prob_logit = torch.cat(y_prob_logit)
         calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
-        if config.classify_binary_healthy: output_ROC_curve(y_true, y_prob_logit, "Test")
+        if config.classify_binary_healthy: output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
     logging.info("Finished testing.")
     
