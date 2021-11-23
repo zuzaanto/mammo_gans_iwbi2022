@@ -1,0 +1,20 @@
+batch_size: 16
+image_size: 128
+use_lsgan_loss: False
+switch_loss_each_epoch: False
+kernel_size: 6
+use_one_sided_label_smoothing: True
+conditioned_on: None
+conditional: False
+is_condition_binary: False
+is_condition_categorical: False
+split_birads_fours: False
+is_trained_on_masses: True
+is_trained_on_calcifications: True
+is_trained_on_other_roi_types: True
+is_training_data_augmented: True
+leakiness: 0.1
+num_epochs: 5000
+ngpu: 1
+dataset_names: 
+  - bcdr

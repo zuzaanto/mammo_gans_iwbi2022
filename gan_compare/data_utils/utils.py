@@ -6,6 +6,7 @@ import plistlib
 from pathlib import Path
 from typing import Tuple, Union, List
 import json
+import torch
 
 import cv2
 import numpy as np
@@ -159,7 +160,7 @@ def generate_inbreast_metapoints(
         metapoint = {
             "image_id": image_id,
             "patient_id": patient_id,
-            "density": csv_metadata["ACR"],
+            "density": int(csv_metadata["ACR"]),
             "birads": csv_metadata["Bi-Rads"],
             "laterality": csv_metadata["Laterality"],
             "view": csv_metadata["View"],
@@ -207,12 +208,13 @@ def generate_healthy_inbreast_metapoints(
             while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
                 img_crop, bbox = _random_crop(img, size, rng)
                 _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
-
+            if csv_metadata["ACR"].strip() == "":
+                continue
             metapoint = {
                 "healthy": True,
                 "image_id": image_id,
                 "patient_id": patient_id,
-                "density": csv_metadata["ACR"],
+                "density": int(csv_metadata["ACR"].strip()),
                 "birads": csv_metadata["Bi-Rads"],
                 "laterality": csv_metadata["Laterality"],
                 "view": csv_metadata["View"],
@@ -236,10 +238,17 @@ def generate_bcdr_metapoints(
     laterality, view = get_bcdr_laterality_and_view(row_df)
     if row_df["image_filename"][0] == " ":
         row_df["image_filename"] = row_df["image_filename"][1:]
+    if type(row_df["density"]) == str:
+        if row_df["density"].strip().startswith("N"):
+            density = None
+        else:
+            density = int(row_df["density"].strip())
+    else:
+        density = row_df["density"]
     metapoint = {
         "image_id": row_df["study_id"],
         "patient_id": row_df["patient_id"],
-        "density": row_df["density"].strip(),
+        "density": density,
         "birads": None,
         "laterality": laterality,
         "view": view,
@@ -250,7 +259,8 @@ def generate_bcdr_metapoints(
         "roi_type": get_bcdr_lesion_type(row_df),
         "biopsy_proven_status": row_df["classification"].strip(),
         "dataset": "bcdr",
-        "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        # "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        "contour": None,
     }
     return metapoint
 
@@ -284,7 +294,7 @@ def generate_healthy_bcdr_metapoints(
             "healthy": True,
             "image_id": row_df["study_id"],
             "patient_id": row_df["patient_id"],
-            "density": row_df["density"],
+            "density": int(row_df["density"]),
             "birads": None,
             "laterality": laterality,
             "view": view,
@@ -371,14 +381,13 @@ def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[
         h_p = min_size
     return (x_p, y_p, w_p, h_p)
 
-
 def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
     if len(metadata_df) > 0:
         if not out_path.parent.exists():
             os.makedirs(out_path.parent)
         with open(str(out_path.resolve()), "w") as out_file:
-            json.dump(list(metadata_df.replace({np.nan:None}).T.to_dict().values()), out_file, indent=4)
-            
+            json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
+
 # deprecated
 def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
@@ -390,3 +399,9 @@ def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path:
         num_of_synth_metapoints = len(synthetic_metadata)
         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
+
+
+def collate_fn(batch):
+    # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
+    batch = list(filter(lambda x: x is not None, batch))
+    return torch.utils.data.dataloader.default_collate(batch)

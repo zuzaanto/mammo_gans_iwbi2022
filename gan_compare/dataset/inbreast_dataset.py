@@ -107,7 +107,8 @@ class InbreastDataset(BaseDataset):
         # else:
         # mask = np.zeros(ds.pixel_array.shape)
         # print(f"xml_filepath Error for metapoint: {metapoint}")
-        if metapoint.get("healthy", False):
+
+        if "healthy" not in metapoint or metapoint.get("healthy", False):
             x, y, w, h = self.get_crops_around_bbox(metapoint["bbox"], margin=0, min_size=self.min_size,
                                                     image_shape=image.shape, config=self.config)
             image = image[y: y + h, x: x + w]
@@ -121,8 +122,13 @@ class InbreastDataset(BaseDataset):
             image = image[y: y + h, x: x + w]
 
         # scale
-        image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-        # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        try:
+            image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+            # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        except Exception as e:
+            # TODO: Check why some images have a width or height of zero, which causes this exception.
+            logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
+            return None
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 

@@ -10,10 +10,11 @@ import torchvision.transforms as transforms
 from dacite import from_dict
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
+from tqdm import tqdm
 
+from gan_compare.data_utils.utils import collate_fn
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
-
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
@@ -106,6 +107,7 @@ if __name__ == "__main__":
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=config.workers,
+        collate_fn=collate_fn,  # Filter out None returned by DataSet.
         drop_last=True,
     )
 
@@ -114,15 +116,14 @@ if __name__ == "__main__":
         output_dataset_dir = Path(args.out_dataset_path)
         if not output_dataset_dir.exists():
             os.makedirs(output_dataset_dir.resolve())
-        for i in range(len(dataset)):
+        for i in tqdm(range(len(dataset))):
             # print(dataset[i])
             # Plot some training images
-            
-            sample, condition, image = dataset.__getitem__(i)
-            cv2.imwrite(
-                str(output_dataset_dir / f"{i}_{config.conditioned_on}_{condition}.png"),
-                image,
-            )
+            items = dataset.__getitem__(i)
+            if items is None:
+                continue
+            sample, condition, image = items
+
             out_image_path = f"{i}_{config.conditioned_on}_{condition}.png" if config.conditional else f"{i}.png"
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
     print("Loading model...")

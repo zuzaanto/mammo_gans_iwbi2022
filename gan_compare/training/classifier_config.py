@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List
-from gan_compare.constants import DATASET_DICT, CLASSIFIERS_DICT
+from gan_compare.constants import DATASET_DICT
 
 
 @dataclass
@@ -31,6 +31,8 @@ class ClassifierConfig:
     birads_max: int = 6
 
     split_birads_fours: bool = True
+
+    no_transforms: bool = False
 
     # Whether to do binary classification of healthy/non-healthy patches
     classify_binary_healthy: bool = False
@@ -64,7 +66,7 @@ class ClassifierConfig:
 
     ngpu: int = 1
 
-    out_checkpoint_path: str = "model_checkpoints//classifier/classifier.pt"
+    out_checkpoint_path: str = "model_checkpoints//classifier/best_classifier.pt"
 
     dataset_names: List[str] = field(default_factory=list)
     
@@ -90,4 +92,3 @@ class ClassifierConfig:
         assert 1 >= self.train_shuffle_proportion >= 0, "Train shuffle proportion must be from <0,1> range"
         assert 1 >= self.validation_shuffle_proportion >= 0, "Validation shuffle proportion must be from <0,1> range"
         assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)
-        assert self.model_name in CLASSIFIERS_DICT, f"Unknown model name {self.model_name}"
