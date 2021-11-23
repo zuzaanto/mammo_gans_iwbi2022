@@ -9,6 +9,7 @@ import torch.nn as nn
 DATASET_DICT = {
     "bcdr": BCDRDataset,
     "inbreast": InbreastDataset,
+    "bcdr_only_train": BCDRDataset,
 }
 
 DENSITIES = [1,2,3,4]
