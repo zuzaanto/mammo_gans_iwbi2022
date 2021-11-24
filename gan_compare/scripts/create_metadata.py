@@ -1,39 +1,38 @@
 import argparse
 import json
+from pathlib import Path
 from typing import List
 
 import numpy as np
+import pandas as pd
 import pydicom as dicom
 from tqdm import tqdm
-from pathlib import Path
-import os
-import pandas as pd
 
 from gan_compare.data_utils.utils import (
-    load_inbreast_mask, 
-    get_file_list, 
-    read_csv, 
-    generate_inbreast_metapoints, 
+    load_inbreast_mask,
+    get_file_list,
+    read_csv,
+    generate_inbreast_metapoints,
     generate_healthy_inbreast_metapoints,
-    generate_bcdr_metapoints, 
+    generate_bcdr_metapoints,
     generate_healthy_bcdr_metapoints,
 )
+from gan_compare.dataset.constants import BCDR_SUBDIRECTORIES, BCDR_HEALTHY_SUBDIRECTORIES
 from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH, BCDR_ROOT_PATH
-from gan_compare.dataset.constants import BCDR_SUBDIRECTORIES, BCDR_VIEW_DICT, BCDR_HEALTHY_SUBDIRECTORIES
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dataset", 
-        type=str, 
-        default=["inbreast", "bcdr"], 
-        nargs="+", 
+        "--dataset",
+        type=str,
+        default=["inbreast", "bcdr"],
+        nargs="+",
         help="Name of the dataset of interest.",
     )
     parser.add_argument(
-        "--healthy", 
-        action="store_true", 
+        "--healthy",
+        action="store_true",
         help="Whether to generate healthy metapoints.",
     )
     parser.add_argument(
@@ -53,10 +52,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def create_inbreast_metadata(
-    healthy: bool = False, 
-    per_image_count: int = 5, 
-    target_size: int = 128,
-    rng = np.random.default_rng()
+        healthy: bool = False,
+        per_image_count: int = 5,
+        target_size: int = 128,
+        rng=np.random.default_rng()
 ) -> List[dict]:
     metadata = []
     inbreast_df = read_csv(INBREAST_CSV_PATH)
@@ -106,12 +105,13 @@ def create_inbreast_metadata(
                 metadata.extend(lesion_metapoints)
     return metadata
 
+
 def create_bcdr_metadata(
-    subdirectories_list: List[str], 
-    healthy: bool = False,
-    per_image_count: int = 5, 
-    target_size: int = 128,
-    rng = np.random.default_rng()
+        subdirectories_list: List[str],
+        healthy: bool = False,
+        per_image_count: int = 5,
+        target_size: int = 128,
+        rng=np.random.default_rng()
 ) -> List[dict]:
     metadata = []
     if healthy:
@@ -132,7 +132,8 @@ def create_bcdr_metadata(
                 )
                 metadata.extend(metapoints)
     else:
-        assert all(subdir in BCDR_SUBDIRECTORIES.keys() for subdir in subdirectories_list), "Unknown subdirectory symbol"
+        assert all(
+            subdir in BCDR_SUBDIRECTORIES.keys() for subdir in subdirectories_list), "Unknown subdirectory symbol"
         for subdirectory in subdirectories_list:
             csv_outlines_path = BCDR_ROOT_PATH / BCDR_SUBDIRECTORIES[subdirectory] / f"bcdr_{subdirectory}_outlines.csv"
             outlines_df = pd.read_csv(csv_outlines_path)
@@ -145,20 +146,20 @@ def create_bcdr_metadata(
 
 if __name__ == "__main__":
     args = parse_args()
-    rng = np.random.default_rng(2021) # seed random generator
+    rng = np.random.default_rng(2021)  # seed random generator
     metadata = []
     if "inbreast" in args.dataset:
         metadata.extend(create_inbreast_metadata(
-            healthy=args.healthy, 
-            per_image_count=args.per_image_count, 
+            healthy=args.healthy,
+            per_image_count=args.per_image_count,
             target_size=args.healthy_size,
             rng=rng
         ))
     if "bcdr" in args.dataset:
         metadata.extend(create_bcdr_metadata(
-            args.bcdr_subfolder, 
+            args.bcdr_subfolder,
             healthy=args.healthy,
-            per_image_count=args.per_image_count, 
+            per_image_count=args.per_image_count,
             target_size=args.healthy_size,
             rng=rng
         ))

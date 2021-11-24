@@ -103,7 +103,7 @@ if __name__ == "__main__":
             args.model_checkpoint_path is not None and Path(args.model_checkpoint_path).is_file()
     ), f'There seems to be no model file with extension .pt stored in the model_checkpoint_dir you provided: {args.model_checkpoint_dir}'
 
-    print(f'Using model retrieved from: {args.model_checkpoint_path}')
+    print(f'Now using model retrieved from: {args.model_checkpoint_path} to generate {args.num_samples} samples..')
 
     img_list = model.generate(
         model_checkpoint_path=args.model_checkpoint_path, num_samples=args.num_samples, fixed_condition=args.birads
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     # Save the images to model checkpoint folder
     if args.out_images_path is None and args.save_images:
-        args.out_images_path = Path(args.model_checkpoint_dir)
+        args.out_images_path = Path(args.model_checkpoint_dir + "/samples")
     elif args.out_images_path is not None:
         args.out_images_path = Path(args.out_images_path)
 
