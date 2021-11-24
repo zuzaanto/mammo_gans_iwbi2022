@@ -105,4 +105,6 @@ class SyntheticDataset(BaseDataset):
         # label = self.determine_label(metapoint)
         label = 0
 
-        return sample, label, image#, [metapoint] # must be array because metapoint varies in size across datasets
+        metapoint = None # this is currently not required for synthetic dataset 
+
+        return sample, label, image, [metapoint] # must be array because metapoint varies in size across datasets

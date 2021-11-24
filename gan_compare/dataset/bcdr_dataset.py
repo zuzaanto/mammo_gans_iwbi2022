@@ -133,4 +133,4 @@ class BCDRDataset(BaseDataset):
 
         label = self.retrieve_condition(metapoint) if self.conditional else self.determine_label(metapoint)
 
-        return sample, label, image
+        return sample, label, image, metapoint['roi_type']

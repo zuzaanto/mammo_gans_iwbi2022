@@ -40,16 +40,22 @@ def calc_prec_rec_f1_scores(y_true, y_pred, run_type, epoch=None):
     return prec, rec, f1
 
 def calc_AUROC(y_true, y_prob, run_type, epoch=None):
-    roc_auc = roc_auc_score(y_true, y_prob[:,-1])
-    if epoch is None: logging.info(f'{run_type} AUROC: {roc_auc}')
-    else: logging.info(f'{run_type} AUROC in {epoch} epoch: {roc_auc}')
-    return roc_auc
+    try:
+        roc_auc = roc_auc_score(y_true, y_prob[:,-1])
+        if epoch is None: logging.info(f'{run_type} AUROC: {roc_auc}')
+        else: logging.info(f'{run_type} AUROC in {epoch} epoch: {roc_auc}')
+        return roc_auc
+    except ValueError:
+        logging.info(f'calc_AUROC got a ValueError. y_true: {y_true}; y_prob: {y_prob}; run_type: {run_type}; epoch: {epoch}')
 
 def calc_AUPRC(y_true, y_prob, run_type, epoch=None):
-    prc_auc = average_precision_score(y_true, y_prob[:,-1])
-    if epoch is None: logging.info(f'{run_type} AUPRC: {prc_auc}')
-    else: logging.info(f'{run_type} AUPRC in {epoch} epoch: {prc_auc}')
-    return prc_auc
+    try:
+        prc_auc = average_precision_score(y_true, y_prob[:,-1])
+        if epoch is None: logging.info(f'{run_type} AUPRC: {prc_auc}')
+        else: logging.info(f'{run_type} AUPRC in {epoch} epoch: {prc_auc}')
+        return prc_auc
+    except ValueError:
+        logging.info(f'calc_AUPRC got a ValueError. y_true: {y_true}; y_prob: {y_prob}; run_type: {run_type}; epoch: {epoch}')
 
 def output_ROC_curve(y_true, y_prob_logit, run_type, logfilename):
     """Only for binary classification
