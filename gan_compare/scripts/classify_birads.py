@@ -281,7 +281,7 @@ if __name__ == "__main__":
             logging.info("Training...")
             for i, data in enumerate(tqdm(train_dataloader)):
                 # get the inputs; data is a list of [inputs, labels]
-                samples, labels, _ = data
+                samples, labels, _, _ = data
 
                 if len(samples) <= 1: continue # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
 
@@ -307,7 +307,7 @@ if __name__ == "__main__":
                 net.eval()
                 logging.info("Validating...")
                 for i, data in enumerate(tqdm(val_dataloader)):
-                    samples, labels, _ = data
+                    samples, labels, _, _ = data
                     # logging.info(images.size())
                     outputs = net(samples.to(device))
                     val_loss.append(criterion(outputs.cpu(), labels))
@@ -336,19 +336,31 @@ if __name__ == "__main__":
         y_true = []
         y_prob_logit = []
         test_loss = []
+        roi_types = []
         net.eval()
         logging.info("Testing...")
         for i, data in enumerate(tqdm(test_dataloader)):
-            samples, labels, _ = data
+            samples, labels, _, roi_type_arr = data
             # logging.info(images.size())
             outputs = net(samples.to(device))
             test_loss.append(criterion(outputs.cpu(), labels))
             y_true.append(labels)
             y_prob_logit.append(outputs.data.cpu())
+
+            roi_types.extend(roi_type_arr)
         test_loss = np.mean(test_loss)
         y_true = torch.cat(y_true)
         y_prob_logit = torch.cat(y_prob_logit)
         calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
+
+        mass_indices = [i for i, item in enumerate(roi_types) if item == 'Mass' or item == 'healthy']
+        calc_AUROC(y_true[mass_indices], torch.exp(y_prob_logit)[mass_indices], "Test only Masses")
+        calc_AUPRC(y_true[mass_indices], torch.exp(y_prob_logit)[mass_indices], "Test only Masses")
+
+        calcification_indices = [i for i, item in enumerate(roi_types) if item == 'Calcification' or item == 'healthy']
+        calc_AUROC(y_true[calcification_indices], torch.exp(y_prob_logit)[calcification_indices], "Test only Calcifications")
+        calc_AUPRC(y_true[calcification_indices], torch.exp(y_prob_logit)[calcification_indices], "Test only Calcifications")
+
         if config.classify_binary_healthy: output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
     logging.info("Finished testing.")
     
