@@ -157,8 +157,7 @@ def create_bcdr_metadata(
             img_dir_path = BCDR_ROOT_PATH / BCDR_SUBDIRECTORIES[subdirectory]
             for _, row in outlines_df.iterrows():
                 lesion_metapoint = generate_bcdr_metapoints(image_dir_path=img_dir_path, row_df=row)
-
-                if only_masses and ('Mass' not in lesion_metapoint['roi_type']):
+                if only_masses and ('nodule' not in lesion_metapoint['roi_type']): # only keep nodules (i.e. masses)
                     continue
                 else:
                     metadata.append(lesion_metapoint)
