@@ -381,15 +381,15 @@ def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
         with open(str(out_path.resolve()), "w") as out_file:
             json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
             
-
+# TODO REFACTOR
 # deprecated
-def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
-    assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
-    with open(synthetic_metadata_path, "r") as synth_metadata_file:
-        synthetic_metadata = json.load(synth_metadata_file)
-    num_of_metapoints = len(metadata)
-    num_of_synth_metapoints = round(len(metadata) * synthetic_shuffle_proportion)
-    if num_of_synth_metapoints > len(synthetic_metadata):
-        num_of_synth_metapoints = len(synthetic_metadata)
-        num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
-    return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
+# def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
+#     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
+#     with open(synthetic_metadata_path, "r") as synth_metadata_file:
+#         synthetic_metadata = json.load(synth_metadata_file)
+#     num_of_metapoints = len(metadata)
+#     num_of_synth_metapoints = round(len(metadata) * synthetic_shuffle_proportion)
+#     if num_of_synth_metapoints > len(synthetic_metadata):
+#         num_of_synth_metapoints = len(synthetic_metadata)
+#         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
+#     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
