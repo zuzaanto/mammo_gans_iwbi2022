@@ -13,7 +13,7 @@ class ClassifierConfig:
     test_metadata_path: str
     
     # Path to synthetic metadata used for data augmentation
-    synthetic_metadata_path: str
+    # synthetic_metadata_path: str # TODO REFACTOR
     train_shuffle_proportion: float = 0.4
     validation_shuffle_proportion: float = 0
 
