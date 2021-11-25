@@ -77,7 +77,7 @@ if __name__ == "__main__":
         os.makedirs(generated_img_birads_dir.resolve(), exist_ok=True)
         for i, img_ in enumerate(img_list):
             img_path = generated_img_birads_dir / f"{i}.png"
-            img_ = interval_mapping(img_.transpose(1, 2, 0), -1.0, 1.0, 0, 255)
+            img_ = interval_mapping(img_.transpose(1, 2, 0), 0.0, 1.0, 0, 255)
             img_ = img_.astype("uint8")
             cv2.imwrite(str(img_path.resolve()), img_)
             metapoint = {

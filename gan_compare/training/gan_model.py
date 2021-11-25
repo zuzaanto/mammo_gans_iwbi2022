@@ -4,6 +4,7 @@ import logging
 import os
 import random
 from pathlib import Path
+import tqdm
 
 import torch
 import torch.nn as nn
@@ -492,7 +493,7 @@ class GANModel:
         self._save_model()
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
-                 num_samples: int = 64, birads: int = None) -> list:
+                 num_samples: int = 10, birads: int = None) -> list:
 
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
@@ -503,19 +504,19 @@ class GANModel:
         self.netG.eval()
 
         img_list = []
-        for ind in range(num_samples):
-            if fixed_noise is None:
-                fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
-            if self.config.conditional:
-                if fixed_condition is None:
-                    fixed_condition = self._get_random_conditions(batch_size=num_samples)
-                elif isinstance(fixed_condition, int):
-                    fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
-                                                                  batch_size=num_samples)
-                fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
-            else:
-                fake = self.netG(fixed_noise).detach().cpu().numpy()
-            img_list.extend(fake)
+        #for ind in tqdm(range(num_samples)):
+        if fixed_noise is None:
+            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
+        if self.config.conditional:
+            if fixed_condition is None:
+                fixed_condition = self._get_random_conditions(batch_size=num_samples)
+            elif isinstance(fixed_condition, int):
+                fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
+                                                              batch_size=num_samples)
+            fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
+        else:
+            fake = self.netG(fixed_noise).detach().cpu().numpy()
+        img_list.extend(fake)
         return img_list
 
     def visualize(self, fixed_noise=None, fixed_condition=None):

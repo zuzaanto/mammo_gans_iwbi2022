@@ -103,6 +103,16 @@ if __name__ == "__main__":
             args.model_checkpoint_path is not None and Path(args.model_checkpoint_path).is_file()
     ), f'There seems to be no model file with extension .pt stored in the model_checkpoint_dir you provided: {args.model_checkpoint_dir}'
 
+
+    # Save the images to model checkpoint folder
+    if args.out_images_path is None and args.save_images:
+        args.out_images_path = Path(args.model_checkpoint_dir / "samples")
+    elif args.out_images_path is not None:
+        args.out_images_path = Path(args.out_images_path)
+
+
+    print(f'Generated samples will be stored in: {args.out_images_path}.')
+
     print(f'Now using model retrieved from: {args.model_checkpoint_path} to generate {args.num_samples} samples..')
 
     img_list = model.generate(
@@ -112,7 +122,7 @@ if __name__ == "__main__":
     # Show the images in interactive UI
     if args.dont_show_images is False:
         for img_ in img_list:
-            img_ = interval_mapping(img_.transpose(1, 2, 0), -1.0, 1.0, 0, 255)
+            img_ = interval_mapping(img_.transpose(1, 2, 0), 0.0, 1.0, 0, 255)
             img_ = img_.astype("uint8")
             cv2.imshow("sample", img_ * 2)
             k = cv2.waitKey()
@@ -120,17 +130,12 @@ if __name__ == "__main__":
                 break
         cv2.destroyAllWindows()
 
-    # Save the images to model checkpoint folder
-    if args.out_images_path is None and args.save_images:
-        args.out_images_path = Path(args.model_checkpoint_dir + "/samples")
-    elif args.out_images_path is not None:
-        args.out_images_path = Path(args.out_images_path)
-
-
     if args.save_images:
         for i, img_ in enumerate(img_list):
             img_path = args.out_images_path / f"{args.model_name}_{i}_{time()}.png"
-            img_ = interval_mapping(img_.transpose(1, 2, 0), -1.0, 1.0, 0, 255)
+            #print(min(img_))
+            #print(max(img_))
+            img_ = interval_mapping(img_.transpose(1, 2, 0), 0.0, 1.0, 0, 255)
             img_ = img_.astype("uint8")
             cv2.imwrite(str(img_path.resolve()), img_)
         print(f"Saved generated images to {args.out_images_path.resolve()}")
