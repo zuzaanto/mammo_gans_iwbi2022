@@ -145,6 +145,8 @@ def generate_inbreast_metapoints(
     xml_filepath, 
     roi_type: str = "undefined",
     start_index: int = 0,
+    only_masses: bool = False,
+    allowed_calcifications_birads_values = []
 ) -> Tuple[list, int]:
     # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
     mask = np.ascontiguousarray(mask, dtype=np.uint8)
@@ -154,28 +156,33 @@ def generate_inbreast_metapoints(
     lesion_metapoints = []
     # For each contour, generate a metapoint object including the bounding box as rectangle
     for indx, c in enumerate(contours):
-        if c.shape[0] < 2:
+        if (allowed_calcifications_birads_values is not None) and (csv_metadata["Bi-Rads"] not in allowed_calcifications_birads_values): # don't add if it's not an allowed birads value
             continue
-        # TODO this should be replaced with a Metapoint class object!
-        metapoint = {
-            "image_id": image_id,
-            "patient_id": patient_id,
-            "density": int(csv_metadata["ACR"]),
-            "birads": csv_metadata["Bi-Rads"],
-            "laterality": csv_metadata["Laterality"],
-            "view": csv_metadata["View"],
-            "lesion_id": csv_metadata["View"] + "_" + str(start_index),
-            "bbox": cv2.boundingRect(c),
-            "image_path": str(image_path.resolve()),
-            "xml_path": str(xml_filepath.resolve()),
-            "roi_type": str(roi_type),
-            "biopsy_proven_status": None,
-            "dataset": "inbreast",
-            # "contour": c.tolist(),
-        }
-        start_index += 1
-        # logging.info(f' patent = {patient_id}, start_index = {start_index}')
-        lesion_metapoints.append(metapoint)
+        elif only_masses and ('Mass' != str(roi_type)): # don't add if it's not a mass
+            continue
+        elif c.shape[0] < 2:
+            continue
+        else:
+            # TODO this should be replaced with a Metapoint class object!
+            metapoint = {
+                "image_id": image_id,
+                "patient_id": patient_id,
+                "density": int(csv_metadata["ACR"]),
+                "birads": csv_metadata["Bi-Rads"],
+                "laterality": csv_metadata["Laterality"],
+                "view": csv_metadata["View"],
+                "lesion_id": csv_metadata["View"] + "_" + str(start_index),
+                "bbox": cv2.boundingRect(c),
+                "image_path": str(image_path.resolve()),
+                "xml_path": str(xml_filepath.resolve()),
+                "roi_type": str(roi_type),
+                "biopsy_proven_status": None,
+                "dataset": "inbreast",
+                # "contour": c.tolist(),
+            }
+            start_index += 1
+            # logging.info(f' patent = {patient_id}, start_index = {start_index}')
+            lesion_metapoints.append(metapoint)
     return lesion_metapoints, start_index
 
 
