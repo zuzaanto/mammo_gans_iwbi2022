@@ -104,37 +104,24 @@ if __name__ == "__main__":
         train_dataset_list.append(
             DATASET_DICT[dataset_name](
             metadata_path=config.train_metadata_path,
-            final_shape=(config.image_size, config.image_size),
-            classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
             transform=train_transform,
-            is_trained_on_calcifications=config.is_trained_on_calcifications,
             config=config
-            # synthetic_metadata_path=config.synthetic_metadata_path,
-            # synthetic_shuffle_proportion=config.train_shuffle_proportion,
             )
         )
         val_dataset_list.append(
             DATASET_DICT[dataset_name](
                 metadata_path=config.validation_metadata_path,
-                final_shape=(config.image_size, config.image_size),
-                classify_binary_healthy=config.classify_binary_healthy,
                 conditional_birads=True,
                 transform=val_transform,
-                is_trained_on_calcifications=config.is_trained_on_calcifications,
                 config=config
-                # synthetic_metadata_path=config.synthetic_metadata_path,
-                # synthetic_shuffle_proportion=config.validation_shuffle_proportion,
             )
         )
         test_dataset_list.append(
             DATASET_DICT[dataset_name](
                 metadata_path=config.test_metadata_path,
-                final_shape=(config.image_size, config.image_size),
-                classify_binary_healthy=config.classify_binary_healthy,
                 conditional_birads=True,
                 transform=val_transform,
-                is_trained_on_calcifications=config.is_trained_on_calcifications,
                 config=config
             )
         )
@@ -148,8 +135,6 @@ if __name__ == "__main__":
         deprecated_path = config.train_metadata_path # TODO REFACTOR
         synth_train_images = SyntheticDataset(
             metadata_path=deprecated_path,
-            final_shape=(config.image_size, config.image_size),
-            classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
@@ -167,11 +152,8 @@ if __name__ == "__main__":
         #     train_dataset_list.append(
         #         DATASET_DICT[dataset_name](
         #         metadata_path=config.synthetic_metadata_path,
-        #         final_shape=(config.image_size, config.image_size),
-        #         classify_binary_healthy=config.classify_binary_healthy,
         #         conditional_birads=True,
         #         transform=train_transform,
-        #         is_trained_on_calcifications=config.is_trained_on_calcifications,
         #         config=config
         #         # synthetic_metadata_path=config.synthetic_metadata_path,
         #         # synthetic_shuffle_proportion=config.train_shuffle_proportion,
@@ -183,8 +165,6 @@ if __name__ == "__main__":
 
         # synth_val_images = SyntheticDataset(
         #     metadata_path=config.synthetic_metadata_path,
-        #     final_shape=(config.image_size, config.image_size),
-        #     classify_binary_healthy=config.classify_binary_healthy,
         #     conditional_birads=True,
         #     transform=val_transform,
         #     shuffle_proportion=config.train_shuffle_proportion,
@@ -200,21 +180,18 @@ if __name__ == "__main__":
 
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=config.batch_size,
         shuffle=True,
-        num_workers=config.workers,
+        config=config
     )
     val_dataloader = DataLoader(
         val_dataset,
-        batch_size=config.batch_size,
         shuffle=True,
-        num_workers=config.workers,
+        config=config
     )
     test_dataloader = DataLoader(
         test_dataset,
-        batch_size=config.batch_size,
         shuffle=True,
-        num_workers=config.workers,
+        config=config
     )
     if not Path(config.out_checkpoint_path).parent.exists():
         os.makedirs(Path(config.out_checkpoint_path).parent.resolve(), exist_ok=True)

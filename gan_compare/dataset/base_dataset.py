@@ -21,15 +21,12 @@ class BaseDataset(Dataset):
             crop: bool = True,
             min_size: int = 128,
             margin: int = 60,
-            final_shape: Tuple[int, int] = (400, 400),
             conditioned_on: str = None,
             conditional: bool = False,
             conditional_birads: bool = False,
-            classify_binary_healthy: bool = False,
             added_noise_term: float = 0.0,
             split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-            is_trained_on_calcifications: bool = False,
             is_trained_on_masses: bool = True,
             is_trained_on_other_roi_types: bool = False,
             is_condition_binary: bool = False,
@@ -38,6 +35,7 @@ class BaseDataset(Dataset):
             config = None
     ):
         assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
+        self.config = config
         self.metadata = []
         with open(metadata_path, "r") as metadata_file:
             self.metadata_unfiltered = json.load(metadata_file)
@@ -47,14 +45,13 @@ class BaseDataset(Dataset):
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
-        self.final_shape = final_shape
+        self.final_shape = (self.config.image_size, self.config.image_size)
         self.conditional = conditional
-        self.classify_binary_healthy = classify_binary_healthy
         self.conditional_birads = conditional_birads
         self.split_birads_fours = split_birads_fours
         self.transform = transform
         self.added_noise_term = added_noise_term
-        self.config = config
+        
 
 
     def __len__(self):
@@ -110,7 +107,7 @@ class BaseDataset(Dataset):
         return condition
 
     def determine_label(self, metapoint):
-        if self.classify_binary_healthy:
+        if self.config.classify_binary_healthy:
             return int(metapoint.get("healthy", False)) # label = 1 iff metapoint is healthy
         elif self.conditional_birads:
             if self.is_condition_binary:
