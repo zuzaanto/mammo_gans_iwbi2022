@@ -21,16 +21,8 @@ class BaseDataset(Dataset):
             crop: bool = True,
             min_size: int = 128,
             margin: int = 60,
-            conditioned_on: str = None,
-            conditional: bool = False,
             conditional_birads: bool = False,
-            added_noise_term: float = 0.0,
-            split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-            is_trained_on_masses: bool = True,
-            is_trained_on_other_roi_types: bool = False,
-            is_condition_binary: bool = False,
-            is_condition_categorical: bool = False,
             transform: any = None,
             config = None
     ):
@@ -39,19 +31,12 @@ class BaseDataset(Dataset):
         self.metadata = []
         with open(metadata_path, "r") as metadata_file:
             self.metadata_unfiltered = json.load(metadata_file)
-        self.conditioned_on = conditioned_on
-        self.is_condition_binary = is_condition_binary
-        self.is_condition_categorical = is_condition_categorical
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
-        self.final_shape = (self.config.image_size, self.config.image_size)
-        self.conditional = conditional
         self.conditional_birads = conditional_birads
-        self.split_birads_fours = split_birads_fours
-        self.transform = transform
-        self.added_noise_term = added_noise_term
-        
+        self.final_shape = (self.config.image_size, self.config.image_size)
+        self.transform = transform        
 
 
     def __len__(self):
@@ -62,14 +47,14 @@ class BaseDataset(Dataset):
 
     def retrieve_condition(self, metapoint):
         condition = -1 # None does not work
-        if self.conditioned_on == "birads":
+        if self.config.conditioned_on == "birads":
             try:
-                if self.is_condition_binary:
+                if self.config.is_condition_binary:
                     condition = metapoint["birads"][0]
                     if int(condition) <= 3:
                         return 0
                     return 1
-                elif self.split_birads_fours:
+                elif self.config.split_birads_fours:
                     condition = int(BIRADS_DICT[metapoint["birads"]])
                 else:
                     # avoid 4c, 4b, 4a and just truncate them to 4
@@ -78,21 +63,21 @@ class BaseDataset(Dataset):
                 logging.debug(
                     f"Type Error while trying to extract birads. This could be due to birads field being None in "
                     f"BCDR dataset: {e}. Using biopsy_proven_status field instead as fallback.")
-                if self.is_condition_binary:
+                if self.config.is_condition_binary:
                     # TODO: Validate if this business logic is desired in experiment,
                     # TODO: e.g. biopsy proven 'Benign' is mapped to BIRADS 3 and Malignant to BIRADS 6
                     condition = BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]]
                     if int(condition) <= 3:
                         return 0
                     return 1
-                elif self.split_birads_fours:
+                elif self.config.split_birads_fours:
                     condition = int(BIRADS_DICT[str(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])])
                 else:
                     condition = int(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])
             # We could also have evaluation of is_condition_categorical here if we want continuous birads not
             # to be either 0 or 1 (0 or 1 is already provided by setting the self.is_condition_binary to true)
-        elif self.conditioned_on == "density":
-            if self.is_condition_binary:
+        elif self.config.conditioned_on == "density":
+            if self.config.is_condition_binary:
                 condition = metapoint["density"][0]
                 if int(float(condition)) <= 2:
                     return 0
@@ -101,7 +86,7 @@ class BaseDataset(Dataset):
                 condition = int(float(metapoint["density"][0]))  # 1-4
             else:  # return a value between 0 and 1 using the DENSITY_DICT.
                 # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
-                noise = round(random.uniform(-1, 1) * self.added_noise_term, 2)
+                noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
                 # get the density from the dict and add noise to capture potential variations.
                 condition: float = DENSITY_DICT[metapoint["density"][0]] + noise
         return condition
@@ -110,11 +95,11 @@ class BaseDataset(Dataset):
         if self.config.classify_binary_healthy:
             return int(metapoint.get("healthy", False)) # label = 1 iff metapoint is healthy
         elif self.conditional_birads:
-            if self.is_condition_binary:
+            if self.config.is_condition_binary:
                 condition = metapoint["birads"][0]
                 if int(condition) <= 3: return 0
                 else: return 1
-            elif self.split_birads_fours:
+            elif self.config.split_birads_fours:
                 condition = BIRADS_DICT[metapoint["birads"]]
                 return int(condition)
             else:

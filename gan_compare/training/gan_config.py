@@ -101,6 +101,9 @@ class GANConfig:
     # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = True
 
+    # Required because the Dataset classes use it for classification runs:
+    classify_binary_healthy: bool = False
+
     # We can condition on different variables such as breast density or birads status of lesion. Default = "density"
     conditioned_on: str = "density"
 

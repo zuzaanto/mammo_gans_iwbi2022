@@ -25,10 +25,6 @@ class SyntheticDataset(BaseDataset):
         min_size: int = 128,
         margin: int = 60,
         conditional_birads: bool = False,
-        split_birads_fours: bool = False,  # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-        is_trained_on_masses: bool = True,
-        is_trained_on_other_roi_types: bool = False,
-        is_condition_binary:bool = False,
         transform: any = None,
         shuffle_proportion: Optional[int] = None,
         current_length: Optional[int] = None,
@@ -40,10 +36,6 @@ class SyntheticDataset(BaseDataset):
             min_size=min_size,
             margin=margin,
             conditional_birads=conditional_birads,
-            split_birads_fours=split_birads_fours,
-            is_trained_on_masses=is_trained_on_masses,
-            is_trained_on_other_roi_types=is_trained_on_other_roi_types,
-            is_condition_binary=is_condition_binary,
             transform=transform,
             config=config
         )

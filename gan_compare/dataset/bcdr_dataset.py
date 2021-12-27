@@ -20,15 +20,7 @@ class BCDRDataset(BaseDataset):
             min_size: int = 128,
             margin: int = 60,
             conditional_birads: bool = False,
-            conditioned_on: str = None,
-            conditional: bool = False,
-            is_condition_binary: bool = False,
-            is_condition_categorical: bool = False,
-            added_noise_term:float = 0.0,
-            split_birads_fours: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
-            is_trained_on_masses: bool = True,
-            is_trained_on_other_roi_types: bool = False,
             transform: any = None,
             config = None
     ):
@@ -37,15 +29,7 @@ class BCDRDataset(BaseDataset):
             crop=crop,
             min_size=min_size,
             margin=margin,
-            conditioned_on=conditioned_on,
-            conditional=conditional,
-            is_condition_binary=is_condition_binary,
-            is_condition_categorical=is_condition_categorical,
             conditional_birads=conditional_birads,
-            added_noise_term=added_noise_term,
-            split_birads_fours=split_birads_fours,
-            is_trained_on_masses=is_trained_on_masses,
-            is_trained_on_other_roi_types=is_trained_on_other_roi_types,
             transform=transform,
             config=config
         )
@@ -54,15 +38,15 @@ class BCDRDataset(BaseDataset):
                 [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr_only_train'])
             logging.info(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
         else:
-            assert is_trained_on_masses or self.config.is_trained_on_calcifications or is_trained_on_other_roi_types, \
+            assert self.config.is_trained_on_masses or self.config.is_trained_on_calcifications or self.config.is_trained_on_other_roi_types, \
                 f"You specified to train the GAN neither on masses nor calcifications nor other roi types. Please select " \
                 f"at least one roi type. "
-            if is_trained_on_masses:
+            if self.config.is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if "nodule" in metapoint["roi_type"]])
                 logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
 
-            if is_trained_on_calcifications:
+            if self.config.is_trained_on_calcifications:
                 # TODO add these keywords to a dedicated constants file
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered \
@@ -72,7 +56,7 @@ class BCDRDataset(BaseDataset):
                 )
                 logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
-            if is_trained_on_other_roi_types:
+            if self.config.is_trained_on_other_roi_types:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered \
                     if "axillary_adenopathy" in metapoint["roi_type"] \
@@ -119,6 +103,6 @@ class BCDRDataset(BaseDataset):
 
         if self.transform: sample = self.transform(sample)
 
-        label = self.retrieve_condition(metapoint) if self.conditional else self.determine_label(metapoint)
+        label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
 
         return sample, label, image, metapoint['roi_type']

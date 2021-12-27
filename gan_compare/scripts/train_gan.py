@@ -81,18 +81,10 @@ if __name__ == "__main__":
     for dataset_name in config.dataset_names:
         dataset = DATASET_DICT[dataset_name](
             metadata_path=args.in_metadata_path,
-            final_shape=(config.image_size, config.image_size),
-            conditioned_on=config.conditioned_on,
-            conditional=config.conditional,
-            is_condition_binary=config.is_condition_binary,
-            is_condition_categorical=config.is_condition_categorical,
-            added_noise_term=config.added_noise_term,
-            split_birads_fours=config.split_birads_fours,
-            is_trained_on_masses=config.is_trained_on_masses,
-            is_trained_on_calcifications=config.is_trained_on_calcifications,
-            is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
             # https://pytorch.org/vision/stable/transforms.html
-            transform=transform_to_use)
+            transform=transform_to_use,
+            config=config
+        )
         dataset_list.append(dataset)
     dataset = ConcatDataset(dataset_list)
 
@@ -100,9 +92,8 @@ if __name__ == "__main__":
 
     dataloader = DataLoader(
         dataset,
-        batch_size=config.batch_size,
         shuffle=True,
-        num_workers=config.workers,
+        config=config
     )
 
     if args.save_dataset:
