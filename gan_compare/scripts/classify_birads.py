@@ -172,12 +172,27 @@ if __name__ == "__main__":
         # val_dataset = ConcatDataset([val_dataset, synth_val_images])
         # logging.info(f'Number of samples added to synthetic validation set: {len(synth_val_images)}')
 
-
-    # TODO: create the weights such that each class is weighted by total_num/num_class_x
-    train_weights = np.ones(len(train_dataset))
     train_dataset = ConcatDataset(train_dataset_list)
     val_dataset = ConcatDataset(val_dataset_list)
     test_dataset = ConcatDataset(test_dataset_list)
+    
+    num_train_healthy = 0
+    num_train_non_healthy = 0
+    for d in train_dataset_list:
+        a, b = d.len_of_classes()
+        num_train_non_healthy += a
+        num_train_healthy += b
+    logging.info('Training set:')
+    logging.info(f'Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}')
+    logging.info(f'Share of healthy: {num_train_healthy/len(train_dataset)}')
+
+
+    weight_non_healthy = len(train_dataset) / num_train_non_healthy
+    weight_healthy = len(train_dataset) / num_train_healthy
+    train_weights = []
+    for d in train_dataset_list:
+        train_weights.extend(d.get_weights(weight_non_healthy, weight_healthy))
+    
     valid_weights = np.ones(len(val_dataset))
     test_weights = np.ones(len(test_dataset))
 
