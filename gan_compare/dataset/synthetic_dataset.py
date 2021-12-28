@@ -20,7 +20,7 @@ class SyntheticDataset(BaseDataset):
 
     def __init__(
         self,
-        metadata_path: str,
+        metadata_path: str = None,
         crop: bool = True,
         min_size: int = 128,
         margin: int = 60,

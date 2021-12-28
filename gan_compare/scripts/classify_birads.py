@@ -132,9 +132,7 @@ if __name__ == "__main__":
         
         # APPEND SYNTHETIC DATA
 
-        deprecated_path = config.train_metadata_path # TODO REFACTOR
         synth_train_images = SyntheticDataset(
-            metadata_path=deprecated_path,
             conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,

@@ -17,7 +17,7 @@ class BaseDataset(Dataset):
 
     def __init__(
             self,
-            metadata_path: str,
+            metadata_path: str = None,
             crop: bool = True,
             min_size: int = 128,
             margin: int = 60,
@@ -26,17 +26,21 @@ class BaseDataset(Dataset):
             transform: any = None,
             config = None
     ):
-        assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
+
         self.config = config
-        self.metadata = []
-        with open(metadata_path, "r") as metadata_file:
-            self.metadata_unfiltered = json.load(metadata_file)
+
+        if metadata_path is not None:
+            assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
+            self.metadata = []
+            with open(metadata_path, "r") as metadata_file:
+                self.metadata_unfiltered = json.load(metadata_file)
+        
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
         self.conditional_birads = conditional_birads
         self.final_shape = (self.config.image_size, self.config.image_size)
-        self.transform = transform        
+        self.transform = transform     
 
 
     def __len__(self):
