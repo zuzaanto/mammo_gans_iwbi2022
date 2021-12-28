@@ -35,7 +35,7 @@ class BCDRDataset(BaseDataset):
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr_only_train'])
+                [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr'])
             logging.info(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
         else:
             assert self.config.is_trained_on_masses or self.config.is_trained_on_calcifications or self.config.is_trained_on_other_roi_types, \
@@ -71,7 +71,7 @@ class BCDRDataset(BaseDataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
-        assert metapoint.get("dataset") == "bcdr_only_train", "Dataset name mismatch, you're using a wrong metadata file!"
+        assert metapoint.get("dataset") == "bcdr", "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
         # TODO read as grayscale
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
