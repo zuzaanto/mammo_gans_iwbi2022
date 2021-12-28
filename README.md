@@ -92,8 +92,11 @@ python -m gan_compare.scripts.split_metadata \
 ```
 After that, you can train and evaluate the classifier as follows:
 ```
-python -m gan_compare.scripts.classify \
+python -m gan_compare.scripts.classify_birads \
   --config_path CONFIG_PATH # Path to a yaml model config file
+  --only_get_metrics # Whether to skip training and only output the metrics on the test set. If true, requires in_checkpoint_path
+  --in_checkpoint_path IN_CHECKPOINT_PATH # Path to a model checkpoint file, which will be used for outputting the metrics on the test set
+  --save_dataset # Only use this if you just want to output your dataset as images, but don't want to perform any training our classifying
 ```
 
 #### Peek through the dataset
