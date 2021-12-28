@@ -126,9 +126,6 @@ if __name__ == "__main__":
                 config=config
             )
         )
-    train_dataset = ConcatDataset(train_dataset_list)
-    val_dataset = ConcatDataset(val_dataset_list)
-    test_dataset = ConcatDataset(test_dataset_list)
     if config.use_synthetic:
         
         # APPEND SYNTHETIC DATA
@@ -139,10 +136,9 @@ if __name__ == "__main__":
             conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
-            current_length=len(train_dataset),
             config=config
         )
-        train_dataset = ConcatDataset([train_dataset, synth_train_images])
+        train_dataset_list.append(synth_train_images)
         logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
 
         # YOU MUST ADD THE HEALTHY PATCHES WHICH ARE MEANT TO BALANCE THE SYNTHETIC PATCHES TO THE TRAINING SET ABOVE
@@ -179,6 +175,9 @@ if __name__ == "__main__":
 
     # TODO: create the weights such that each class is weighted by total_num/num_class_x
     train_weights = np.ones(len(train_dataset))
+    train_dataset = ConcatDataset(train_dataset_list)
+    val_dataset = ConcatDataset(val_dataset_list)
+    test_dataset = ConcatDataset(test_dataset_list)
     valid_weights = np.ones(len(val_dataset))
     test_weights = np.ones(len(test_dataset))
 
