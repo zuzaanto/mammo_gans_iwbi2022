@@ -11,6 +11,7 @@ from gan_compare.training.io import load_yaml
 from dacite import from_dict
 from gan_compare.training.classifier_config import ClassifierConfig
 from torch.utils.data.dataset import ConcatDataset
+from torch.utils.data import WeightedRandomSampler
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
 from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve, calc_AUROC, calc_AUPRC
 import torch.optim as optim
@@ -175,22 +176,29 @@ if __name__ == "__main__":
         # val_dataset = ConcatDataset([val_dataset, synth_val_images])
         # logging.info(f'Number of samples added to synthetic validation set: {len(synth_val_images)}')
 
-    
 
+    # TODO: create the weights such that each class is weighted by total_num/num_class_x
+    train_weights = np.ones(len(train_dataset))
+    valid_weights = np.ones(len(val_dataset))
+    test_weights = np.ones(len(test_dataset))
+
+    train_sampler = WeightedRandomSampler(train_weights, len(train_dataset))
+    valid_sampler = WeightedRandomSampler(valid_weights, len(val_dataset))
+    test_sampler = WeightedRandomSampler(test_weights, len(test_dataset))
 
     train_dataloader = DataLoader(
         train_dataset,
-        shuffle=True,
+        sampler=train_sampler,
         config=config
     )
     val_dataloader = DataLoader(
         val_dataset,
-        shuffle=True,
+        sampler=valid_sampler,
         config=config
     )
     test_dataloader = DataLoader(
         test_dataset,
-        shuffle=True,
+        sampler=test_sampler,
         config=config
     )
     if not Path(config.out_checkpoint_path).parent.exists():
