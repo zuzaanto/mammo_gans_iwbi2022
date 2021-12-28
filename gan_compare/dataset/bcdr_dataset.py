@@ -35,7 +35,7 @@ class BCDRDataset(BaseDataset):
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
-                [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr_only_train'])
+                [metapoint for metapoint in self.metadata_unfiltered if metapoint['dataset'] == 'bcdr'])
             logging.info(f'Appended BCDR metadata. Metadata size: {len(self.metadata)}')
         else:
             assert self.config.is_trained_on_masses or self.config.is_trained_on_calcifications or self.config.is_trained_on_other_roi_types, \
