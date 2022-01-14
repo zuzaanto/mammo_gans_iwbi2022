@@ -77,7 +77,7 @@ if __name__ == "__main__":
         used_patients.extend(test_patients)
 
     # Some metapoints may not contain density label - we don't want them in any of the splits
-    assert (len(train_metadata) + len(val_metadata) + len(test_metadata)) < len(metadata_df)
+    assert (len(train_metadata) + len(val_metadata) + len(test_metadata)) <= len(metadata_df)
 
     print(f"Split metadata into {len(train_metadata)}, {len(val_metadata)} and {len(test_metadata)} samples.")
     print("Saving..")

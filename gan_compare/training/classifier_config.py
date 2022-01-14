@@ -1,63 +1,52 @@
 from dataclasses import dataclass, field
 from typing import List
 from gan_compare.constants import DATASET_DICT
+from gan_compare.training.base_config import BaseConfig
 
 
 @dataclass
-class ClassifierConfig:
+class ClassifierConfig(BaseConfig):
     # Paths to train and validation metadata
-    train_metadata_path: str
-    validation_metadata_path: str
-    test_metadata_path: str
+    train_metadata_path: str = None
+    validation_metadata_path: str = None
+    test_metadata_path: str = None
+
+    model_name: str = "cnn"
     
     # Path to synthetic metadata used for data augmentation
-    synthetic_metadata_path: str
-    train_shuffle_proportion: float
-    validation_shuffle_proportion: float
+    # synthetic_metadata_path: str # TODO REFACTOR
+    train_shuffle_proportion: float = 0.4
+    validation_shuffle_proportion: float = 0
+
+    # Directory with synthetic patches
+    synthetic_data_dir: str = None
     
     # Proportion of training artificial images
     gan_images_ratio: float = 0.4
 
-    # Birads range
-    birads_min: int = 2
-    birads_max: int = 6
-
-    split_birads_fours: bool = True
+    no_transforms: bool = False
 
     # Whether to use synthetic data at all
     use_synthetic: bool = True
 
-
-    # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
-    n_cond = birads_max + 1
-
-    # Number of workers for dataloader
-    workers: int = 2
-
-    # Batch size during training
-    batch_size: int = 8
-
-    # Spatial size of training images. All images will be resized to this
-    #   size using a transformer.
-    image_size: int = 64
-
     # Dropout rate
     dropout_rate: float = 0.3
 
-    # Number of training epochs
-    num_epochs: int = 60
-
-    # Learning rate for optimizers
-    lr: float = 0.0002
-
-    out_checkpoint_path: str = "model_checkpoints//classifier/classifier.pt"
-
-    dataset_names: List[str] = field(default_factory=list)
+    out_checkpoint_path: str = "model_checkpoints//classifier/best_classifier.pt"
     
     classes: str = "is_healthy"
 
+    # Variables for utils.py -> get_measures_for_crop():
+    zoom_offset: float = 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+    zoom_spread: float = 0.33 # the higher, the more variance in zooming. must be greater 0.
+    ratio_spread: float = 0.05 # NOT IN USE ANYMORE. coefficient for how much to spread the ratio between height and width. the higher, the more spread.
+    translation_spread: float = 0.25 # the higher, the more variance in translation. must be greater 0.
+    max_translation_offset: float = 0.33 # coefficient relative to the image size.
+
     def __post_init__(self):
-        if self.split_birads_fours:
+        if self.classify_binary_healthy:
+            self.n_cond = 2
+        elif self.split_birads_fours:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1

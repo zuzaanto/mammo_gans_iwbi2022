@@ -1,18 +1,23 @@
 import glob
 import io
 import json
+
 import plistlib
-import random
 from pathlib import Path
 from typing import Tuple, Union, List
+import json
 
 import cv2
 import numpy as np
 import pandas as pd
 from skimage.draw import polygon
-
-from gan_compare.dataset.constants import BCDR_VIEW_DICT
+import random
+import pydicom as dicom
+from deprecation import deprecated
 from gan_compare.paths import INBREAST_IMAGE_PATH
+from gan_compare.dataset.constants import BCDR_VIEW_DICT
+
+import logging
 
 
 def load_inbreast_mask(
@@ -29,7 +34,7 @@ def load_inbreast_mask(
     in the roi are assigned a value of 1. e.g. [{mask:mask1, roi_type:type1}, {mask:mask2, roi_type:type2}]
     """
     mask_list = []
-    # mask = np.zeros(imshape)
+    #mask = np.zeros(imshape)
     mask_masses = np.zeros(imshape)
     mask_calcifications = np.zeros(imshape)
     mask_other = np.zeros(imshape)
@@ -44,11 +49,10 @@ def load_inbreast_mask(
         roi_type = roi["Name"]
 
         # Define the ROI types that we want marked as masses, map to lowercase
-        roi_type_mass_definition_list = list(
-            map(lambda x: x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
+        roi_type_mass_definition_list = list(map(lambda x:x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
 
         # Define the ROI types that we want marked as calcifications, map to lowercase
-        roi_type_calc_definition_list = list(map(lambda x: x.lower(), ['Calcification', 'Calcifications', 'Cluster']))
+        roi_type_calc_definition_list = list(map(lambda x:x.lower(),['Calcification', 'Calcifications', 'Cluster']))
 
         points = roi["Point_px"]
         assert numPoints == len(points)
@@ -61,7 +65,7 @@ def load_inbreast_mask(
                     mask_calcifications[int(point[1]), int(point[0])] = 1
                 else:
                     mask_other[int(point[1]), int(point[0])] = 1
-                    # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
+                    # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
                     # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
         else:
             x, y = zip(*points)
@@ -72,14 +76,14 @@ def load_inbreast_mask(
             poly_x, poly_y = polygon(row, col, shape=imshape)
             if roi_type.lower() in roi_type_mass_definition_list:
                 mask_masses[poly_x, poly_y] = 1
-                # mask[poly_x, poly_y] = 1
+                #mask[poly_x, poly_y] = 1
             elif roi_type.lower() in roi_type_calc_definition_list:
                 mask_calcifications[poly_x, poly_y] = 1
-                # mask[poly_x, poly_y] = 1
+                #mask[poly_x, poly_y] = 1
             else:
                 mask_other[poly_x, poly_y] = 1
-                # mask[poly_x, poly_y] = 1
-                # print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
+                #mask[poly_x, poly_y] = 1
+                # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
                 # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
 
     # TODO I don't see the reason for creating dictionaries here, especially that they're not handled later. Ideas @Richard?
@@ -106,7 +110,7 @@ def interval_mapping(image, from_min, from_max, to_min, to_max):
     to_range = to_max - to_min
     # scale to interval [0,1]
     scaled = np.array((image - from_min) / float(from_range), dtype=float)
-    # multiply by range and add minimum to get interval [minimum,range+minimum]
+    # multiply by range and add minimum to get interval [min,range+min]
     return to_min + (scaled * to_range)
 
 
@@ -114,8 +118,7 @@ def read_csv(path: Union[Path, str], sep: chr = ";") -> pd.DataFrame:
     with open(path, "r") as csv_file:
         return pd.read_csv(csv_file, sep=sep)
 
-
-# obsolete
+@deprecated()
 def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
     """
     Note that this is just an assumption basing on radiologist's opinion, unconfirmed by actual biopsy!
@@ -132,9 +135,18 @@ def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
     return True
 
 
-def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image_path, xml_filepath,
-                                 roi_type: str = "undefined",
-                                 start_index: int = 0) -> Tuple[list, int]:
+def generate_inbreast_metapoints(
+    mask, 
+    image_id, 
+    patient_id, 
+    csv_metadata, 
+    image_path, 
+    xml_filepath, 
+    roi_type: str = "undefined",
+    start_index: int = 0,
+    only_masses: bool = False,
+    allowed_calcifications_birads_values = []
+) -> Tuple[list, int]:
     # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
     mask = np.ascontiguousarray(mask, dtype=np.uint8)
     contours, hierarchy = cv2.findContours(
@@ -143,39 +155,106 @@ def generate_inbreast_metapoints(mask, image_id, patient_id, csv_metadata, image
     lesion_metapoints = []
     # For each contour, generate a metapoint object including the bounding box as rectangle
     for indx, c in enumerate(contours):
-        if c.shape[0] < 2:
+        if (allowed_calcifications_birads_values is not None) and (csv_metadata["Bi-Rads"] not in allowed_calcifications_birads_values): # don't add if it's not an allowed birads value
             continue
-        # TODO this should be replaced with a Metapoint class object!
-        metapoint = {
-            "image_id": image_id,
-            "patient_id": patient_id,
-            "density": csv_metadata["ACR"],
-            "birads": csv_metadata["Bi-Rads"],
-            "laterality": csv_metadata["Laterality"],
-            "view": csv_metadata["View"],
-            "lesion_id": csv_metadata["View"] + "_" + str(start_index),
-            "bbox": cv2.boundingRect(c),
-            "image_path": str(image_path.resolve()),
-            "xml_path": str(xml_filepath.resolve()),
-            "roi_type": str(roi_type),
-            "biopsy_proven_status": None,
-            "dataset": "inbreast",
-            # "contour": c.tolist(),
-        }
-        start_index += 1
-        # print(f' patent = {patient_id}, start_index = {start_index}')
-        lesion_metapoints.append(metapoint)
+        elif only_masses and ('Mass' != str(roi_type)): # don't add if it's not a mass
+            continue
+        elif c.shape[0] < 2:
+            continue
+        else:
+            # TODO this should be replaced with a Metapoint class object!
+            metapoint = {
+                "image_id": image_id,
+                "patient_id": patient_id,
+                "density": int(csv_metadata["ACR"]),
+                "birads": csv_metadata["Bi-Rads"],
+                "laterality": csv_metadata["Laterality"],
+                "view": csv_metadata["View"],
+                "lesion_id": csv_metadata["View"] + "_" + str(start_index),
+                "bbox": cv2.boundingRect(c),
+                "image_path": str(image_path.resolve()),
+                "xml_path": str(xml_filepath.resolve()),
+                "roi_type": str(roi_type),
+                "biopsy_proven_status": None,
+                "dataset": "inbreast",
+                # "contour": c.tolist(),
+            }
+            start_index += 1
+            # logging.info(f' patent = {patient_id}, start_index = {start_index}')
+            lesion_metapoints.append(metapoint)
     return lesion_metapoints, start_index
 
 
-def generate_bcdr_metapoints(image_dir_path: Path, row_df: pd.Series):
+def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[int]]:
+    height, width = image.shape
+    ys = int(rng.integers(0, height - size + 1))
+    xs = int(rng.integers(0, width - size + 1))
+    image_crop = image[ys:ys+size, xs:xs+size]
+    return image_crop, [ys, xs, size, size]
+
+
+def generate_healthy_inbreast_metapoints(
+    image_id, 
+    patient_id, 
+    csv_metadata, 
+    image_path, 
+    per_image_count: int,
+    size: int,
+    bg_pixels_max_ratio: float = 0.4,
+    start_index: int = 0,
+    rng = np.random.default_rng()
+) -> Tuple[list, int]:
+    lesion_metapoints = []
+    if int(csv_metadata["Bi-Rads"][:1]) == 1:
+        for _ in range(per_image_count):
+            img = convert_to_uint8(dicom.dcmread(image_path).pixel_array)
+            img_crop = np.zeros(shape=(size, size))
+            thres = 10
+            bin_img_crop = img_crop.copy()
+            while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
+                img_crop, bbox = _random_crop(img, size, rng)
+                _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
+            if csv_metadata["ACR"].strip() == "":
+                continue
+            metapoint = {
+                "healthy": True,
+                "image_id": image_id,
+                "patient_id": patient_id,
+                "density": int(csv_metadata["ACR"].strip()),
+                "birads": csv_metadata["Bi-Rads"],
+                "laterality": csv_metadata["Laterality"],
+                "view": csv_metadata["View"],
+                "lesion_id": csv_metadata["View"] + "_" + str(start_index),
+                "bbox": bbox,
+                "image_path": str(image_path.resolve()),
+                "xml_path": None,
+                "roi_type": "healthy",
+                "biopsy_proven_status": None,
+                "dataset": "inbreast",
+            }
+            start_index += 1
+            lesion_metapoints.append(metapoint)
+    return lesion_metapoints, start_index
+
+
+def generate_bcdr_metapoints(
+    image_dir_path: Path, 
+    row_df: pd.Series,
+):
     laterality, view = get_bcdr_laterality_and_view(row_df)
     if row_df["image_filename"][0] == " ":
         row_df["image_filename"] = row_df["image_filename"][1:]
+    if type(row_df["density"]) == str:
+        if row_df["density"].strip().startswith("N"):
+            density = None
+        else:
+            density = int(row_df["density"].strip())
+    else:
+        density = row_df["density"]
     metapoint = {
         "image_id": row_df["study_id"],
         "patient_id": row_df["patient_id"],
-        "density": row_df["density"].strip(),
+        "density": density,
         "birads": None,
         "laterality": laterality,
         "view": view,
@@ -184,15 +263,70 @@ def generate_bcdr_metapoints(image_dir_path: Path, row_df: pd.Series):
         "image_path": str((image_dir_path / row_df["image_filename"]).resolve()),
         "xml_path": None,
         "roi_type": get_bcdr_lesion_type(row_df),
-        "biobsy_proven_status": row_df["classification"].strip(),
+        "biopsy_proven_status": row_df["classification"].strip(),
         "dataset": "bcdr",
-        "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        # "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        "contour": None,
     }
     return metapoint
 
 
-def get_bcdr_laterality_and_view(row_df: pd.Series) -> Tuple[str]:
-    view_dict = BCDR_VIEW_DICT[row_df["image_view"]]
+def generate_healthy_bcdr_metapoints(
+    image_dir_path: Path, 
+    row_df: pd.Series,
+    per_image_count: int,
+    size: int,
+    start_index: int,
+    bg_pixels_max_ratio: float = 0.4,
+    rng = np.random.default_rng()
+):
+    laterality, view = get_bcdr_laterality_and_view(row_df, healthy=True)
+    if row_df["image_filename"][0] == " ":
+        row_df["image_filename"] = row_df["image_filename"][1:]
+    image_path = str((image_dir_path / row_df["image_filename"]).resolve())
+    metapoints = []
+    for _ in range(per_image_count):
+        img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        img_crop = np.zeros(shape=(size, size))
+        bin_img_crop = img_crop.copy()
+        thres = 10
+        while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
+            img_crop, bbox = _random_crop(img, size, rng)
+            _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
+        if cv2.countNonZero(bin_img_crop) < 128*12:
+            logging.info(str(cv2.countNonZero(bin_img_crop)))
+
+        metapoint = {
+            "healthy": True,
+            "image_id": row_df["study_id"],
+            "patient_id": row_df["patient_id"],
+            "density": int(row_df["density"]),
+            "birads": None,
+            "laterality": laterality,
+            "view": view,
+            "lesion_id": f"{row_df['study_id']}_{start_index}",
+            "bbox": bbox,
+            "image_path": image_path,
+            "xml_path": None,
+            "roi_type": "healthy",
+            "biopsy_proven_status": None,
+            "dataset": "bcdr",
+            "contour": None,
+        }
+        metapoints.append(metapoint)
+        start_index += 1
+
+        # os.makedirs('save_dataset/mymeta', exist_ok=True)
+        # cv2.imwrite(f'save_dataset/mymeta/{start_index}.png', np.array(img_crop))
+
+    return metapoints, start_index
+
+
+def get_bcdr_laterality_and_view(row_df: pd.Series, healthy: bool = False) -> Tuple[str]:
+    if healthy:
+        view_dict = BCDR_VIEW_DICT[row_df["image_type_id"] + 1]
+    else:
+        view_dict = BCDR_VIEW_DICT[row_df["image_view"]]
     return view_dict["laterality"], view_dict["view"]
 
 
@@ -238,41 +372,22 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     return img_n
 
 
-def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[int, int, int, int]:
-    x, y, w, h = metapoint["bbox"]
-    # pad the bbox
-    x_p = max(0, x - margin // 2)
-    y_p = max(0, y - margin // 2)
-    w_p = w + margin
-    h_p = h + margin
-    # make sure the bbox is bigger than minimum size
-    if w_p < min_size:
-        x_p = max(0, x - (min_size - w_p) // 2)
-        w_p = min_size
-    if h_p < min_size:
-        y_p = max(0, y - (min_size - h_p) // 2)
-        h_p = min_size
-    return (x_p, y_p, w_p, h_p)
-
-
 def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
     if len(metadata_df) > 0:
         if not out_path.parent.exists():
             os.makedirs(out_path.parent)
         with open(str(out_path.resolve()), "w") as out_file:
-            json.dump(list(metadata_df.replace({np.nan:None}).T.to_dict().values()), out_file, indent=4)
+            json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
             
-
+# TODO REFACTOR
 # deprecated
-def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str,
-                                  synthetic_shuffle_proportion: float) -> List[dict]:
-    assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
-    with open(synthetic_metadata_path, "r") as synth_metadata_file:
-        synthetic_metadata = json.load(synth_metadata_file)
-    num_of_metapoints = len(metadata)
-    num_of_synth_metapoints = round(len(metadata) * synthetic_shuffle_proportion)
-    if num_of_synth_metapoints > len(synthetic_metadata):
-        num_of_synth_metapoints = len(synthetic_metadata)
-        num_of_metapoints = round(
-            (1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
-    return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
+# def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
+#     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
+#     with open(synthetic_metadata_path, "r") as synth_metadata_file:
+#         synthetic_metadata = json.load(synth_metadata_file)
+#     num_of_metapoints = len(metadata)
+#     num_of_synth_metapoints = round(len(metadata) * synthetic_shuffle_proportion)
+#     if num_of_synth_metapoints > len(synthetic_metadata):
+#         num_of_synth_metapoints = len(synthetic_metadata)
+#         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
+#     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)

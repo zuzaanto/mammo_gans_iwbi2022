@@ -17,6 +17,7 @@ tqdm = "*"
 dacite = "*"
 pyyaml = "*"
 deprecation = "*"
+timm = "*"
 
 [requires]
 python_version = "3.8.5"

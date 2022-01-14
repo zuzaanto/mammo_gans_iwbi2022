@@ -8,3 +8,7 @@ visualisation/
 .ipynb_checkpoints
 *.egg-info
 *.png
+*.DS_Store
+logs
+save_dataset
+medigan

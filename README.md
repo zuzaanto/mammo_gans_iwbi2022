@@ -53,7 +53,7 @@ Note that you can condition the DCGAN training on BIRADS. BIRADS labels determin
 
 To generate images with your pretrained GAN, run:
 ```
-python gan_compare.training.generate \
+python -m gan_compare.training.generate \
 --model_name MODEL_NAME \ #Model name: supported: dcgan and lsgan
 --model_checkpoint_dir MODEL_CHECKPOINT_DIR \ # Path to model checkpoint directory
 --model_checkpoint_path MODEL_CHECKPOINT_PATH \ # Path to model checkpoint .pt file (optional, by default takes model.pt file in model_checkpoint_dir)
@@ -74,7 +74,7 @@ Note, that if the config.yaml of the model you use to generate samples was train
 #### Train classifier
 To train a classifier using partially synthetic data, you first need to generate synthetic images and metadata:
 ```
-python gan_compare/scripts/create_metadata_from_checkpoint.py \
+python -m gan_compare.scripts.create_metadata_from_checkpoint \
   --output_path OUTPUT_PATH \ # Path to json file to store metadata in.
   --checkpoint_path CHECKPOINT_PATH \ # Path to model's checkpoint.
   --generated_data_dir GENERATED_DATA_DIR \ # Directory to save generated images in.
@@ -84,7 +84,7 @@ python gan_compare/scripts/create_metadata_from_checkpoint.py \
 ```
 You also need to split your original, real metadata into train, validation and test subsets:
 ```
-python gan_compare/scripts/split_metadata.py \
+python -m gan_compare.scripts.split_metadata \
 --metadata_path METADATA_PATH \ # Path to json file with metadata.
 [--train_proportion TRAIN_PROPORTION] \ # Proportion of train subset.
 [--val_proportion VAL_PROPORTION] \ # Proportion of val subset.
@@ -92,8 +92,11 @@ python gan_compare/scripts/split_metadata.py \
 ```
 After that, you can train and evaluate the classifier as follows:
 ```
-python gan_compare/scripts/classify.py \
+python -m gan_compare.scripts.classify_birads \
   --config_path CONFIG_PATH # Path to a yaml model config file
+  --only_get_metrics # Whether to skip training and only output the metrics on the test set. If true, requires in_checkpoint_path
+  --in_checkpoint_path IN_CHECKPOINT_PATH # Path to a model checkpoint file, which will be used for outputting the metrics on the test set
+  --save_dataset # Only use this if you just want to output your dataset as images, but don't want to perform any training our classifying
 ```
 
 #### Peek through the dataset

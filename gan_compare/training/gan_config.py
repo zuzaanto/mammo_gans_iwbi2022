@@ -2,25 +2,16 @@ from dataclasses import dataclass, field
 from time import time
 from typing import List
 from gan_compare.constants import DATASET_DICT
+from gan_compare.training.base_config import BaseConfig
 
 
 @dataclass
-class GANConfig:
+class GANConfig(BaseConfig):
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
     # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
     # - https://arxiv.org/pdf/1701.00160.pdf
-    weight_decay: float = 5e-06  # 0.000005
-
-    # Number of workers for dataloader
-    workers: int = 2
-
-    # Batch size during training
-    batch_size: int = 16
-
-    # Spatial size of training images. All images will be resized to this
-    # size using a transformer.
-    image_size: int = 128
+    weight_decay: float = 0 #5e-06  # 0.000005
 
     # Whether to use least square loss
     use_lsgan_loss: bool = False
@@ -39,8 +30,8 @@ class GANConfig:
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.7
-    label_smoothing_end: float = 1.2
+    label_smoothing_start: float = 0.9
+    label_smoothing_end: float = 1.0
 
     # Leakiness for ReLUs
     leakiness: float = 0.2
@@ -57,17 +48,8 @@ class GANConfig:
     # Size of feature maps in discriminator
     ndf: int = 64
 
-    # Number of training epochs
-    num_epochs: int = 60
-
-    # Learning rate for optimizers
-    lr: float = 0.0002
-
     # Beta1 hyperparam for Adam optimizers
     beta1: float = 0.5
-
-    # Number of GPUs available. Use 0 for CPU mode.
-    ngpu: int = 1
 
     # The number of iterations between: i) prints ii) storage of results in tensorboard
     num_iterations_between_prints: int = 100
@@ -78,9 +60,6 @@ class GANConfig:
     # Specify whether ROIs of masses should be included into GAN training
     is_trained_on_masses: bool = True
 
-    # Specify whether ROIs of calcifications should be included into GAN training
-    is_trained_on_calcifications: bool = False
-
     # Specify whether other ROI types (e.g. Assymetry, Distortion, etc) should be included into GAN training
     is_trained_on_other_roi_types: bool = False
 
@@ -89,20 +68,10 @@ class GANConfig:
 
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
-    dataset_names: List[str] = field(default_factory=list)
-
     ########## Start: Variables related to condition ###########
-    # Whether to train conditional GAN
-    conditional: bool = True
 
     # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
     is_condition_categorical: bool = False
-
-    # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
-    is_condition_binary: bool = True
-
-    # We can condition on different variables such as breast density or birads status of lesion. Default = "density"
-    conditioned_on: str = "density"
 
     # the minimum possible value that the condition can have
     condition_min: int = 1
@@ -110,10 +79,9 @@ class GANConfig:
     # the maximum possible value that the condition can have
     condition_max: int = 4
 
-    split_birads_fours: bool = True
-
-    # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
-    n_cond: int = condition_max + 1
+    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
+    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
+    added_noise_term: float = 0.2
 
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50

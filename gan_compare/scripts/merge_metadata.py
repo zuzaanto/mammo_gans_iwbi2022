@@ -25,12 +25,23 @@ def main():
     args = parse_args()
     first_metadata = pd.read_json(args.in_first_metadata)
     second_metadata = pd.read_json(args.in_second_metadata)
+    first_metadata.density.fillna(0, inplace=True)
+    second_metadata.density.fillna(0, inplace=True)
+    try:
+        first_metadata.density = pd.to_numeric(first_metadata.density, errors='coerce')
+        second_metadata.density = pd.to_numeric(second_metadata.density, errors='coerce')
+
+    except Exception as e:
+        print(
+            f"Error while trying to make values for key 'density' numeric. Does your metadata contain the key density? "
+            f"If not, you may ignore this warning: {e}")
     merged_metadata = first_metadata.append(second_metadata)
     merged_metadata.healthy = merged_metadata.healthy.fillna(False)
     assert len(first_metadata) + len(second_metadata) == len(merged_metadata)
+    merged_metadata = merged_metadata.reset_index(drop=True)
     save_metadata_to_file(merged_metadata, out_path=Path(args.out_path))
-    print(f"Saved {len(first_metadata)} + {len(second_metadata)} = {len(merged_metadata)} merged metadata to {Path(args.out_path).resolve()}")
-
+    print(
+        f"Saved {len(first_metadata)} + {len(second_metadata)} = {len(merged_metadata)} merged metadata to {Path(args.out_path).resolve()}")
 
 if __name__ == "__main__":
     main()

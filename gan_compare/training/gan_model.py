@@ -133,6 +133,7 @@ class GANModel:
                 ngf=self.config.ngf,
                 nc=self.config.nc,
                 ngpu=self.config.ngpu,
+                leakiness=self.config.leakiness,
             ).to(self.device)
 
             self.netD = Discriminator(
@@ -306,7 +307,9 @@ class GANModel:
             conditions = []
             condition_value_options = list(DENSITY_DICT.values())
             for i in range(batch_size):
-                conditions.append(random.choice(condition_value_options))
+                # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
+                noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
+                conditions.append(random.choice(condition_value_options) + noise)
             condition_tensor = torch.tensor(conditions, device=self.device, requires_grad=requires_grad)
             logging.debug(f'random condition_tensor: {condition_tensor}')
             return condition_tensor
@@ -359,7 +362,7 @@ class GANModel:
         iters = 0
 
         # Training Loop
-        print(f"Starting Training.. Image size: {self.config.image_size}")
+        print(f"Starting Training on {self.device}.. Image size: {self.config.image_size}")
         if self.config.conditional:
             print(
                 f"Training conditioned on: {self.config.conditioned_on}"
@@ -372,16 +375,17 @@ class GANModel:
                 # Reset the gradient of the discriminator of previous training iterations
                 self.netD.zero_grad()
 
-                # If the GAN has a conditional input, get condition (i.e. birads number) alongside data (=image batch)
-                if self.config.conditional: sample, condition, _ = data
+                # Unpack data (=image batch) alongside condition (i.e. birads number). Conditions are all -1 if unconditioned.
+                samples, conditions, _ = data
+
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = sample.to(self.device)
+                real_images = samples.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)
                 logging.debug(f'b_size: {b_size}')
-                logging.debug(f'condition: {condition}')
+                logging.debug(f'condition: {conditions}')
 
                 # Generate batch of latent vectors as input into generator to generate fake images
                 noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
@@ -389,7 +393,7 @@ class GANModel:
                 real_conditions = None
                 fake_conditions = None
                 if self.config.conditional:
-                    real_conditions = condition.to(self.device)
+                    real_conditions = conditions.to(self.device)
                     # generate fake conditions
                     fake_conditions = self._get_random_conditions(batch_size=b_size)
                     # Generate fake image batch with G (conditional_res64)
@@ -443,7 +447,7 @@ class GANModel:
                 if i % self.config.num_iterations_between_prints == 0:
                     print(
                         '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
-                        % (epoch, self.config.num_epochs-1, i, len(self.dataloader),
+                        % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
                            errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
 
                     # Add loss scalars to tensorboard
@@ -488,26 +492,25 @@ class GANModel:
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
-        checkpoint = torch.load(model_checkpoint_path)
+        checkpoint = torch.load(model_checkpoint_path, self.device)
         self.netG.load_state_dict(checkpoint["generator"])
         self.optimizerG.load_state_dict(checkpoint["optim_generator"])
         self.netG.eval()
 
         img_list = []
-        for ind in range(num_samples):
-            if fixed_noise is None:
-                fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
-            if self.config.conditional:
-                if fixed_condition is None:
-                    fixed_condition = self._get_random_conditions(batch_size=num_samples)
-                elif isinstance(fixed_condition, int):
-                    fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
-                                                                  batch_size=num_samples)
-                fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
-            else:
-                fake = self.netG(fixed_noise).detach().cpu().numpy()
-            for j, img_ in enumerate(fake):
-                img_list.extend(fake)
+        if fixed_noise is None:
+            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
+        if self.config.conditional:
+            if fixed_condition is None:
+                fixed_condition = self._get_random_conditions(batch_size=num_samples)
+            elif isinstance(fixed_condition, int):
+                fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
+                                                                batch_size=num_samples)
+            fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
+        else:
+            fake = self.netG(fixed_noise).detach().cpu().numpy()
+        # for j, img_ in enumerate(fake):
+        img_list = fake
         return img_list
 
     def visualize(self, fixed_noise=None, fixed_condition=None):
