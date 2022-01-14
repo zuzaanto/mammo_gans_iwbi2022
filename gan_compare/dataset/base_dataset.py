@@ -17,7 +17,7 @@ class BaseDataset(Dataset):
 
     def __init__(
             self,
-            metadata_path: str,
+            metadata_path: str = None,
             crop: bool = True,
             min_size: int = 128,
             margin: int = 60,
@@ -26,17 +26,21 @@ class BaseDataset(Dataset):
             transform: any = None,
             config = None
     ):
-        assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
+
         self.config = config
-        self.metadata = []
-        with open(metadata_path, "r") as metadata_file:
-            self.metadata_unfiltered = json.load(metadata_file)
+
+        if metadata_path is not None:
+            assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
+            self.metadata = []
+            with open(metadata_path, "r") as metadata_file:
+                self.metadata_unfiltered = json.load(metadata_file)
+        
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
         self.conditional_birads = conditional_birads
         self.final_shape = (self.config.image_size, self.config.image_size)
-        self.transform = transform        
+        self.transform = transform     
 
 
     def __len__(self):
@@ -82,14 +86,14 @@ class BaseDataset(Dataset):
                 if self.config.is_condition_binary:
                     # TODO: Validate if this business logic is desired in experiment,
                     # TODO: e.g. biopsy proven 'Benign' is mapped to BIRADS 3 and Malignant to BIRADS 6
-                    condition = BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]]
+                    condition = BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]]
                     if int(condition) <= 3:
                         return 0
                     return 1
                 elif self.config.split_birads_fours:
-                    condition = int(BIRADS_DICT[str(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])])
+                    condition = int(BIRADS_DICT[str(BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]])])
                 else:
-                    condition = int(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])
+                    condition = int(BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]])
             # We could also have evaluation of is_condition_categorical here if we want continuous birads not
             # to be either 0 or 1 (0 or 1 is already provided by setting the self.is_condition_binary to true)
         elif self.config.conditioned_on == "density":
