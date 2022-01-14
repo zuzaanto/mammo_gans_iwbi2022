@@ -68,6 +68,8 @@ class GANConfig(BaseConfig):
 
     output_model_dir: str = f"model_checkpoints/training_{time()}/"
 
+    pretrain_classifier: bool = False
+
     ########## Start: Variables related to condition ###########
 
     # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)

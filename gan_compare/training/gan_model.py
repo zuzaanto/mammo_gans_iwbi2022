@@ -27,6 +27,8 @@ from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.dcgan.utils import weights_init
 from gan_compare.training.io import save_yaml
 from gan_compare.dataset.constants import DENSITY_DICT
+from gan_compare.constants import get_classifier
+
 
 
 class GANModel:
@@ -81,6 +83,15 @@ class GANModel:
             out_path,
         )
         print(f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}")
+
+    def _save_clf(self, clf, epoch_number: Optional[int] = None):
+        self._mkdir_model_dir()  # validation to make sure model dir exists
+        if epoch_number is None:
+            out_path = self.output_model_dir / "clf.pt"
+        else:
+            out_path = self.output_model_dir / f"clf_{epoch_number}.pt"
+        torch.save(clf.state_dict(), out_path)
+        print(f"Saved clf (on epoch(?): {epoch_number}) to {out_path.resolve()}")
 
     def _create_network(self):
         if self.model_name == "dcgan":
@@ -366,6 +377,12 @@ class GANModel:
         D_losses = []
         iters = 0
 
+        if self.config.pretrain_classifier:
+            # Classifier initialization:
+            clf = get_classifier(name='swin_transformer', num_classes=2, img_size=self.config.image_size).to(self.device)
+            clf_criterion = nn.CrossEntropyLoss()
+            clf_optimizer = optim.SGD(clf.parameters(), lr=0.001, momentum=0.9)
+
         # Training Loop
         print(f"Starting Training on {self.device}.. Image size: {self.config.image_size}")
         if self.config.conditional:
@@ -374,6 +391,9 @@ class GANModel:
                 f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
+
+            if self.config.pretrain_classifier: clf_running_loss = 0.0
+
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
                 # We start by updating the discriminator
@@ -416,6 +436,27 @@ class GANModel:
                     real_conditions=real_conditions,
                     fake_conditions=fake_conditions,
                 )
+
+                if self.config.pretrain_classifier:
+                    logging.info('pre-train classifier update')
+
+                    # zero the parameter gradients
+                    clf_optimizer.zero_grad()
+                    
+                    # forward + backward + optimize
+                    clf_samples = fake_images + fake_images
+                    clf_labels = torch.zeros(len(fake_images)) + torch.ones(len(fake_images))
+                    # TODO: maybe we should shuffle the samples here
+                    clf_outputs = clf(clf_samples.to(self.device)) # forward pass
+                    clf_loss = clf_criterion(clf_outputs, clf_labels.to(self.device))
+                    clf_loss.backward() #backward pass
+                    clf_optimizer.step()
+
+                    # print statistics
+                    clf_running_loss += clf_loss.item()
+                    if i % 2000 == 1999:  # print every 2000 mini-batches
+                        logging.info("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, clf_running_loss / 2000))
+                        clf_running_loss = 0.0
 
                 # After updating the discriminator, we now update the generator
                 # Reset to zero as previous gradient should have already been used to update the generator network
@@ -488,9 +529,12 @@ class GANModel:
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
             if (epoch % 20 == 0 and epoch >= 50):
-                # Save on each 5th epoch starting at epoch 50.
+                # Save on each 20th epoch starting at epoch 50.
                 self._save_model(epoch)
+                if self.config.pretrain_classifier: self._save_clf(clf, epoch)
+
         self._save_model()
+        if self.config.pretrain_classifier: self._save_clf(clf)
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
                  num_samples: int = 10, birads: int = None) -> list:
