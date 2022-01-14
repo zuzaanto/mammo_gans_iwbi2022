@@ -70,14 +70,14 @@ class BaseDataset(Dataset):
                 if self.config.is_condition_binary:
                     # TODO: Validate if this business logic is desired in experiment,
                     # TODO: e.g. biopsy proven 'Benign' is mapped to BIRADS 3 and Malignant to BIRADS 6
-                    condition = BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]]
+                    condition = BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]]
                     if int(condition) <= 3:
                         return 0
                     return 1
                 elif self.config.split_birads_fours:
-                    condition = int(BIRADS_DICT[str(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])])
+                    condition = int(BIRADS_DICT[str(BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]])])
                 else:
-                    condition = int(BCDR_BIRADS_DICT[metapoint["biobsy_proven_status"]])
+                    condition = int(BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]])
             # We could also have evaluation of is_condition_categorical here if we want continuous birads not
             # to be either 0 or 1 (0 or 1 is already provided by setting the self.is_condition_binary to true)
         elif self.config.conditioned_on == "density":
