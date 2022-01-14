@@ -1,10 +1,10 @@
 model_name: "cnn"
 batch_size: 8
-num_epochs: 1
-train_metadata_path: metadata/new_zuzanna/train_metadata.json
-validation_metadata_path: metadata/new_zuzanna/val_metadata.json
-test_metadata_path: metadata/new_zuzanna/test_metadata.json
-synthetic_metadata_path: metadata/synthetic_metadata.json
+num_epochs: 30
+train_metadata_path: metadata/roo/train_metadata.json
+validation_metadata_path: metadata/roo/val_metadata.json
+test_metadata_path: metadata/roo/test_metadata.json
+synthetic_metadata_path: metadata/roo/synthetic_metadata.json
 out_checkpoint_path: model_checkpoints/classifier/classifier.pt
 synthetic_data_dir: combined_synthetic
 use_synthetic: True

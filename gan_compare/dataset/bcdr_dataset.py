@@ -1,11 +1,11 @@
+import logging
+from pathlib import Path
 from typing import Tuple
 
 import cv2
 import numpy as np
-import scipy.ndimage as ndimage
 import torch
 import torchvision
-import logging
 
 from gan_compare.dataset.base_dataset import BaseDataset
 
@@ -22,7 +22,7 @@ class BCDRDataset(BaseDataset):
             conditional_birads: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
-            config = None
+            config=None
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -50,39 +50,46 @@ class BCDRDataset(BaseDataset):
                 # TODO add these keywords to a dedicated constants file
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered \
-                    if "calcification" in metapoint["roi_type"] \
-                    or "microcalcification" in metapoint["roi_type"]
-                    ]
+                     if "calcification" in metapoint["roi_type"] \
+                     or "microcalcification" in metapoint["roi_type"]
+                     ]
                 )
                 logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_other_roi_types:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered \
-                    if "axillary_adenopathy" in metapoint["roi_type"] \
-                    or "architectural_distortion" in metapoint["roi_type"] \
-                    or "stroma_distortion" in metapoint["roi_type"]
-                    ]
+                     if "axillary_adenopathy" in metapoint["roi_type"] \
+                     or "architectural_distortion" in metapoint["roi_type"] \
+                     or "stroma_distortion" in metapoint["roi_type"]
+                     ]
                 )
                 logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
-
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
-        assert metapoint.get("dataset") == "bcdr_only_train", "Dataset name mismatch, you're using a wrong metadata file!"
+        assert metapoint.get("dataset") in ["bcdr"], "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
         # TODO read as grayscale
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            logging.warning(
+                f"image in path {image_path} was not read in properly. Is file there (?): {Path(image_path).is_file()}. "
+                f"Fallback: Using next file at index {idx + 1} instead. Please check your metadata file.")
+            return self.__getitem__(idx + 1)
         contour = metapoint["contour"]
-        if metapoint.get("healthy", False):
-            x, y, w, h = self.get_crops_around_bbox(metapoint["bbox"], margin=0, min_size=self.min_size, image_shape=image.shape, config=self.config)
-            image = image[x: x + h, y: y + w] # note that the order of axis in healthy bbox is different, TODO change someday
+        if "healthy" not in metapoint or metapoint.get("healthy", False):
+
+            x, y, w, h = self.get_crops_around_bbox(metapoint["bbox"], margin=0, min_size=self.min_size,
+                                                    image_shape=image.shape, config=self.config)
+            image = image[x: x + h,
+                    y: y + w]  # note that the order of axis in healthy bbox is different, TODO change someday
 
             # logging.info(f"image.shape: {image.shape}")
 
-        elif contour is not None:
+        elif contour is not None and contour != "NaN":
             contour = np.asarray(contour)
             # Create an empty image to store the masked array
             # logging.info(f"Image path: {image_path}")
@@ -92,16 +99,24 @@ class BCDRDataset(BaseDataset):
             # Fill in the hole created by the contour boundary
             # mask = ndimage.binary_fill_holes(r_mask[:image.shape[0], :image.shape[1]])
             # mask = mask.astype("uint8")
-            x, y, w, h = self.get_crops_around_bbox(metapoint['bbox'], margin=self.margin, min_size=self.min_size, image_shape=image.shape, config=self.config)
+
+            x, y, w, h = self.get_crops_around_bbox(metapoint['bbox'], margin=self.margin, min_size=self.min_size,
+                                                    image_shape=image.shape, config=self.config)
+
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
         # scale
-        image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-        # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        try:
+            image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+            # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        except Exception as e:
+            # TODO: Check why some images have a width or height of zero, which causes this exception.
+            logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
+            return None
 
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
-
-        if self.transform: sample = self.transform(sample)
+        if self.transform:
+            sample = self.transform(sample)
 
         label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
 

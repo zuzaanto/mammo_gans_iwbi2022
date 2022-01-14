@@ -4,6 +4,7 @@ import logging
 import os
 import random
 from pathlib import Path
+import tqdm
 
 import torch
 import torch.nn as nn
@@ -99,6 +100,7 @@ class GANModel:
                 is_condition_categorical=self.config.is_condition_categorical,
                 num_embedding_dimensions=self.config.num_embedding_dimensions,
                 kernel_size=self.config.kernel_size,
+                leakiness=self.config.leakiness,
             ).to(self.device)
 
             from gan_compare.training.networks.dcgan.generator import (
@@ -114,6 +116,7 @@ class GANModel:
                 n_cond=self.config.n_cond,
                 is_condition_categorical=self.config.is_condition_categorical,
                 num_embedding_dimensions=self.config.num_embedding_dimensions,
+                leakiness=self.config.leakiness,
             ).to(self.device)
 
         elif self.model_name == "lsgan":
@@ -309,7 +312,9 @@ class GANModel:
             for i in range(batch_size):
                 # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
                 noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
-                conditions.append(random.choice(condition_value_options) + noise)
+                # get condition with noise normalised between 0 and 1.
+                condition_w_noise = max(min(random.choice(condition_value_options) + noise, 1.), 0.)
+                conditions.append(condition_w_noise)
             condition_tensor = torch.tensor(conditions, device=self.device, requires_grad=requires_grad)
             logging.debug(f'random condition_tensor: {condition_tensor}')
             return condition_tensor
@@ -366,7 +371,7 @@ class GANModel:
         if self.config.conditional:
             print(
                 f"Training conditioned on: {self.config.conditioned_on}"
-                f"{' as a continuous and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
+                f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
             # For each batch in the dataloader
@@ -376,11 +381,11 @@ class GANModel:
                 self.netD.zero_grad()
 
                 # Unpack data (=image batch) alongside condition (i.e. birads number). Conditions are all -1 if unconditioned.
-                samples, conditions, _ = data
+                data, conditions, _ = data
 
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = samples.to(self.device)
+                real_images = data.to(self.device)
 
                 # Compute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)
@@ -396,6 +401,7 @@ class GANModel:
                     real_conditions = conditions.to(self.device)
                     # generate fake conditions
                     fake_conditions = self._get_random_conditions(batch_size=b_size)
+                    logging.debug(f"fake_conditions: {fake_conditions}")
                     # Generate fake image batch with G (conditional_res64)
                     fake_images = self.netG(noise, fake_conditions)
                 else:
@@ -481,13 +487,13 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
-            if (epoch % 5 == 0 and epoch >= 50):
+            if (epoch % 20 == 0 and epoch >= 50):
                 # Save on each 5th epoch starting at epoch 50.
                 self._save_model(epoch)
         self._save_model()
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
-                 num_samples: int = 64, birads: int = None) -> list:
+                 num_samples: int = 10, birads: int = None) -> list:
 
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
@@ -498,6 +504,7 @@ class GANModel:
         self.netG.eval()
 
         img_list = []
+        #for ind in tqdm(range(num_samples)):
         if fixed_noise is None:
             fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
         if self.config.conditional:
@@ -505,12 +512,11 @@ class GANModel:
                 fixed_condition = self._get_random_conditions(batch_size=num_samples)
             elif isinstance(fixed_condition, int):
                 fixed_condition = self._get_random_conditions(minimum=fixed_condition, maximum=fixed_condition + 1,
-                                                                batch_size=num_samples)
+                                                              batch_size=num_samples)
             fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
         else:
             fake = self.netG(fixed_noise).detach().cpu().numpy()
-        # for j, img_ in enumerate(fake):
-        img_list = fake
+        img_list.extend(fake)
         return img_list
 
     def visualize(self, fixed_noise=None, fixed_condition=None):

@@ -1,13 +1,14 @@
-import pandas as pd
-import json
 import argparse
 from pathlib import Path
+
+import pandas as pd
+
 from gan_compare.data_utils.utils import save_metadata_to_file
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument(
         "--in_first_metadata", type=str, required=True, help="Path to first metadata file to merge",
     )

@@ -6,6 +6,7 @@ import plistlib
 from pathlib import Path
 from typing import Tuple, Union, List
 import json
+import torch
 
 import cv2
 import numpy as np
@@ -371,6 +372,21 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     )
     return img_n
 
+def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[int, int, int, int]:
+    x, y, w, h = metapoint["bbox"]
+    # pad the bbox
+    x_p = max(0, x - margin // 2)
+    y_p = max(0, y - margin // 2)
+    w_p = w + margin
+    h_p = h + margin
+    # make sure the bbox is bigger than minimum size
+    if w_p < min_size:
+        x_p = max(0, x - (min_size - w_p) // 2)
+        w_p = min_size
+    if h_p < min_size:
+        y_p = max(0, y - (min_size - h_p) // 2)
+        h_p = min_size
+    return (x_p, y_p, w_p, h_p)
 
 def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
     if len(metadata_df) > 0:
@@ -378,9 +394,8 @@ def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
             os.makedirs(out_path.parent)
         with open(str(out_path.resolve()), "w") as out_file:
             json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
-            
-# TODO REFACTOR
-# deprecated
+
+# # deprecated
 # def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
 #     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
 #     with open(synthetic_metadata_path, "r") as synth_metadata_file:
@@ -391,3 +406,9 @@ def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
 #         num_of_synth_metapoints = len(synthetic_metadata)
 #         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
 #     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
+
+
+def collate_fn(batch):
+    # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
+    batch = list(filter(lambda x: x is not None, batch))
+    return torch.utils.data.dataloader.default_collate(batch)

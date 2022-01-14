@@ -15,7 +15,7 @@ class Generator(BaseGenerator):
         ngpu: int,
         image_size: int,
         conditional: bool,
-        leakiness: float = 0.2,
+        leakiness: float,
         bias: bool = False,
         n_cond: int = 10,
         is_condition_categorical: bool = False,

@@ -128,7 +128,7 @@ class VisualizationUtils:
             self,
             G_losses,
             D_losses,
-            figsize=(10, 5),
+            figsize=(20, 10),
             title: str = "Generator and Discriminator Loss During Training",
             is_shown: bool = False,
             is_saved: bool = True,
@@ -144,3 +144,4 @@ class VisualizationUtils:
             plt.show()
         if is_saved:
             fig.savefig(str((self.output_model_dir / "training_progress.png").resolve()), dpi=fig.dpi)
+        plt.close()

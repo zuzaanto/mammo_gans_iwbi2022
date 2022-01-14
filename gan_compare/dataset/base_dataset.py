@@ -83,7 +83,7 @@ class BaseDataset(Dataset):
         elif self.config.conditioned_on == "density":
             if self.config.is_condition_binary:
                 condition = metapoint["density"][0]
-                if int(float(condition)) <= 2:
+                if condition == "N" or int(float(condition)) <= 2:
                     return 0
                 return 1
             elif self.is_condition_categorical:
@@ -92,7 +92,9 @@ class BaseDataset(Dataset):
                 # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
                 noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
                 # get the density from the dict and add noise to capture potential variations.
-                condition: float = DENSITY_DICT[metapoint["density"][0]] + noise
+                condition: float = DENSITY_DICT[metapoint["density"][0]]
+                # normalising condition between 0 and 1.
+                condition = max(min(condition + noise, 1.), 0.)
         return condition
 
     def determine_label(self, metapoint):

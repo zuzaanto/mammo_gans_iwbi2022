@@ -30,11 +30,11 @@ class GANConfig(BaseConfig):
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.9
-    label_smoothing_end: float = 1.0
+    label_smoothing_start: float = 0.8 # 0.95
+    label_smoothing_end: float = 1.1 # 1.0
 
     # Leakiness for ReLUs
-    leakiness: float = 0.2
+    leakiness: float = 0.1
 
     # Number of channels in the training images. For color images this is 3
     nc: int = 1
@@ -52,7 +52,7 @@ class GANConfig(BaseConfig):
     beta1: float = 0.5
 
     # The number of iterations between: i) prints ii) storage of results in tensorboard
-    num_iterations_between_prints: int = 100
+    num_iterations_between_prints: int = 500
 
     # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
     discriminator_clf_threshold: float = 0.5
@@ -81,10 +81,17 @@ class GANConfig(BaseConfig):
 
     # To have more variation in continuous conditional variables, we can add to them some random noise drawn
     # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
-    added_noise_term: float = 0.2
+    added_noise_term: float = 0.5
 
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50
+
+    # Variables for utils.py -> get_measures_for_crop():
+    zoom_offset: float = 0. #0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+    zoom_spread: float = 0. #0.33 # the higher, the more variance in zooming. must be greater 0.
+    ratio_spread: float = 0. # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
+    translation_spread: float = 0. # 0.25 # the higher, the more variance in translation. must be greater 0.
+    max_translation_offset: float = 0. #0.33 # coefficient relative to the image size.
 
     ########## End: Variables related to condition ###########
 
@@ -100,8 +107,8 @@ class GANConfig(BaseConfig):
                 self.condition_max = 4
             elif self.conditioned_on == "birads":
                 if self.split_birads_fours:
-                    self.birads_min = 1
-                    self.birads_max = 7
+                    self.condition_min = 1
+                    self.condition_max = 7
                 else:
                     self.condition_min = 2
                     self.condition_max = 6
