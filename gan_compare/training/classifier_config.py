@@ -20,6 +20,8 @@ class ClassifierConfig(BaseConfig):
     validation_shuffle_proportion: float  = 0.5
 
 
+    training_sampling_proportion: float = 1.0
+
     # Directory with synthetic patches
     synthetic_data_dir: str = None
 

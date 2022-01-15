@@ -33,7 +33,10 @@ class InbreastDataset(BaseDataset):
             margin=margin,
             conditional_birads=conditional_birads,
             transform=transform,
-            config=config
+            config=config,
+            sampling_ratio=sampling_ratio,
+            calcifications_only=calcifications_only,
+            masses_only=masses_only
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
