@@ -17,7 +17,7 @@ DENSITIES = [1,2,3,4]
 def get_classifier(name: str, img_size: int, num_classes: int) -> nn.Module:
     print(name)
     if name == "swin_transformer":
-        return SwinTransformer(num_classes=num_classes, img_size=img_size)
+        return SwinTransformer(num_classes=num_classes)
     if name == "cnn":
         if img_size == 64:
             return Net64(num_labels=num_classes)
