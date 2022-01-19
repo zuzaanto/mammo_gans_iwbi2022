@@ -5,7 +5,6 @@ from gan_compare.constants import DATASET_DICT
 
 @dataclass
 class ClassifierConfig:
-    model_name = "cnn"
 
     # Paths to train and validation metadata
     train_metadata_path: str
@@ -17,13 +16,15 @@ class ClassifierConfig:
     train_shuffle_proportion: float = 0.4
     validation_shuffle_proportion: float = 0
 
+    model_name: str = "cnn"
+
     training_sampling_proportion: float = 1.0
 
     # Directory with synthetic patches
     synthetic_data_dir: str = None
     
     # Proportion of training artificial images
-    gan_images_ratio: float = 0.4
+    gan_images_ratio: float = 0.5
 
     # Birads range
     birads_min: int = 2

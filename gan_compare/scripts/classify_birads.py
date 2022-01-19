@@ -108,8 +108,9 @@ if __name__ == "__main__":
             classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
             transform=train_transform,
+            sampling_ratio=config.training_sampling_proportion,
             is_trained_on_calcifications=config.is_trained_on_calcifications,
-            config=config
+            config=config,
             # synthetic_metadata_path=config.synthetic_metadata_path,
             # synthetic_shuffle_proportion=config.train_shuffle_proportion,
             )
@@ -322,6 +323,8 @@ if __name__ == "__main__":
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
                 # if val_f1 > best_f1:
+                if prc_auc is None:
+                    prc_auc = best_prc_auc
                 if prc_auc > best_prc_auc:
                     best_loss = val_loss
                     best_f1 = val_f1

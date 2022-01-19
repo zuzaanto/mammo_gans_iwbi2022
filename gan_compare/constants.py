@@ -15,6 +15,7 @@ DATASET_DICT = {
 DENSITIES = [1,2,3,4]
 
 def get_classifier(name: str, img_size: int, num_classes: int) -> nn.Module:
+    print(name)
     if name == "swin_transformer":
         return SwinTransformer(num_classes=num_classes, img_size=img_size)
     if name == "cnn":
