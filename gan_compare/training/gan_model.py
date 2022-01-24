@@ -379,7 +379,8 @@ class GANModel:
 
         if self.config.pretrain_classifier:
             # Classifier initialization:
-            clf = get_classifier(name='swin_transformer', num_classes=2, img_size=self.config.image_size).to(self.device)
+            # clf = get_classifier(name='swin_transformer', num_classes=2, img_size=self.config.image_size).to(self.device)
+            clf = get_classifier(name='cnn', num_classes=2, img_size=self.config.image_size).to(self.device)            
             clf_criterion = nn.CrossEntropyLoss()
             clf_optimizer = optim.SGD(clf.parameters(), lr=0.001, momentum=0.9)
 
@@ -437,26 +438,7 @@ class GANModel:
                     fake_conditions=fake_conditions,
                 )
 
-                if self.config.pretrain_classifier:
-                    logging.info('pre-train classifier update')
-
-                    # zero the parameter gradients
-                    clf_optimizer.zero_grad()
-                    
-                    # forward + backward + optimize
-                    clf_samples = fake_images + fake_images
-                    clf_labels = torch.zeros(len(fake_images)) + torch.ones(len(fake_images))
-                    # TODO: maybe we should shuffle the samples here
-                    clf_outputs = clf(clf_samples.to(self.device)) # forward pass
-                    clf_loss = clf_criterion(clf_outputs, clf_labels.to(self.device))
-                    clf_loss.backward() #backward pass
-                    clf_optimizer.step()
-
-                    # print statistics
-                    clf_running_loss += clf_loss.item()
-                    if i % 2000 == 1999:  # print every 2000 mini-batches
-                        logging.info("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, clf_running_loss / 2000))
-                        clf_running_loss = 0.0
+                
 
                 # After updating the discriminator, we now update the generator
                 # Reset to zero as previous gradient should have already been used to update the generator network
@@ -527,6 +509,29 @@ class GANModel:
                                                                            network_input_2=fixed_condition,
                                                                            img_name=img_name)
                 iters += 1
+
+                if self.config.pretrain_classifier:
+                    logging.info('pre-train classifier update')
+
+                    # zero the parameter gradients
+                    clf_optimizer.zero_grad()
+
+                    # forward + backward + optimize
+                    clf_samples = torch.cat((real_images.detach().clone(), fake_images.detach().clone())) # we must use clone here so that the clf is independent from GAN training
+                    # clf_samples = torch.ones((6,1,128,128))
+                    clf_labels = torch.cat((torch.zeros(len(real_images), dtype=torch.long), torch.ones(len(fake_images), dtype=torch.long)))
+                    # TODO: maybe we should shuffle the samples here
+                    clf_outputs = clf(clf_samples.to(self.device)) # forward pass
+                    clf_loss = clf_criterion(clf_outputs, clf_labels.to(self.device))
+                    clf_loss.backward() #backward pass
+                    clf_optimizer.step()
+
+                    # print statistics
+                    clf_running_loss += clf_loss.item()
+                    if i % 2000 == 1999:  # print every 2000 mini-batches
+                        logging.info("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, clf_running_loss / 2000))
+                        clf_running_loss = 0.0
+
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
             if (epoch % 20 == 0 and epoch >= 50):
                 # Save on each 20th epoch starting at epoch 50.
