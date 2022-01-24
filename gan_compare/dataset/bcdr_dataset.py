@@ -31,10 +31,7 @@ class BCDRDataset(BaseDataset):
             margin=margin,
             conditional_birads=conditional_birads,
             transform=transform,
-            config=config,
-            sampling_ratio=sampling_ratio,
-            calcifications_only=calcifications_only,
-            masses_only=masses_only
+            config=config
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(

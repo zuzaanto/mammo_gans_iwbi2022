@@ -107,17 +107,17 @@ class BaseDataset(Dataset):
             # to be either 0 or 1 (0 or 1 is already provided by setting the self.is_condition_binary to true)
         elif self.config.conditioned_on == "density":
             if self.config.is_condition_binary:
-                condition = metapoint["density"][0]
+                condition = metapoint["density"]
                 if condition == "N" or int(float(condition)) <= 2:
                     return 0
                 return 1
             elif self.is_condition_categorical:
-                condition = int(float(metapoint["density"][0]))  # 1-4
+                condition = int(float(metapoint["density"]))  # 1-4
             else:  # return a value between 0 and 1 using the DENSITY_DICT.
                 # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
                 noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
                 # get the density from the dict and add noise to capture potential variations.
-                condition: float = DENSITY_DICT[metapoint["density"][0]]
+                condition: float = DENSITY_DICT[metapoint["density"]]
                 # normalising condition between 0 and 1.
                 condition = max(min(condition + noise, 1.), 0.)
         return condition

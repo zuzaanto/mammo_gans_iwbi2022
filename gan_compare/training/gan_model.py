@@ -401,7 +401,7 @@ class GANModel:
                 self.netD.zero_grad()
 
                 # Unpack data (=image batch) alongside condition (i.e. birads number). Conditions are all -1 if unconditioned.
-                data, conditions, _ = data
+                data, conditions, _, _ = data
 
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
