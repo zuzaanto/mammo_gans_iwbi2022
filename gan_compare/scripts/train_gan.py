@@ -12,13 +12,12 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
-from gan_compare.data_utils.utils import collate_fn
+from gan_compare.data_utils.utils import collate_fn, setup_logger
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -62,6 +61,8 @@ DATASET_DICT = {
 
 
 if __name__ == "__main__":
+    setup_logger()
+
     args = parse_args()
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
@@ -113,7 +114,7 @@ if __name__ == "__main__":
             items = dataset.__getitem__(i)
             if items is None:
                 continue
-            sample, condition, image = items
+            sample, condition, image, _ = items
 
             out_image_path = f"{i}_{config.conditioned_on}_{condition}.png" if config.conditional else f"{i}.png"
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)

@@ -20,7 +20,8 @@ import torch
 import cv2
 from tqdm import tqdm
 import logging
-from datetime import datetime
+
+from gan_compare.data_utils.utils import setup_logger
 
 
 def parse_args():
@@ -50,19 +51,9 @@ def parse_args():
     return args
 
 
+
 if __name__ == "__main__":
-    # Set up logger such that it writes to stdout and file
-    # From https://stackoverflow.com/a/46098711/3692004
-    Path('logs').mkdir(exist_ok=True)
-    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(Path('logs') / logfilename),
-            logging.StreamHandler()
-        ]
-    )
+    setup_logger()
 
     args = parse_args()
     # Parse config file

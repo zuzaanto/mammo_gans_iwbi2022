@@ -17,8 +17,8 @@ import pydicom as dicom
 from deprecation import deprecated
 from gan_compare.paths import INBREAST_IMAGE_PATH
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
-
 import logging
+from datetime import datetime
 
 
 def load_inbreast_mask(
@@ -414,3 +414,17 @@ def collate_fn(batch):
     # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
     batch = list(filter(lambda x: x is not None, batch))
     return torch.utils.data.dataloader.default_collate(batch)
+
+def setup_logger():
+    # Set up logger such that it writes to stdout and file
+    # From https://stackoverflow.com/a/46098711/3692004
+    Path('logs').mkdir(exist_ok=True)
+    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(Path('logs') / logfilename),
+            logging.StreamHandler()
+        ]
+    )
