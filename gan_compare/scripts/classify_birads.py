@@ -178,19 +178,23 @@ if __name__ == "__main__":
 
     train_dataloader = DataLoader(
         train_dataset,
+        batch_size=config.batch_size,
         shuffle=True,
-        config=config
+        num_workers=config.workers,
     )
     val_dataloader = DataLoader(
         val_dataset,
+        batch_size=config.batch_size,
         shuffle=True,
-        config=config
+        num_workers=config.workers,
     )
     test_dataloader = DataLoader(
         test_dataset,
+        batch_size=config.batch_size,
         shuffle=True,
-        config=config
+        num_workers=config.workers,
     )
+    
     if not Path(config.out_checkpoint_path).parent.exists():
         os.makedirs(Path(config.out_checkpoint_path).parent.resolve(), exist_ok=True)
 
