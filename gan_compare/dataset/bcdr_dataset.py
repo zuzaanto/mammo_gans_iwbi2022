@@ -44,7 +44,7 @@ class BCDRDataset(BaseDataset):
             if self.config.is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if "nodule" in metapoint["roi_type"]])
-                logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended BCDR Masses to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_calcifications:
                 # TODO add these keywords to a dedicated constants file
@@ -54,7 +54,7 @@ class BCDRDataset(BaseDataset):
                      or "microcalcification" in metapoint["roi_type"]
                      ]
                 )
-                logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended BCDR Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_other_roi_types:
                 self.metadata.extend(
@@ -64,7 +64,7 @@ class BCDRDataset(BaseDataset):
                      or "stroma_distortion" in metapoint["roi_type"]
                      ]
                 )
-                logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended BCDR Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -120,4 +120,4 @@ class BCDRDataset(BaseDataset):
 
         label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
 
-        return sample, label, image, metapoint['roi_type']
+        return sample, label, image, str(metapoint['roi_type'])

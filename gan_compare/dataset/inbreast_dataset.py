@@ -46,17 +46,17 @@ class InbreastDataset(BaseDataset):
             if self.config.is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Mass'])
-                logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended InBreast Masses to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_calcifications:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Calcification'])
-                logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended InBreast Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_other_roi_types:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Other'])
-                logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended InBreast Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -114,4 +114,4 @@ class InbreastDataset(BaseDataset):
         
         label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
         
-        return sample, label, image, metapoint['roi_type']
+        return sample, label, image, str(metapoint['roi_type'])
