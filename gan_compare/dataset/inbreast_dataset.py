@@ -38,6 +38,7 @@ class InbreastDataset(BaseDataset):
             sampling_ratio: float = 1.0,
             calcifications_only: bool = False,
             masses_only: bool = False,
+            model_name: str = "cnn"
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -60,7 +61,8 @@ class InbreastDataset(BaseDataset):
             config=config,
             sampling_ratio=sampling_ratio,
             calcifications_only=calcifications_only,
-            masses_only=masses_only
+            masses_only=masses_only,
+            model_name=model_name,
         )
         if self.classify_binary_healthy:
             self.metadata.extend(
@@ -116,13 +118,17 @@ class InbreastDataset(BaseDataset):
             x, y, w, h = self.get_crops_around_bbox(metapoint['bbox'], margin=self.margin, min_size=self.min_size, image_shape=image.shape, config=self.config)
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
-
-            
+        print(self.model_name)
+        if self.model_name == "swin_transformer":
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+        print(image.shape)
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
-
-        sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        if self.model_name != "swin_transformer":
+            sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        else:
+            sample = torchvision.transforms.functional.to_tensor(image)
 
         if self.transform: sample = self.transform(sample)
         

@@ -5,6 +5,7 @@ import numpy as np
 import scipy.ndimage as ndimage
 import torch
 import torchvision
+from PIL import Image
 import logging
 
 from gan_compare.dataset.base_dataset import BaseDataset
@@ -37,6 +38,7 @@ class BCDRDataset(BaseDataset):
             sampling_ratio: float = 1.0,
             calcifications_only: bool = False,
             masses_only: bool = False,
+            model_name: str = "cnn"
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -59,7 +61,8 @@ class BCDRDataset(BaseDataset):
             config=config,
             sampling_ratio=sampling_ratio,
             calcifications_only=calcifications_only,
-            masses_only=masses_only
+            masses_only=masses_only,
+            model_name=model_name,
         )
         if self.classify_binary_healthy:
             self.metadata.extend(
@@ -101,7 +104,10 @@ class BCDRDataset(BaseDataset):
         metapoint = self.metadata[idx]
         assert metapoint.get("dataset") == "bcdr_only_train", "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
-        # TODO read as grayscale
+        if self.model_name == "swin_transformer":
+            image = cv2.imread(image_path)
+        else:
+            image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         contour = metapoint["contour"]
         if metapoint.get("healthy", False):
@@ -125,9 +131,14 @@ class BCDRDataset(BaseDataset):
             image = image[y: y + h, x: x + w]
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+        # if self.final_shape[0] == 224:
+        #     print("Oops were dealing with swin")
+        #     image = Image(image).convert('RGB')
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
-
-        sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        if self.model_name != "swin_transformer":
+            sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        else:
+            sample = torchvision.transforms.functional.to_tensor(image)
 
         if self.transform: sample = self.transform(sample)
 

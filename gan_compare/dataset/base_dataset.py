@@ -40,6 +40,7 @@ class BaseDataset(Dataset):
             seed: int = 42,
             calcifications_only: bool = False,
             masses_only: bool = False,
+            model_name: str = "cnn"
     ):
         assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
         self.metadata = []
@@ -71,7 +72,7 @@ class BaseDataset(Dataset):
         self.transform = transform
         self.added_noise_term = added_noise_term
         self.config = config
-
+        self.model_name = model_name
 
     def __len__(self):
         return len(self.metadata)

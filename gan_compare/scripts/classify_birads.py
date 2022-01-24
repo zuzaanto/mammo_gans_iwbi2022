@@ -111,6 +111,7 @@ if __name__ == "__main__":
             sampling_ratio=config.training_sampling_proportion,
             is_trained_on_calcifications=config.is_trained_on_calcifications,
             config=config,
+            model_name=config.model_name,
             # synthetic_metadata_path=config.synthetic_metadata_path,
             # synthetic_shuffle_proportion=config.train_shuffle_proportion,
             )
@@ -123,7 +124,8 @@ if __name__ == "__main__":
                 conditional_birads=True,
                 transform=val_transform,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
-                config=config
+                config=config,
+                model_name=config.model_name,
                 # synthetic_metadata_path=config.synthetic_metadata_path,
                 # synthetic_shuffle_proportion=config.validation_shuffle_proportion,
             )
@@ -136,7 +138,8 @@ if __name__ == "__main__":
                 conditional_birads=True,
                 transform=val_transform,
                 is_trained_on_calcifications=config.is_trained_on_calcifications,
-                config=config
+                config=config,
+                model_name=config.model_name,
             )
         )
     train_dataset = ConcatDataset(train_dataset_list)
@@ -153,7 +156,8 @@ if __name__ == "__main__":
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
             current_length=len(train_dataset),
-            config=config
+            config=config,
+            model_name=config.model_name,
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
         logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
@@ -287,6 +291,7 @@ if __name__ == "__main__":
             for i, data in enumerate(tqdm(train_dataloader)):
                 # get the inputs; data is a list of [inputs, labels]
                 samples, labels, _, _ = data
+                print(samples, labels)
 
                 if len(samples) <= 1: continue # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
 
