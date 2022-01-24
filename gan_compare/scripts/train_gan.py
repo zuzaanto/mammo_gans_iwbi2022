@@ -97,6 +97,7 @@ if __name__ == "__main__":
         dataset,
         shuffle=True,
         num_workers=config.workers,
+        batch_size=config.batch_size,
         collate_fn=collate_fn,  # Filter out None returned by DataSet.
         drop_last=True,
     )
