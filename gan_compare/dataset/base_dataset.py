@@ -47,15 +47,10 @@ class BaseDataset(Dataset):
             self.metadata_unfiltered = [metapoint for metapoint in self.metadata_unfiltered if "calcification" in metapoint['roi_type'].lower()]
             logging.info(f'Appended calcifications to metadata. Metadata size: {len(self.metadata_unfiltered)}')
 
-        self.conditioned_on = conditioned_on
-        self.is_condition_binary = is_condition_binary
-        self.is_condition_categorical = is_condition_categorical
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
         self.conditional_birads = conditional_birads
-        self.split_birads_fours = split_birads_fours
-        self.added_noise_term = added_noise_term
         self.config = config
         self.model_name = model_name
         self.final_shape = (self.config.image_size, self.config.image_size)
