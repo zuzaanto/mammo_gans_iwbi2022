@@ -71,7 +71,7 @@ class BCDRDataset(BaseDataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
-        assert metapoint.get("dataset") == "bcdr_only_train", "Dataset name mismatch, you're using a wrong metadata file!"
+        assert metapoint.get("dataset") in ["bcdr", "bcdr_only_train"], "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
         # TODO read as grayscale
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
