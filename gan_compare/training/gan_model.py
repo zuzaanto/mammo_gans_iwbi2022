@@ -518,8 +518,8 @@ class GANModel:
 
                     # forward + backward + optimize
                     clf_samples = torch.cat((real_images.detach().clone(), fake_images.detach().clone())) # we must use clone here so that the clf is independent from GAN training
-                    # clf_samples = torch.ones((6,1,128,128))
-                    clf_labels = torch.cat((torch.zeros(len(real_images), dtype=torch.long), torch.ones(len(fake_images), dtype=torch.long)))
+                    # fake_label = 0 and real_label = 1
+                    clf_labels = torch.cat((torch.ones(len(real_images), dtype=torch.long), torch.zeros(len(fake_images), dtype=torch.long)))
                     # TODO: maybe we should shuffle the samples here
                     clf_outputs = clf(clf_samples.to(self.device)) # forward pass
                     clf_loss = clf_criterion(clf_outputs, clf_labels.to(self.device))
