@@ -291,7 +291,6 @@ if __name__ == "__main__":
             for i, data in enumerate(tqdm(train_dataloader)):
                 # get the inputs; data is a list of [inputs, labels]
                 samples, labels, _, _ = data
-                print(samples, labels)
 
                 if len(samples) <= 1: continue # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
 

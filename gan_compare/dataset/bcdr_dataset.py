@@ -131,9 +131,6 @@ class BCDRDataset(BaseDataset):
             image = image[y: y + h, x: x + w]
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-        # if self.final_shape[0] == 224:
-        #     print("Oops were dealing with swin")
-        #     image = Image(image).convert('RGB')
         # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
         if self.model_name != "swin_transformer":
             sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
