@@ -106,7 +106,6 @@ if __name__ == "__main__":
             metadata_path=config.train_metadata_path,
             conditional_birads=True,
             transform=train_transform,
-            model_name=config.model_name,
             config=config
             )
         )
@@ -115,7 +114,6 @@ if __name__ == "__main__":
                 metadata_path=config.validation_metadata_path,
                 conditional_birads=True,
                 transform=val_transform,
-                model_name=config.model_name,
                 config=config
             )
         )
@@ -124,7 +122,6 @@ if __name__ == "__main__":
                 metadata_path=config.test_metadata_path,
                 conditional_birads=True,
                 transform=val_transform,
-                model_name=config.model_name,
                 config=config
             )
         )
@@ -141,7 +138,6 @@ if __name__ == "__main__":
             shuffle_proportion=config.train_shuffle_proportion,
             current_length=len(train_dataset),
             config=config,
-            model_name=config.model_name,
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
         logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
@@ -312,7 +308,7 @@ if __name__ == "__main__":
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
                 # if val_f1 > best_f1:
-                if prc_auc is None:
+                if prc_auc is None or np.isnan(prc_auc):
                     prc_auc = best_prc_auc
                 if prc_auc > best_prc_auc:
                     best_loss = val_loss

@@ -25,9 +25,6 @@ class BCDRDataset(BaseDataset):
             transform: any = None,
             config = None,
             sampling_ratio: float = 1.0,
-            calcifications_only: bool = False,
-            masses_only: bool = False,
-            model_name: str = "cnn"
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -38,9 +35,6 @@ class BCDRDataset(BaseDataset):
             transform=transform,
             config=config,
             sampling_ratio=sampling_ratio,
-            calcifications_only=calcifications_only,
-            masses_only=masses_only,
-            model_name=model_name,
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
@@ -119,4 +113,6 @@ class BCDRDataset(BaseDataset):
 
         label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
 
-        return sample, label, image, metapoint['roi_type'][0]
+        roi_type = metapoint["roi_type"] if isinstance(metapoint["roi_type"], str) else metapoint["roi_type"][0]
+        
+        return sample, label, image, roi_type

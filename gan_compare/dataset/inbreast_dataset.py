@@ -25,9 +25,6 @@ class InbreastDataset(BaseDataset):
             transform: any = None,
             config = None,
             sampling_ratio: float = 1.0,
-            calcifications_only: bool = False,
-            masses_only: bool = False,
-            model_name: str = "cnn"
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -38,9 +35,6 @@ class InbreastDataset(BaseDataset):
             transform=transform,
             config=config,
             sampling_ratio=sampling_ratio,
-            calcifications_only=calcifications_only,
-            masses_only=masses_only,
-            model_name=model_name,
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(

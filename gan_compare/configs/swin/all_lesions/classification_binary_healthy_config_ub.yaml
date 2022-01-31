@@ -17,7 +17,6 @@ dataset_names:
   - inbreast
   - bcdr_only_train
 training_sampling_proportion: 1.
-masses_only: True
 is_trained_on_calcifications: True
 image_size: 128
 classify_binary_healthy: True

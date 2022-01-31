@@ -16,7 +16,6 @@ use_synthetic: False
 dataset_names:
   - inbreast
 training_sampling_proportion: 1.
-is_trained_on_calcifications: True
-# masses_only: True
+is_trained_on_calcifications: False
 image_size: 128
 classify_binary_healthy: True

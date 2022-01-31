@@ -18,8 +18,6 @@ class ClassifierConfig(BaseConfig):
     train_shuffle_proportion: float = 0.4
     validation_shuffle_proportion: float = 0
 
-    model_name: str = "cnn"
-
     training_sampling_proportion: float = 1.0
 
     # Directory with synthetic patches
@@ -36,7 +34,7 @@ class ClassifierConfig(BaseConfig):
     # Dropout rate
     dropout_rate: float = 0.3
 
-    out_checkpoint_path: str = "model_checkpoints//classifier/best_classifier.pt"
+    out_checkpoint_path: str = "model_checkpoints/classifier/best_classifier.pt"
     
     classes: str = "is_healthy"
 
