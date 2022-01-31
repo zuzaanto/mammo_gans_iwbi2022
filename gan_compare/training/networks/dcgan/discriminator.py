@@ -121,7 +121,8 @@ class Discriminator(BaseDiscriminator):
                 # target output dim of dense layer is batch_size x self.nc x 128 x 128
                 # input is dimension of the conditional input
                 nn.Linear(in_features=1, out_features=self.image_size * self.image_size),
-                nn.BatchNorm1d(self.image_size * self.image_size),
+                # Outcommenting batchnorm here to avoid value errors (Expected more than 1 value per channel..) when batch_size is one.
+                #nn.BatchNorm1d(self.image_size * self.image_size),
                 nn.LeakyReLU(self.leakiness, inplace=True),
             )
 

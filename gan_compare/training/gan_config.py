@@ -81,7 +81,7 @@ class GANConfig(BaseConfig):
 
     # To have more variation in continuous conditional variables, we can add to them some random noise drawn
     # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
-    added_noise_term: float = 0.5
+    added_noise_term: float = 0.0
 
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50
@@ -97,7 +97,7 @@ class GANConfig(BaseConfig):
 
     def __post_init__(self):
         if self.conditional:
-            self.nc = 2
+            self.nc = self.nc + 1
             if self.is_condition_binary:
                 self.condition_min = 0
                 self.condition_max = 1

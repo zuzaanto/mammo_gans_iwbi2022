@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
-# from gan_compare.data_utils.utils import collate_fn
+from gan_compare.data_utils.utils import collate_fn
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
 from gan_compare.training.gan_config import GANConfig
@@ -91,11 +91,15 @@ if __name__ == "__main__":
 
     print(f"Loaded dataset {dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}")
 
-    # drop_last is true to avoid batch_sie of 1 that throws an Value Error in BatchNorm. https://discuss.pytorch.org/t/error-expected-more-than-1-value-per-channel-when-training/26274/5
+    # drop_last is true to avoid batch_size of 1 that throws an Value Error in BatchNorm.
+    # https://discuss.pytorch.org/t/error-expected-more-than-1-value-per-channel-when-training/26274/5
     dataloader = DataLoader(
         dataset,
         shuffle=True,
-        config=config
+        num_workers=config.workers,
+        batch_size=config.batch_size,
+        collate_fn=collate_fn,  # Filter out None returned by DataSet.
+        drop_last=True,
     )
 
     if args.save_dataset:
@@ -108,7 +112,10 @@ if __name__ == "__main__":
             items = dataset.__getitem__(i)
             if items is None:
                 continue
-            sample, condition, image = items
+            try:
+                sample, condition, image, = items
+            except:
+                sample, condition, image, _ = items
 
             out_image_path = f"{i}_{config.conditioned_on}_{condition}.png" if config.conditional else f"{i}.png"
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)

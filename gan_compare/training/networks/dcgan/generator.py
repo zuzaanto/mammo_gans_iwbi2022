@@ -110,7 +110,8 @@ class Generator(BaseGenerator):
                 # input is dimension of the numbers of embedding
                 nn.Linear(in_features=1, out_features=self.nz),
                 # TODO Ablation: How does BatchNorm1d affect the conditional model performance?
-                nn.BatchNorm1d(self.nz),
+                # Outcommenting batchnorm here to avoid value errors (Expected more than 1 value per channel..) when batch_size is one.
+                # nn.BatchNorm1d(self.nz),
                 nn.LeakyReLU(self.leakiness, inplace=True),
             )
 
@@ -123,11 +124,11 @@ class Generator(BaseGenerator):
                 # labels should already be of type float, no change expected in .float() conversion (it is only a safety check)
 
                 # Just for testing:
-                conditions *= 0
-                conditions += 1
+                #conditions *= 0
+                #conditions += 1
 
                 conditions = conditions.view(conditions.size(0), -1).float()
-            logging.debug(f'Conditions in generator: {conditions}')
+            print(f'Conditions in generator: {conditions.shape}')
             embedded_conditions = self.embed_nn(conditions)
             embedded_conditions_with_random_noise_dim = embedded_conditions.view(-1, self.nz, 1, 1)
             x = torch.cat([x, embedded_conditions_with_random_noise_dim], 1)

@@ -410,3 +410,21 @@ def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
 #         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
 #     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
 
+def collate_fn(batch):
+    # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
+    batch = list(filter(lambda x: x is not None, batch))
+    return torch.utils.data.dataloader.default_collate(batch)
+
+def setup_logger():
+    # Set up logger such that it writes to stdout and file
+    # From https://stackoverflow.com/a/46098711/3692004
+    Path('logs').mkdir(exist_ok=True)
+    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(Path('logs') / logfilename),
+            logging.StreamHandler()
+        ]
+    )

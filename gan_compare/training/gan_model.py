@@ -381,13 +381,18 @@ class GANModel:
                 self.netD.zero_grad()
 
                 # Unpack data (=image batch) alongside condition (i.e. birads number). Conditions are all -1 if unconditioned.
-                data, conditions, _ = data
+                try:
+                    data, conditions, _, = data
+                except:
+                    data, conditions, _, _ = data
+
+                print(f"len(data[0]): {len(data[0][0])}")
 
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
                 real_images = data.to(self.device)
 
-                # Compute the actual batch size (not from config!) for convenience
+                # Cb_siompute the actual batch size (not from config!) for convenience
                 b_size = real_images.size(0)
                 logging.debug(f'b_size: {b_size}')
                 logging.debug(f'condition: {conditions}')
@@ -403,6 +408,9 @@ class GANModel:
                     fake_conditions = self._get_random_conditions(batch_size=b_size)
                     logging.debug(f"fake_conditions: {fake_conditions}")
                     # Generate fake image batch with G (conditional_res64)
+                    logging.debug(f"b_size: {b_size}")
+                    logging.debug(f"noise.shape: {noise.shape}")
+                    logging.debug(f"fake_conditions.shape: {fake_conditions.shape}")
                     fake_images = self.netG(noise, fake_conditions)
                 else:
                     # Generate fake image batch with G (without condition)

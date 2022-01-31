@@ -6,8 +6,8 @@ from pathlib import Path
 # INBREAST_ROOT_PATH = Path("/Users/zuzanna/Desktop/eucanimage/datasets/InBreast")
 # BCDR_ROOT_PATH = Path("/Users/zuzanna/Desktop/eucanimage/datasets/BCDR_dataset/")
 
-#INBREAST_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/InBreast/")
-#BCDR_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/BCDR/")
+INBREAST_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/InBreast/")
+BCDR_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/BCDR/")
 
 
 INBREAST_IMAGE_PATH = INBREAST_ROOT_PATH / "AllDICOMs/"
