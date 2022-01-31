@@ -73,6 +73,8 @@ class GANModel:
             out_path = self.output_model_dir / "model.pt"
         else:
             out_path = self.output_model_dir / f"{epoch_number}.pt"
+        
+        # TODO: save self.netD2.state_dict() as well
         torch.save(
             {
                 "discriminator": self.netD.state_dict(),
@@ -83,15 +85,6 @@ class GANModel:
             out_path,
         )
         print(f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}")
-
-    def _save_clf(self, clf, epoch_number: Optional[int] = None):
-        self._mkdir_model_dir()  # validation to make sure model dir exists
-        if epoch_number is None:
-            out_path = self.output_model_dir / "clf.pt"
-        else:
-            out_path = self.output_model_dir / f"clf_{epoch_number}.pt"
-        torch.save(clf.state_dict(), out_path)
-        print(f"Saved clf (on epoch(?): {epoch_number}) to {out_path.resolve()}")
 
     def _create_network(self):
         if self.model_name == "dcgan":
@@ -190,7 +183,14 @@ class GANModel:
         # Print the discriminator model
         print(self.netD)
 
-    def _netG_update(self, fake_images, fake_conditions, epoch: int):
+        if self.config.pretrain_classifier:
+            self.netD2 = get_classifier(name='cnn', num_classes=2, img_size=self.config.image_size).to(self.device)
+            if (self.device.type == "cuda") and (self.config.ngpu > 1):
+                self.netD2 = nn.DataParallel(self.netD2, list(range(self.config.ngpu)))
+            self.netD2.apply(weights_init)
+            print(self.netD2)
+
+    def _netG_update(self, netD, fake_images, fake_conditions, retain_graph, epoch: int):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
@@ -202,15 +202,15 @@ class GANModel:
         # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
         # The generator loss of the updated discriminator should be higher than the previous one.
         if self.config.conditional:
-            output = self.netD(fake_images, fake_conditions).view(-1)
+            output = netD(fake_images, fake_conditions).view(-1)
         else:
-            output = self.netD(fake_images).view(-1)
+            output = netD(fake_images).view(-1)
 
         # Calculate G's loss based on this output
         errG = self._compute_loss(output=output, label=labels, epoch=epoch)
 
         # Calculate gradients for G
-        errG.backward()
+        errG.backward(retain_graph=retain_graph) # another call to this backward() will happen iff we pretrain the classifier
 
         # D output mean on the second generator input
         D_G_z2 = output.mean().item()
@@ -220,11 +220,12 @@ class GANModel:
 
         return output, D_G_z2, errG
 
-    def _netD_update(self, real_images, fake_images, epoch: int, real_conditions=None, fake_conditions=None):
+    def _netD_update(self, netD, real_images, fake_images, epoch: int, real_conditions=None, fake_conditions=None):
         ''' Update Discriminator network on real AND fake data. '''
 
         # Forward pass real batch through D
         output_real, errD_real, D_x = self._netD_forward_backward_pass(
+            netD,
             real_images,
             self._get_labels().get('real'),
             real_conditions,
@@ -236,6 +237,7 @@ class GANModel:
 
         # Forward pass fake batch through D
         output_fake, errD_fake, D_G_z1 = self._netD_forward_backward_pass(
+            netD,
             fake_images.detach(),
             self._get_labels().get('fake'),
             fake_conditions,
@@ -250,14 +252,14 @@ class GANModel:
 
         return output_real, errD_real, D_x, output_fake, errD_fake, D_G_z1, errD
 
-    def _netD_forward_backward_pass(self, images, label_as_float, conditions, epoch: int):
+    def _netD_forward_backward_pass(self, netD, images, label_as_float, conditions, epoch: int):
         ''' Forward and backward pass through discriminator network '''
         # Forward pass batch through D
         output = None
         if self.config.conditional:
-            output = self.netD(images, conditions).view(-1)
+            output = netD(images, conditions).view(-1)
         else:
-            output = self.netD(images).view(-1)
+            output = netD(images).view(-1)
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
         labels = torch.full((images.size(0),), label_as_float, dtype=torch.float, device=self.device)
@@ -359,6 +361,15 @@ class GANModel:
             betas=(self.config.beta1, 0.999),
             weight_decay=self.config.weight_decay,
         )
+
+        if self.config.pretrain_classifier:
+            self.optimizerD2 = optim.Adam(
+                self.netD2.parameters(),
+                lr=self.config.lr,
+                betas=(self.config.beta1, 0.999),
+                weight_decay=self.config.weight_decay,
+            )
+
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
@@ -377,13 +388,6 @@ class GANModel:
         D_losses = []
         iters = 0
 
-        if self.config.pretrain_classifier:
-            # Classifier initialization:
-            # clf = get_classifier(name='swin_transformer', num_classes=2, img_size=self.config.image_size).to(self.device)
-            clf = get_classifier(name='cnn', num_classes=2, img_size=self.config.image_size).to(self.device)            
-            clf_criterion = nn.CrossEntropyLoss()
-            clf_optimizer = optim.SGD(clf.parameters(), lr=0.001, momentum=0.9)
-
         # Training Loop
         print(f"Starting Training on {self.device}.. Image size: {self.config.image_size}")
         if self.config.conditional:
@@ -392,8 +396,6 @@ class GANModel:
                 f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
-
-            if self.config.pretrain_classifier: clf_running_loss = 0.0
 
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
@@ -431,12 +433,24 @@ class GANModel:
 
                 # Perform a forward backward training step for D with optimizer weight update for real and fake data
                 output_real, errD_real, D_x, output_fake_1, errD_fake, D_G_z1, errD = self._netD_update(
+                    netD=self.netD,
                     real_images=real_images,
                     fake_images=fake_images,
                     epoch=epoch,
                     real_conditions=real_conditions,
                     fake_conditions=fake_conditions,
                 )
+
+                if self.config.pretrain_classifier:
+                    self.netD2.zero_grad()
+                    output_real_2, errD_real_2, D_x_2, output_fake_1_2, errD_fake_2, D_G_z1_2, errD_2 = self._netD_update(
+                        netD=self.netD2,
+                        real_images=real_images,
+                        fake_images=fake_images.detach(),
+                        epoch=epoch,
+                        real_conditions=real_conditions,
+                        fake_conditions=fake_conditions,
+                    )
 
                 
 
@@ -447,10 +461,22 @@ class GANModel:
                 # Perform a forward backward training step for G with optimizer weight update including a second
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
                 output_fake_2, D_G_z2, errG = self._netG_update(
+                    netD=self.netD,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
+                    retain_graph=self.config.pretrain_classifier, # another call to backward() will happen iff we pretrain the classifier
                     epoch=epoch,
                 )
+
+                if self.config.pretrain_classifier:
+                    self.netG.zero_grad()
+                    output_fake_2_2, D_G_z2_2, errG_2 = self._netG_update(
+                        netD=self.netD2,
+                        fake_images=fake_images.detach(),
+                        fake_conditions=fake_conditions,
+                        retain_graph=False,
+                        epoch=epoch,
+                    )
 
                 # Calculate D's accuracy on the real data with real_label being = 1.
                 current_real_acc = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
@@ -510,36 +536,12 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
 
-                if self.config.pretrain_classifier:
-                    logging.info('pre-train classifier update')
-
-                    # zero the parameter gradients
-                    clf_optimizer.zero_grad()
-
-                    # forward + backward + optimize
-                    clf_samples = torch.cat((real_images.detach().clone(), fake_images.detach().clone())) # we must use clone here so that the clf is independent from GAN training
-                    # fake_label = 0 and real_label = 1
-                    clf_labels = torch.cat((torch.ones(len(real_images), dtype=torch.long), torch.zeros(len(fake_images), dtype=torch.long)))
-                    # TODO: maybe we should shuffle the samples here
-                    clf_outputs = clf(clf_samples.to(self.device)) # forward pass
-                    clf_loss = clf_criterion(clf_outputs, clf_labels.to(self.device))
-                    clf_loss.backward() #backward pass
-                    clf_optimizer.step()
-
-                    # print statistics
-                    clf_running_loss += clf_loss.item()
-                    if i % 2000 == 1999:  # print every 2000 mini-batches
-                        logging.info("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, clf_running_loss / 2000))
-                        clf_running_loss = 0.0
-
             visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
             if (epoch % 20 == 0 and epoch >= 50):
                 # Save on each 20th epoch starting at epoch 50.
                 self._save_model(epoch)
-                if self.config.pretrain_classifier: self._save_clf(clf, epoch)
 
         self._save_model()
-        if self.config.pretrain_classifier: self._save_clf(clf)
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
                  num_samples: int = 10, birads: int = None) -> list:
