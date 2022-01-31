@@ -15,9 +15,10 @@ class ClassifierConfig:
     # Path to synthetic metadata used for data augmentation
     synthetic_metadata_path: str
 
+    # Different shuffle and sampling proportions
     train_shuffle_proportion: float = 0.5
     validation_shuffle_proportion: float  = 0.5
-
+    training_sampling_proportion: float = 1.0
 
     # Directory with synthetic patches
     synthetic_data_dir: str = None

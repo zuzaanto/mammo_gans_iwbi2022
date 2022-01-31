@@ -178,6 +178,7 @@ def generate_inbreast_metapoints(
                 "roi_type": str(roi_type),
                 "biopsy_proven_status": None,
                 "dataset": "inbreast",
+                "healthy": False,
                 # "contour": c.tolist(),
             }
             start_index += 1
@@ -266,8 +267,9 @@ def generate_bcdr_metapoints(
         "roi_type": get_bcdr_lesion_type(row_df),
         "biopsy_proven_status": row_df["classification"].strip(),
         "dataset": "bcdr",
-        # "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
-        "contour": None,
+        "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        # "contour": None,
+        "healthy": False,
     }
     return metapoint
 
@@ -394,6 +396,7 @@ def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
             os.makedirs(out_path.parent)
         with open(str(out_path.resolve()), "w") as out_file:
             json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
+<<<<<<< HEAD
 
 # deprecated
 def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
@@ -412,3 +415,18 @@ def collate_fn(batch):
     # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
     batch = list(filter(lambda x: x is not None, batch))
     return torch.utils.data.dataloader.default_collate(batch)
+=======
+            
+# TODO REFACTOR
+# deprecated
+# def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
+#     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
+#     with open(synthetic_metadata_path, "r") as synth_metadata_file:
+#         synthetic_metadata = json.load(synth_metadata_file)
+#     num_of_metapoints = len(metadata)
+#     num_of_synth_metapoints = round(len(metadata) * synthetic_shuffle_proportion)
+#     if num_of_synth_metapoints > len(synthetic_metadata):
+#         num_of_synth_metapoints = len(synthetic_metadata)
+#         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
+#     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
+>>>>>>> 1c9d41c6e916a13b41673b4f1b76aef8eed74dce

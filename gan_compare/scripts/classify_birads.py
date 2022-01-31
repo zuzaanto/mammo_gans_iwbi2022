@@ -12,7 +12,7 @@ from dacite import from_dict
 from gan_compare.training.classifier_config import ClassifierConfig
 from torch.utils.data.dataset import ConcatDataset
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
-from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve
+from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve, calc_AUROC, calc_AUPRC
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.nn as nn
@@ -143,8 +143,9 @@ if __name__ == "__main__":
     test_dataset = ConcatDataset(test_dataset_list)
     if config.use_synthetic:
         # append synthetic data
+        deprecated_path = config.train_metadata_path # TODO REFACTOR
         synth_train_images = SyntheticDataset(
-            metadata_path=config.synthetic_metadata_path,
+            metadata_path=deprecated_path,
             final_shape=(config.image_size, config.image_size),
             classify_binary_healthy=config.classify_binary_healthy,
             conditional_birads=True,
@@ -156,24 +157,26 @@ if __name__ == "__main__":
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
         logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
 
-        # append healthy patches for balancing the synthetic patches (which are all lesioned)
-        train_dataset_list = []
-        for dataset_name in config.dataset_names:
-            train_dataset_list.append(
-                DATASET_DICT[dataset_name](
-                metadata_path=config.synthetic_metadata_path,
-                final_shape=(config.image_size, config.image_size),
-                classify_binary_healthy=config.classify_binary_healthy,
-                conditional_birads=True,
-                transform=train_transform,
-                is_trained_on_calcifications=config.is_trained_on_calcifications,
-                config=config
-                # synthetic_metadata_path=config.synthetic_metadata_path,
-                # synthetic_shuffle_proportion=config.train_shuffle_proportion,
-                )
-            )
-        train_dataset = ConcatDataset([train_dataset, ConcatDataset(train_dataset_list)])
-        logging.info('Added healthy patches for balancing.')
+        # YOU MUST ADD THE HEALTHY PATCHES WHICH ARE MEANT TO BALANCE THE SYNTHETIC PATCHES TO THE TRAINING SET ABOVE
+        # TODO REFACTOR
+        # # append healthy patches for balancing the synthetic patches (which are all lesioned)
+        # train_dataset_list = []
+        # for dataset_name in config.dataset_names:
+        #     train_dataset_list.append(
+        #         DATASET_DICT[dataset_name](
+        #         metadata_path=config.synthetic_metadata_path,
+        #         final_shape=(config.image_size, config.image_size),
+        #         classify_binary_healthy=config.classify_binary_healthy,
+        #         conditional_birads=True,
+        #         transform=train_transform,
+        #         is_trained_on_calcifications=config.is_trained_on_calcifications,
+        #         config=config
+        #         # synthetic_metadata_path=config.synthetic_metadata_path,
+        #         # synthetic_shuffle_proportion=config.train_shuffle_proportion,
+        #         )
+        #     )
+        # train_dataset = ConcatDataset([train_dataset, ConcatDataset(train_dataset_list)])
+        # logging.info('Added healthy patches for balancing.')
         
 
         # synth_val_images = SyntheticDataset(
@@ -276,6 +279,7 @@ if __name__ == "__main__":
         best_loss = 10000
         best_f1 = 0
         best_epoch = 0
+        best_prc_auc = 0
         for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
             running_loss = 0.0
             logging.info("Training...")
@@ -314,15 +318,17 @@ if __name__ == "__main__":
                     y_true.append(labels)
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
-                _, _, prec_rec_f1, _, _ = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
+                _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
-                if val_f1 > best_f1:
+                # if val_f1 > best_f1:
+                if prc_auc > best_prc_auc:
                     best_loss = val_loss
                     best_f1 = val_f1
+                    best_prc_auc = prc_auc
                     best_epoch = epoch
                     torch.save(net.state_dict(), config.out_checkpoint_path)
-                    logging.info(f"Saving best model so far at epoch {epoch} with f1 = {val_f1}")
+                    logging.info(f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}")
 
 
         logging.info("Finished Training")
