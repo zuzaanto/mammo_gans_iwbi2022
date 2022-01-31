@@ -52,4 +52,7 @@ class Net(nn.Module):
             F.relu(self.fcbn1(self.fc1(s))), p=self.dropout_rate, training=self.training
         )  # batch_size x 128
         s = self.fc2(s)  # batch_size x num_labels
-        return F.log_softmax(s, dim=1)
+
+        logits = F.log_softmax(s, dim=1)
+
+        return torch.exp(logits[:,-1]) # return only the probability of the true class
