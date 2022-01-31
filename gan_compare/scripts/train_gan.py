@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
-from gan_compare.data_utils.utils import collate_fn
+# from gan_compare.data_utils.utils import collate_fn
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
 from gan_compare.training.gan_config import GANConfig
@@ -60,7 +60,6 @@ DATASET_DICT = {
     "inbreast": InbreastDataset,
 }
 
-
 if __name__ == "__main__":
     args = parse_args()
     # Parse config file
@@ -77,25 +76,16 @@ if __name__ == "__main__":
             # transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
             # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
             # which is not present in the original images.
-            #transforms.RandomAffine(),
+            # transforms.RandomAffine(),
         ])
     for dataset_name in config.dataset_names:
         dataset = DATASET_DICT[dataset_name](
             # TODO Remove passing all the config variables one by one. Instead let's only pass the config dict and hhandle its keys internally.
             metadata_path=args.in_metadata_path,
-            final_shape=(config.image_size, config.image_size),
-            conditioned_on=config.conditioned_on,
-            conditional=config.conditional,
-            is_condition_binary=config.is_condition_binary,
-            is_condition_categorical=config.is_condition_categorical,
-            added_noise_term=config.added_noise_term,
-            split_birads_fours=config.split_birads_fours,
-            is_trained_on_masses=config.is_trained_on_masses,
-            is_trained_on_calcifications=config.is_trained_on_calcifications,
-            is_trained_on_other_roi_types=config.is_trained_on_other_roi_types,
             # https://pytorch.org/vision/stable/transforms.html
             transform=transform_to_use,
-            config=config)
+            config=config
+        )
         dataset_list.append(dataset)
     dataset = ConcatDataset(dataset_list)
 
@@ -104,13 +94,9 @@ if __name__ == "__main__":
     # drop_last is true to avoid batch_sie of 1 that throws an Value Error in BatchNorm. https://discuss.pytorch.org/t/error-expected-more-than-1-value-per-channel-when-training/26274/5
     dataloader = DataLoader(
         dataset,
-        batch_size=config.batch_size,
         shuffle=True,
-        num_workers=config.workers,
-        collate_fn=collate_fn,  # Filter out None returned by DataSet.
-        drop_last=True,
+        config=config
     )
-
 
     if args.save_dataset:
         output_dataset_dir = Path(args.out_dataset_path)
