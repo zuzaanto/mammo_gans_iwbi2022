@@ -1,3 +1,4 @@
+from typing import Optional
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.training.networks.classification.swin_transformer import SwinTransformer
@@ -14,9 +15,9 @@ DATASET_DICT = {
 
 DENSITIES = [1,2,3,4]
 
-def get_classifier(name: str, img_size: int, num_classes: int) -> nn.Module:
+def get_classifier(name: str, num_classes: int, img_size: Optional[int] = None) -> nn.Module:
     if name == "swin_transformer":
-        return SwinTransformer(num_classes=num_classes, img_size=img_size)
+        return SwinTransformer(num_classes=num_classes)
     if name == "cnn":
         if img_size == 64:
             return Net64(num_labels=num_classes)

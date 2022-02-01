@@ -7,6 +7,10 @@ from gan_compare.training.base_config import BaseConfig
 
 @dataclass
 class GANConfig(BaseConfig):
+
+    # This model_name default should be overwritten by and further specified in -> the yaml file.
+    model_name: str = "dcgan"
+
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
     # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
@@ -66,7 +70,8 @@ class GANConfig(BaseConfig):
     # Specify whether basic data augmentation methods should be applied to the GAN training data.
     is_training_data_augmented: bool = True
 
-    output_model_dir: str = f"model_checkpoints/GAN_training_{time()}/"
+    # Where the files and information produced for this model will be stored
+    output_model_dir: str = f"model_checkpoints/GAN_training_{model_name}_{time()}/"
 
     pretrain_classifier: bool = False
 

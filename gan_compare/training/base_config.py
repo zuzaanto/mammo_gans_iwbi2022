@@ -1,13 +1,20 @@
 from dataclasses import dataclass, field
 from typing import List
-from gan_compare.constants import DATASET_DICT
-
+from time import time
 
 @dataclass
 class BaseConfig:
+    # model type and task (CLF / GAN) not known. Overwritten in specific configs
+    model_name: str = "unknown"
+
+    # Overwritten in specific configs
+    output_model_dir: str = f"model_checkpoints/training_{model_name}_{time()}/"
+
     # Birads range
     birads_min: int = 2
     birads_max: int = 6
+
+    seed: int = 42
 
     # 4a 4b 4c of birads are splitted into integers
     split_birads_fours: bool = True

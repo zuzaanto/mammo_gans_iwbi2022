@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(GANConfig, config_dict)
-    logging.info(asdict(config))
+    logging.info(f"GANConfig dict: {asdict(config)}")
     dataset_list = []
     transform_to_use = None
     if config.is_training_data_augmented:
@@ -81,7 +81,6 @@ if __name__ == "__main__":
         ])
     for dataset_name in config.dataset_names:
         dataset = DATASET_DICT[dataset_name](
-            # TODO Remove passing all the config variables one by one. Instead let's only pass the config dict and hhandle its keys internally.
             metadata_path=args.in_metadata_path,
             # https://pytorch.org/vision/stable/transforms.html
             transform=transform_to_use,

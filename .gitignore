@@ -14,3 +14,5 @@ save_dataset
 combined_synthetic/
 medigan
 archived_files/
+*.out
+
