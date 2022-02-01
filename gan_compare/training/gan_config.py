@@ -66,7 +66,9 @@ class GANConfig(BaseConfig):
     # Specify whether basic data augmentation methods should be applied to the GAN training data.
     is_training_data_augmented: bool = True
 
-    output_model_dir: str = f"model_checkpoints/training_{time()}/"
+    output_model_dir: str = f"model_checkpoints/GAN_training_{time()}/"
+
+    pretrain_classifier: bool = False
 
     ########## Start: Variables related to condition ###########
 

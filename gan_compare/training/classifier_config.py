@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List
 from gan_compare.constants import DATASET_DICT
 from gan_compare.training.base_config import BaseConfig
-
+from time import time
 
 @dataclass
 class ClassifierConfig(BaseConfig):
@@ -14,7 +14,7 @@ class ClassifierConfig(BaseConfig):
     model_name: str = "cnn"
     
     # Path to synthetic metadata used for data augmentation
-    synthetic_metadata_path: str
+    # synthetic_metadata_path: str # TODO REFACTOR
 
     # Different shuffle and sampling proportions
     train_shuffle_proportion: float = 0.5
@@ -36,7 +36,9 @@ class ClassifierConfig(BaseConfig):
     # Dropout rate
     dropout_rate: float = 0.3
 
-    out_checkpoint_path: str = "model_checkpoints//classifier/best_classifier.pt"
+    #out_checkpoint_path: str = "model_checkpoints//classifier/best_classifier.pt"
+    # Using time() to avoid overwriting existing model_checkpoints
+    out_checkpoint_path: str = f"model_checkpoints/CLF_training_{time()}/best_classifier.pt"
     
     classes: str = "is_healthy"
 

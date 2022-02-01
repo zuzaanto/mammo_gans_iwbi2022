@@ -1,11 +1,10 @@
 model_name: "cnn"
 batch_size: 8
 num_epochs: 50
-train_metadata_path: metadata/roo/train_metadata.json
-validation_metadata_path: metadata/roo/val_metadata.json
-test_metadata_path: metadata/roo/test_metadata.json
-synthetic_metadata_path: metadata/roo/synthetic_metadata.json
-out_checkpoint_path: model_checkpoints/classifier/classifier.pt
+train_metadata_path: metadata/richardosuala/CLF/train_metadata.json
+validation_metadata_path: metadata/richardosuala/CLF/val_metadata.json
+test_metadata_path: metadata/richardosuala/CLF/test_metadata.json
+synthetic_metadata_path: metadata/richardosuala/CLF/synthetic_metadata.json
 use_synthetic: False
 dataset_names:
   - inbreast

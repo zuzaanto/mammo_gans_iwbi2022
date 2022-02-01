@@ -23,10 +23,8 @@ class InbreastDataset(BaseDataset):
             conditional_birads: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
-            config=None,
-            sampling_ratio: float = 1.0,
-            calcifications_only: bool = False,
-            masses_only: bool = False,
+            config=None
+
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -35,10 +33,7 @@ class InbreastDataset(BaseDataset):
             margin=margin,
             conditional_birads=conditional_birads,
             transform=transform,
-            config=config,
-            sampling_ratio=sampling_ratio,
-            calcifications_only=calcifications_only,
-            masses_only=masses_only
+            config=config
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
@@ -51,17 +46,17 @@ class InbreastDataset(BaseDataset):
             if self.config.is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Mass'])
-                logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended InBreast Masses to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_calcifications:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Calcification'])
-                logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended InBreast Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_other_roi_types:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if metapoint['roi_type'] == 'Other'])
-                logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended InBreast Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
@@ -116,7 +111,7 @@ class InbreastDataset(BaseDataset):
         sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
 
         if self.transform: sample = self.transform(sample)
-
+        
         label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
-
-        return sample, label, image, metapoint['roi_type']
+        
+        return sample, label, image, str(metapoint['roi_type'])

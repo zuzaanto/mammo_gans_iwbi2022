@@ -6,7 +6,6 @@ validation_metadata_path: metadata/binary_metadata/val_metadata.json
 test_metadata_path: metadata/binary_metadata/test_metadata.json
 synthetic_metadata_path: metadata/synthetic_metadata.json
 train_shuffle_proportion: 0.4
-out_checkpoint_path: model_checkpoints/classifier/classifier.pt
 validation_shuffle_proportion: 0
 classes: is_healthy
 use_synthetic: False

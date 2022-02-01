@@ -4,13 +4,13 @@ use_lsgan_loss: False
 switch_loss_each_epoch: False
 kernel_size: 6
 use_one_sided_label_smoothing: True
-conditioned_on: density
-conditional: True
+conditioned_on: birads
+conditional: False
 is_condition_binary: True
 is_condition_categorical: False
 split_birads_fours: False
 is_trained_on_masses: True
-is_trained_on_calcifications: False
+is_trained_on_calcifications: True
 is_trained_on_other_roi_types: False
 is_training_data_augmented: True
 leakiness: 0.1

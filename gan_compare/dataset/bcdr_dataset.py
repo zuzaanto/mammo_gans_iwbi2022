@@ -21,10 +21,7 @@ class BCDRDataset(BaseDataset):
             conditional_birads: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
-            config=None,
-            sampling_ratio: float = 1.0,
-            calcifications_only: bool = False,
-            masses_only: bool = False,
+            config=None
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -33,10 +30,7 @@ class BCDRDataset(BaseDataset):
             margin=margin,
             conditional_birads=conditional_birads,
             transform=transform,
-            config=config,
-            sampling_ratio=sampling_ratio,
-            calcifications_only=calcifications_only,
-            masses_only=masses_only
+            config=config
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
@@ -49,7 +43,7 @@ class BCDRDataset(BaseDataset):
             if self.config.is_trained_on_masses:
                 self.metadata.extend(
                     [metapoint for metapoint in self.metadata_unfiltered if "nodule" in metapoint["roi_type"]])
-                logging.info(f'Appended Masses to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended BCDR Masses to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_calcifications:
                 # TODO add these keywords to a dedicated constants file
@@ -59,7 +53,7 @@ class BCDRDataset(BaseDataset):
                      or "microcalcification" in metapoint["roi_type"]
                      ]
                 )
-                logging.info(f'Appended Calcifications to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended BCDR Calcifications to metadata. Metadata size: {len(self.metadata)}')
 
             if self.config.is_trained_on_other_roi_types:
                 self.metadata.extend(
@@ -69,14 +63,13 @@ class BCDRDataset(BaseDataset):
                      or "stroma_distortion" in metapoint["roi_type"]
                      ]
                 )
-                logging.info(f'Appended Other ROI types to metadata. Metadata size: {len(self.metadata)}')
+                logging.info(f'Appended BCDR Other ROI types to metadata. Metadata size: {len(self.metadata)}')
 
     def __getitem__(self, idx: int):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         metapoint = self.metadata[idx]
-        assert metapoint.get("dataset") in ["bcdr",
-                                            "bcdr_only_train"], "Dataset name mismatch, you're using a wrong metadata file!"
+        assert metapoint.get("dataset") in ["bcdr", "bcdr_only_train"], "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
         # TODO read as grayscale
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -126,4 +119,4 @@ class BCDRDataset(BaseDataset):
 
         label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
 
-        return sample, label, image, metapoint['roi_type']
+        return sample, label, image, str(metapoint['roi_type'])

@@ -8,7 +8,6 @@ validation_metadata_path: setup/classifier_binary_merged/val_metadata.json
 test_metadata_path: setup/classifier_binary_merged/test_metadata.json
 synthetic_metadata_path: metadata/synthetic_metadata.json
 train_shuffle_proportion: 0.
-out_checkpoint_path: model_checkpoints/classifier/classifier.pt
 validation_shuffle_proportion: 0
 classes: is_healthy
 use_synthetic: False

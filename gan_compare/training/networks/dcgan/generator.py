@@ -128,7 +128,6 @@ class Generator(BaseGenerator):
                 #conditions += 1
 
                 conditions = conditions.view(conditions.size(0), -1).float()
-            print(f'Conditions in generator: {conditions.shape}')
             embedded_conditions = self.embed_nn(conditions)
             embedded_conditions_with_random_noise_dim = embedded_conditions.view(-1, self.nz, 1, 1)
             x = torch.cat([x, embedded_conditions_with_random_noise_dim], 1)

@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 from dataclasses import asdict
-from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -17,6 +16,7 @@ from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
 from gan_compare.constants import DATASET_DICT, get_classifier
+from gan_compare.data_utils.utils import setup_logger, get_logfilename
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
 from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve, calc_AUROC, calc_AUPRC
 from gan_compare.training.classifier_config import ClassifierConfig
@@ -51,25 +51,16 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    # Set up logger such that it writes to stdout and file
-    # From https://stackoverflow.com/a/46098711/3692004
-    Path('logs').mkdir(exist_ok=True)
-    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(Path('logs') / logfilename),
-            logging.StreamHandler()
-        ]
-    )
+    setup_logger()
 
     args = parse_args()
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(ClassifierConfig, config_dict)
 
-    config.out_checkpoint_path += logfilename + '.pt'
+    logfilename = get_logfilename(is_time_reset=False)
+
+    config.out_checkpoint_path += f"{logfilename}.pt"
 
     logging.info(str(asdict(config)))
     logging.info(
@@ -257,8 +248,7 @@ if __name__ == "__main__":
         best_loss = 10000
         best_f1 = 0
         best_epoch = 0
-        # best_prc_auc = 0
-
+        best_prc_auc = 0
         # START TRAINING LOOP
 
         for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times

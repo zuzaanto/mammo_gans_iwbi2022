@@ -1,0 +1,14 @@
+model_name: "cnn"
+batch_size: 8
+num_epochs: 50
+# watch out, this is only for testing. Different train, test, val metadata.json files are expected.
+train_metadata_path: metadata/richardosuala/metadata.json
+validation_metadata_path: metadata/richardosuala/metadata.json
+test_metadata_path: metadata/richardosuala/metadata.json
+synthetic_metadata_path: metadata/richardosuala/metadata.json
+use_synthetic: False
+dataset_names:
+  - inbreast
+  - bcdr
+image_size: 128
+classify_binary_healthy: True

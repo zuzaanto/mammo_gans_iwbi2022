@@ -1,25 +1,24 @@
 import glob
 import io
 import json
-
+import logging
 import plistlib
+from datetime import datetime
 from pathlib import Path
 from typing import Tuple, Union, List
-import json
-import torch
 
 import cv2
 import numpy as np
 import pandas as pd
-from skimage.draw import polygon
-import random
 import pydicom as dicom
+import torch
 from deprecation import deprecated
-from gan_compare.paths import INBREAST_IMAGE_PATH
+from skimage.draw import polygon
+
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
+from gan_compare.paths import INBREAST_IMAGE_PATH
 
-import logging
-
+LOGFILENAME = None
 
 def load_inbreast_mask(
         mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 3328),
@@ -35,7 +34,7 @@ def load_inbreast_mask(
     in the roi are assigned a value of 1. e.g. [{mask:mask1, roi_type:type1}, {mask:mask2, roi_type:type2}]
     """
     mask_list = []
-    #mask = np.zeros(imshape)
+    # mask = np.zeros(imshape)
     mask_masses = np.zeros(imshape)
     mask_calcifications = np.zeros(imshape)
     mask_other = np.zeros(imshape)
@@ -50,10 +49,11 @@ def load_inbreast_mask(
         roi_type = roi["Name"]
 
         # Define the ROI types that we want marked as masses, map to lowercase
-        roi_type_mass_definition_list = list(map(lambda x:x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
+        roi_type_mass_definition_list = list(
+            map(lambda x: x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
 
         # Define the ROI types that we want marked as calcifications, map to lowercase
-        roi_type_calc_definition_list = list(map(lambda x:x.lower(),['Calcification', 'Calcifications', 'Cluster']))
+        roi_type_calc_definition_list = list(map(lambda x: x.lower(), ['Calcification', 'Calcifications', 'Cluster']))
 
         points = roi["Point_px"]
         assert numPoints == len(points)
@@ -77,13 +77,13 @@ def load_inbreast_mask(
             poly_x, poly_y = polygon(row, col, shape=imshape)
             if roi_type.lower() in roi_type_mass_definition_list:
                 mask_masses[poly_x, poly_y] = 1
-                #mask[poly_x, poly_y] = 1
+                # mask[poly_x, poly_y] = 1
             elif roi_type.lower() in roi_type_calc_definition_list:
                 mask_calcifications[poly_x, poly_y] = 1
-                #mask[poly_x, poly_y] = 1
+                # mask[poly_x, poly_y] = 1
             else:
                 mask_other[poly_x, poly_y] = 1
-                #mask[poly_x, poly_y] = 1
+                # mask[poly_x, poly_y] = 1
                 # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi_type "
                 # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
 
@@ -119,6 +119,7 @@ def read_csv(path: Union[Path, str], sep: chr = ";") -> pd.DataFrame:
     with open(path, "r") as csv_file:
         return pd.read_csv(csv_file, sep=sep)
 
+
 @deprecated()
 def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
     """
@@ -137,16 +138,16 @@ def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
 
 
 def generate_inbreast_metapoints(
-    mask, 
-    image_id, 
-    patient_id, 
-    csv_metadata, 
-    image_path, 
-    xml_filepath, 
-    roi_type: str = "undefined",
-    start_index: int = 0,
-    only_masses: bool = False,
-    allowed_calcifications_birads_values = []
+        mask,
+        image_id,
+        patient_id,
+        csv_metadata,
+        image_path,
+        xml_filepath,
+        roi_type: str = "undefined",
+        start_index: int = 0,
+        only_masses: bool = False,
+        allowed_calcifications_birads_values=[]
 ) -> Tuple[list, int]:
     # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
     mask = np.ascontiguousarray(mask, dtype=np.uint8)
@@ -156,9 +157,10 @@ def generate_inbreast_metapoints(
     lesion_metapoints = []
     # For each contour, generate a metapoint object including the bounding box as rectangle
     for indx, c in enumerate(contours):
-        if (allowed_calcifications_birads_values is not None) and (csv_metadata["Bi-Rads"] not in allowed_calcifications_birads_values): # don't add if it's not an allowed birads value
+        if (allowed_calcifications_birads_values is not None) and (csv_metadata[
+                                                                       "Bi-Rads"] not in allowed_calcifications_birads_values):  # don't add if it's not an allowed birads value
             continue
-        elif only_masses and ('Mass' != str(roi_type)): # don't add if it's not a mass
+        elif only_masses and ('Mass' != str(roi_type)):  # don't add if it's not a mass
             continue
         elif c.shape[0] < 2:
             continue
@@ -191,20 +193,20 @@ def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[in
     height, width = image.shape
     ys = int(rng.integers(0, height - size + 1))
     xs = int(rng.integers(0, width - size + 1))
-    image_crop = image[ys:ys+size, xs:xs+size]
+    image_crop = image[ys:ys + size, xs:xs + size]
     return image_crop, [ys, xs, size, size]
 
 
 def generate_healthy_inbreast_metapoints(
-    image_id, 
-    patient_id, 
-    csv_metadata, 
-    image_path, 
-    per_image_count: int,
-    size: int,
-    bg_pixels_max_ratio: float = 0.4,
-    start_index: int = 0,
-    rng = np.random.default_rng()
+        image_id,
+        patient_id,
+        csv_metadata,
+        image_path,
+        per_image_count: int,
+        size: int,
+        bg_pixels_max_ratio: float = 0.4,
+        start_index: int = 0,
+        rng=np.random.default_rng()
 ) -> Tuple[list, int]:
     lesion_metapoints = []
     if int(csv_metadata["Bi-Rads"][:1]) == 1:
@@ -240,8 +242,8 @@ def generate_healthy_inbreast_metapoints(
 
 
 def generate_bcdr_metapoints(
-    image_dir_path: Path, 
-    row_df: pd.Series,
+        image_dir_path: Path,
+        row_df: pd.Series,
 ):
     laterality, view = get_bcdr_laterality_and_view(row_df)
     if row_df["image_filename"][0] == " ":
@@ -275,13 +277,13 @@ def generate_bcdr_metapoints(
 
 
 def generate_healthy_bcdr_metapoints(
-    image_dir_path: Path, 
-    row_df: pd.Series,
-    per_image_count: int,
-    size: int,
-    start_index: int,
-    bg_pixels_max_ratio: float = 0.4,
-    rng = np.random.default_rng()
+        image_dir_path: Path,
+        row_df: pd.Series,
+        per_image_count: int,
+        size: int,
+        start_index: int,
+        bg_pixels_max_ratio: float = 0.4,
+        rng=np.random.default_rng()
 ):
     laterality, view = get_bcdr_laterality_and_view(row_df, healthy=True)
     if row_df["image_filename"][0] == " ":
@@ -296,7 +298,7 @@ def generate_healthy_bcdr_metapoints(
         while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
             img_crop, bbox = _random_crop(img, size, rng)
             _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
-        if cv2.countNonZero(bin_img_crop) < 128*12:
+        if cv2.countNonZero(bin_img_crop) < 128 * 12:
             logging.info(str(cv2.countNonZero(bin_img_crop)))
 
         metapoint = {
@@ -374,6 +376,7 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     )
     return img_n
 
+
 def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[int, int, int, int]:
     x, y, w, h = metapoint["bbox"]
     # pad the bbox
@@ -390,15 +393,16 @@ def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[
         h_p = min_size
     return (x_p, y_p, w_p, h_p)
 
+
 def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
     if len(metadata_df) > 0:
         if not out_path.parent.exists():
             os.makedirs(out_path.parent)
         with open(str(out_path.resolve()), "w") as out_file:
             json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
-            
-# TODO REFACTOR
-# deprecated
+
+
+# # deprecated
 # def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
 #     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
 #     with open(synthetic_metadata_path, "r") as synth_metadata_file:
@@ -410,16 +414,18 @@ def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
 #         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
 #     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
 
+
 def collate_fn(batch):
     # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
     batch = list(filter(lambda x: x is not None, batch))
     return torch.utils.data.dataloader.default_collate(batch)
 
+
 def setup_logger():
     # Set up logger such that it writes to stdout and file
     # From https://stackoverflow.com/a/46098711/3692004
     Path('logs').mkdir(exist_ok=True)
-    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
+    logfilename = get_logfilename()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -428,3 +434,10 @@ def setup_logger():
             logging.StreamHandler()
         ]
     )
+
+def get_logfilename(is_time_reset=False):
+    global LOGFILENAME
+    if LOGFILENAME is None or is_time_reset is True:
+        LOGFILENAME = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
+    return LOGFILENAME
+
