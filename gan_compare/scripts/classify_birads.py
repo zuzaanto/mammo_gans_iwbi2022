@@ -53,7 +53,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    setup_logger()
+    logfilename = setup_logger()
 
     args = parse_args()
     # Parse config file
