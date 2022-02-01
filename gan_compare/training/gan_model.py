@@ -184,7 +184,7 @@ class GANModel:
         print(self.netD)
 
         if self.config.pretrain_classifier:
-            self.netD2 = get_classifier(name='cnn', num_classes=2, img_size=self.config.image_size).to(self.device)
+            self.netD2 = get_classifier(self.config).to(self.device)
             if (self.device.type == "cuda") and (self.config.ngpu > 1):
                 self.netD2 = nn.DataParallel(self.netD2, list(range(self.config.ngpu)))
             self.netD2.apply(weights_init)

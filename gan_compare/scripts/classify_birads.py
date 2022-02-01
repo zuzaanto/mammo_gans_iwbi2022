@@ -196,7 +196,7 @@ if __name__ == "__main__":
 
     logging.info(f"Device: {device}")
 
-    net = get_classifier(name=config.model_name, num_classes=config.n_cond, img_size=config.image_size).to(device)
+    net = get_classifier(config).to(device)
 
     criterion = nn.CrossEntropyLoss()
 

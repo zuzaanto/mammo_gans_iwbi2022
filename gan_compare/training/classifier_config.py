@@ -10,8 +10,6 @@ class ClassifierConfig(BaseConfig):
     train_metadata_path: str = None
     validation_metadata_path: str = None
     test_metadata_path: str = None
-
-    model_name: str = "cnn"
     
     # Path to synthetic metadata used for data augmentation
     # synthetic_metadata_path: str # TODO REFACTOR

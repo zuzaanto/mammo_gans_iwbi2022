@@ -19,6 +19,7 @@ class BaseConfig:
     is_trained_on_calcifications: bool = False
 
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
+    # OR for classification, the number of classes (set automatically though in classification_config.py)
     n_cond = birads_max + 1
 
     # Number of workers for dataloader
@@ -49,3 +50,6 @@ class BaseConfig:
 
     # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = False
+
+    # name of the classifier (classification) or the second discriminator (GAN training)
+    model_name: str = "cnn"
