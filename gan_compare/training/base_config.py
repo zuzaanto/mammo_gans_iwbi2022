@@ -5,10 +5,14 @@ from gan_compare.constants import DATASET_DICT
 
 @dataclass
 class BaseConfig:
+    model_name: str = "dcgan"
+
     # Birads range
     birads_min: int = 2
     birads_max: int = 6
 
+    seed: int = 42
+    
     # 4a 4b 4c of birads are splitted into integers
     split_birads_fours: bool = True
 

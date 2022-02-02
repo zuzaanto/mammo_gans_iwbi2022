@@ -1,3 +1,4 @@
+from typing import Optional
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.training.networks.classification.swin_transformer import SwinTransformer

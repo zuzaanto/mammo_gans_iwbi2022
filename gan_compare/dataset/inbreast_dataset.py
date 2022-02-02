@@ -24,7 +24,8 @@ class InbreastDataset(BaseDataset):
             conditional_birads: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
-            config=None
+            config = None,
+            sampling_ratio: float = 1.0,
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -33,7 +34,8 @@ class InbreastDataset(BaseDataset):
             margin=margin,
             conditional_birads=conditional_birads,
             transform=transform,
-            config=config
+            config=config,
+            sampling_ratio=sampling_ratio,
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
@@ -98,17 +100,15 @@ class InbreastDataset(BaseDataset):
 
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
-
+        if self.model_name == "swin_transformer":
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         # scale
-        try:
-            image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-            # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
-        except Exception as e:
-            # TODO: Check why some images have a width or height of zero, which causes this exception.
-            logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
-            return None
-
-        sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+        # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        if self.model_name != "swin_transformer":
+            sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        else:
+            sample = torchvision.transforms.functional.to_tensor(image)
 
         if self.transform: sample = self.transform(sample)
         

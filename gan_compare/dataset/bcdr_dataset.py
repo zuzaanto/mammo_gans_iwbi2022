@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 import torch
 import torchvision
+from PIL import Image
+import logging
 
 from gan_compare.dataset.base_dataset import BaseDataset
 
@@ -22,7 +24,8 @@ class BCDRDataset(BaseDataset):
             conditional_birads: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
-            config=None
+            config = None,
+            sampling_ratio: float = 1.0,
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -31,7 +34,8 @@ class BCDRDataset(BaseDataset):
             margin=margin,
             conditional_birads=conditional_birads,
             transform=transform,
-            config=config
+            config=config,
+            sampling_ratio=sampling_ratio,
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
@@ -72,7 +76,10 @@ class BCDRDataset(BaseDataset):
         metapoint = self.metadata[idx]
         assert metapoint.get("dataset") in ["bcdr", "bcdr_only_train"], "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
-        # TODO read as grayscale
+        if self.model_name == "swin_transformer":
+            image = cv2.imread(image_path)
+        else:
+            image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         if image is None:
             logging.warning(
@@ -106,18 +113,18 @@ class BCDRDataset(BaseDataset):
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
         # scale
-        try:
-            image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-            # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
-        except Exception as e:
-            # TODO: Check why some images have a width or height of zero, which causes this exception.
-            logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
-            return None
+        
+        image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+        # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
+        if self.model_name != "swin_transformer":
+            sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        else:
+            sample = torchvision.transforms.functional.to_tensor(image)
 
-        sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
-        if self.transform:
-            sample = self.transform(sample)
+        if self.transform: sample = self.transform(sample)
 
         label = self.retrieve_condition(metapoint) if self.config.conditional else self.determine_label(metapoint)
 
-        return sample, label, image, str(metapoint['roi_type'])
+        roi_type = metapoint["roi_type"] if isinstance(metapoint["roi_type"], str) else metapoint["roi_type"][0]
+        
+        return sample, label, image, roi_type

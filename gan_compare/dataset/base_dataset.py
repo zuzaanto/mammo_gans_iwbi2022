@@ -25,10 +25,7 @@ class BaseDataset(Dataset):
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
             config = None,
-            sampling_ratio: float = 1.0,
-            seed: int = 42,
-            calcifications_only: bool = False,
-            masses_only: bool = False,
+            sampling_ratio: float = 1.0
     ):
 
         self.config = config
@@ -39,33 +36,20 @@ class BaseDataset(Dataset):
             with open(metadata_path, "r") as metadata_file:
                 self.metadata_unfiltered = json.load(metadata_file)
         
-        # THESE ARE THE CHANGES FROM SWIN_TRANSFORMER BRANCH
-        # assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
-        # self.metadata = []
-        # with open(metadata_path, "r") as metadata_file:
-        #     self.metadata_unfiltered = json.load(metadata_file)
-        # logging.info(f"Number of train metadata before sampling: {len(self.metadata_unfiltered)}")
-        # random.seed(seed)
-        # self.metadata_unfiltered = random.sample(self.metadata_unfiltered, int(sampling_ratio * len(self.metadata_unfiltered)))
-        # logging.info(f"Number of train metadata after sampling: {len(self.metadata_unfiltered)}")
-        # if masses_only:
-        #     # TODO now for inbreast, todo for bcdr
-        #     self.metadata_unfiltered = [metapoint for metapoint in self.metadata_unfiltered if "mass" in metapoint['roi_type'].lower() or "nodule" in metapoint['roi_type'].lower()]
-        #     logging.info(f'Appended masses to metadata. Metadata size: {len(self.metadata_unfiltered)}')
-        # if calcifications_only:
-        #     self.metadata_unfiltered = [metapoint for metapoint in self.metadata_unfiltered if "calcification" in metapoint['roi_type'].lower()]
-        #     logging.info(f'Appended calcifications to metadata. Metadata size: {len(self.metadata_unfiltered)}')
 
-        # self.conditioned_on = conditioned_on
-        # self.is_condition_binary = is_condition_binary
-        # self.is_condition_categorical = is_condition_categorical
+        logging.info(f"Number of train metadata before sampling: {len(self.metadata_unfiltered)}")
+        random.seed(config.seed)
+        self.metadata_unfiltered = random.sample(self.metadata_unfiltered, int(sampling_ratio * len(self.metadata_unfiltered)))
+        logging.info(f"Number of train metadata after sampling: {len(self.metadata_unfiltered)}")
 
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
         self.conditional_birads = conditional_birads
+        self.config = config
+        self.model_name = config.model_name
         self.final_shape = (self.config.image_size, self.config.image_size)
-        self.transform = transform     
+        self.transform = transform
 
 
     def __len__(self):
