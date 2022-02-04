@@ -1,4 +1,5 @@
-model_name: "dcgan"
+model_name: "swin_transformer"
+pretrain_classifier: True
 batch_size: 16
 image_size: 128
 use_lsgan_loss: False

@@ -121,3 +121,5 @@ class GANConfig(BaseConfig):
                     self.condition_max = 6
             self.n_cond = self.condition_max + 1
         assert all(dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names)
+        if self.model_name == "swin_transformer":
+            self.image_size = 224  # swin transformer currently only supports 224x224 images

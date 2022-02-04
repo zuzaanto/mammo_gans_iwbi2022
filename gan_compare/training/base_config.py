@@ -56,3 +56,5 @@ class BaseConfig:
 
     # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = False
+
+

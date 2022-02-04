@@ -60,5 +60,3 @@ class ClassifierConfig(BaseConfig):
         assert 1 >= self.train_shuffle_proportion >= 0, "Train shuffle proportion must be from <0,1> range"
         assert 1 >= self.validation_shuffle_proportion >= 0, "Validation shuffle proportion must be from <0,1> range"
         assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)
-        if self.model_name == "swin_transformer":
-            self.image_size = 224 # swin transformer currently only supports 224x224 images

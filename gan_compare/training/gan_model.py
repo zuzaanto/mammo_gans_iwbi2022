@@ -252,6 +252,7 @@ class GANModel:
 
     def _netD_forward_backward_pass(self, images, label_as_float, conditions, epoch: int):
         ''' Forward and backward pass through discriminator network '''
+
         # Forward pass batch through D
         output = None
         if self.config.conditional:
@@ -344,7 +345,7 @@ class GANModel:
         self._save_config()
 
         # Create batch of latent vectors that we will use to visualize the progression of the generator
-        # Fpr convenience, let's use the specified batch size = number of fixed noise random tensors
+        # For convenience, let's use the specified batch size = number of fixed noise random tensors
         fixed_noise = torch.randn(self.config.batch_size, self.config.nz, 1, 1, device=self.device)
 
         # Create batch of fixed conditions that we will use to visualize the progression of the generator
@@ -379,9 +380,9 @@ class GANModel:
 
         if self.config.pretrain_classifier:
             # Classifier initialization:
-            # clf = get_classifier(name='swin_transformer', num_classes=2, img_size=self.config.image_size).to(self.device)
-            clf = get_classifier(name='cnn', num_classes=2, img_size=self.config.image_size).to(self.device)            
+            clf = get_classifier(name=self.config.model_name, num_classes=2, img_size=self.config.image_size).to(self.device)
             clf_criterion = nn.CrossEntropyLoss()
+            # TODO: CLF lr and momentum need to go to GAN_config. The learning rate might differ between swin/transformers and cnn.
             clf_optimizer = optim.SGD(clf.parameters(), lr=0.001, momentum=0.9)
 
         # Training Loop
@@ -443,8 +444,6 @@ class GANModel:
                     real_conditions=real_conditions,
                     fake_conditions=fake_conditions,
                 )
-
-                
 
                 # After updating the discriminator, we now update the generator
                 # Reset to zero as previous gradient should have already been used to update the generator network

@@ -3,6 +3,7 @@ import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
+import json
 
 import cv2
 import numpy as np
@@ -199,6 +200,7 @@ if __name__ == "__main__":
 
         logging.info(f"Saving data samples...")
 
+        # TODO: state_dict name should probably be in config yaml instead of hardcoded.
         net.load_state_dict(torch.load('model_checkpoints/classifier 50 no synth/classifier.pt'))
         net.eval()
         save_data_path = Path("save_dataset")
@@ -243,7 +245,7 @@ if __name__ == "__main__":
     if not args.only_get_metrics:
 
         # PREPARE TRAINING
-
+        # TODO: Optimizer params (lr, momentum) should be moved to classifier_config.
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
         best_loss = 10000
         best_f1 = 0
