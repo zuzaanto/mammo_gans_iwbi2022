@@ -51,6 +51,8 @@ class VisualizationUtils:
             iteration,
             running_real_discriminator_accuracy,
             running_fake_discriminator_accuracy,
+            running_real_discriminator2_accuracy=None,
+            running_fake_discriminator2_accuracy=None,
             main_tag: str = "discriminator accuracy",
     ):
         # Number of the current iteration in the global training process
@@ -63,8 +65,13 @@ class VisualizationUtils:
             "real data": running_real_discriminator_accuracy
                          / self.num_iterations_between_prints,
             "fake data": running_fake_discriminator_accuracy
-                         / self.num_iterations_between_prints,
+                         / self.num_iterations_between_prints
         }
+
+        if running_real_discriminator2_accuracy is not None:
+            accuracy_dictionary["real data D2"] = running_real_discriminator2_accuracy / self.num_iterations_between_prints
+        if running_fake_discriminator2_accuracy is not None:
+            accuracy_dictionary["fake data D2"] = running_fake_discriminator2_accuracy / self.num_iterations_between_prints
 
         self.tensorboard_writer.add_scalars(
             main_tag=main_tag,
@@ -79,6 +86,7 @@ class VisualizationUtils:
             iteration,
             running_loss_of_generator,
             running_loss_of_discriminator,
+            running_loss_of_discriminator2=None,
             main_tag: str = "training loss",
     ):
         # Number of the current iteration in the global training process
@@ -90,8 +98,10 @@ class VisualizationUtils:
         loss_dictionary = {
             "generator": running_loss_of_generator / self.num_iterations_between_prints,
             "discriminator": running_loss_of_discriminator
-                             / self.num_iterations_between_prints,
+                             / self.num_iterations_between_prints
         }
+
+        if running_loss_of_discriminator2 is not None: loss_dictionary["disciminator2"] = running_loss_of_discriminator2 / self.num_iterations_between_prints
 
         # Write the loss_dictionary to the tensorboard
         self.tensorboard_writer.add_scalars(
@@ -128,6 +138,7 @@ class VisualizationUtils:
             self,
             G_losses,
             D_losses,
+            D2_losses=None,
             figsize=(20, 10),
             title: str = "Generator and Discriminator Loss During Training",
             is_shown: bool = False,
@@ -137,6 +148,7 @@ class VisualizationUtils:
         plt.title(title)
         plt.plot(G_losses, label="G losses")
         plt.plot(D_losses, label="D losses")
+        if D2_losses is not None: plt.plot(D2_losses, label="D2 losses")
         plt.xlabel("iterations")
         plt.ylabel("Loss")
         plt.legend()

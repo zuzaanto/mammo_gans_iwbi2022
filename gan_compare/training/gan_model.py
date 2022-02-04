@@ -74,16 +74,14 @@ class GANModel:
         else:
             out_path = self.output_model_dir / f"{epoch_number}.pt"
         
-        # TODO: save self.netD2.state_dict() as well
-        torch.save(
-            {
+        d = {
                 "discriminator": self.netD.state_dict(),
                 "generator": self.netG.state_dict(),
                 "optim_discriminator": self.optimizerD.state_dict(),
                 "optim_generator": self.optimizerG.state_dict(),
-            },
-            out_path,
-        )
+            }
+        if self.config.pretrain_classifier: d["discriminator2"] = self.netD2.state_dict()
+        torch.save(d, out_path)
         print(f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}")
 
     def _create_network(self):
@@ -362,13 +360,6 @@ class GANModel:
             weight_decay=self.config.weight_decay,
         )
 
-        if self.config.pretrain_classifier:
-            self.optimizerD2 = optim.Adam(
-                self.netD2.parameters(),
-                lr=self.config.lr,
-                betas=(self.config.beta1, 0.999),
-                weight_decay=self.config.weight_decay,
-            )
 
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
@@ -387,6 +378,23 @@ class GANModel:
         G_losses = []
         D_losses = []
         iters = 0
+
+        running_loss_of_discriminator2 = None # set to None for function calls later below
+        running_real_discriminator2_accuracy = None
+        running_fake_discriminator2_accuracy = None
+        D2_losses = None
+
+        if self.config.pretrain_classifier:
+            self.optimizerD2 = optim.Adam(
+                self.netD2.parameters(),
+                lr=self.config.lr,
+                betas=(self.config.beta1, 0.999),
+                weight_decay=self.config.weight_decay,
+            )
+            running_loss_of_discriminator2 = 0.
+            running_real_discriminator2_accuracy = 0.
+            running_fake_discriminator2_accuracy = 0.
+            D2_losses = []
 
         # Training Loop
         print(f"Starting Training on {self.device}.. Image size: {self.config.image_size}")
@@ -443,7 +451,7 @@ class GANModel:
 
                 if self.config.pretrain_classifier:
                     self.netD2.zero_grad()
-                    output_real_2, errD_real_2, D_x_2, output_fake_1_2, errD_fake_2, D_G_z1_2, errD_2 = self._netD_update(
+                    output_real_2, errD2_real, D2_x, output_fake_1_2, errD2_fake, D2_G_z1, errD2 = self._netD_update(
                         netD=self.netD2,
                         real_images=real_images,
                         fake_images=fake_images.detach(),
@@ -470,7 +478,7 @@ class GANModel:
 
                 if self.config.pretrain_classifier:
                     self.netG.zero_grad()
-                    output_fake_2_2, D_G_z2_2, errG_2 = self._netG_update(
+                    output_fake_2_2, D2_G_z, errG_2 = self._netG_update( # TODO: errG_2 not in use yet. take avg of errG and errG_2?
                         netD=self.netD2,
                         fake_images=fake_images.detach(),
                         fake_conditions=fake_conditions,
@@ -498,9 +506,29 @@ class GANModel:
                 running_loss_of_generator += errG.item()
                 running_loss_of_discriminator += errD.item()
 
+
+                if self.config.pretrain_classifier:
+                    current_real_acc_2 = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
+                                    list(output_real.size())[0]
+                    running_real_discriminator2_accuracy += current_real_acc_2
+
+                    current_fake_acc_2 = torch.sum(output_fake_1 < self.config.discriminator_clf_threshold).item() / \
+                                    list(output_fake_1.size())[0]
+                    running_fake_discriminator2_accuracy += current_fake_acc_2
+                    
+                    D2_losses.append(errD2.item())
+
+                    running_loss_of_discriminator2 += errD2.item()
+
                 # Output training stats on each iteration length threshold
                 if i % self.config.num_iterations_between_prints == 0:
-                    print(
+                    if self.config.pretrain_classifier:
+                        print(
+                        '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_D2: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f'
+                        % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
+                           errD.item(), errD2.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc, D2_x, D2_G_z1, D2_G_z, current_real_acc_2, current_fake_acc_2))
+                    else:
+                        print(
                         '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
                         % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
                            errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
@@ -509,17 +537,25 @@ class GANModel:
                     visualization_utils.add_value_to_tensorboard_loss_diagram(epoch=epoch,
                                                                               iteration=i,
                                                                               running_loss_of_generator=running_loss_of_generator,
-                                                                              running_loss_of_discriminator=running_loss_of_discriminator)
+                                                                              running_loss_of_discriminator=running_loss_of_discriminator,
+                                                                              running_loss_of_discriminator2=running_loss_of_discriminator2)
                     # Add accuracy scalars to tensorboard
                     visualization_utils.add_value_to_tensorboard_accuracy_diagram(epoch=epoch,
                                                                                   iteration=i,
                                                                                   running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-                                                                                  running_fake_discriminator_accuracy=running_fake_discriminator_accuracy)
+                                                                                  running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
+                                                                                  running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
+                                                                                  running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy)
                     # Reset the running losses and accuracies
                     running_loss_of_generator = 0.
                     running_loss_of_discriminator = 0.
                     running_real_discriminator_accuracy = 0.
                     running_fake_discriminator_accuracy = 0.
+
+                    if self.config.pretrain_classifier:
+                        running_loss_of_discriminator2 = 0.
+                        running_real_discriminator2_accuracy = 0.
+                        running_fake_discriminator2_accuracy = 0.
 
                 # Visually check how the generator is doing by saving G's output on fixed_noise
                 if (iters % self.config.num_iterations_between_prints * 10 == 0) or (
@@ -536,7 +572,7 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
 
-            visualization_utils.plot_losses(D_losses=D_losses, G_losses=G_losses)
+            visualization_utils.plot_losses(D_losses=D_losses, D2_losses=D2_losses, G_losses=G_losses)
             if (epoch % 20 == 0 and epoch >= 50):
                 # Save on each 20th epoch starting at epoch 50.
                 self._save_model(epoch)
