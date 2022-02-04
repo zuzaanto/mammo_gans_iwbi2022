@@ -177,6 +177,7 @@ def generate_inbreast_metapoints(
                 "roi_type": str(roi_type),
                 "biopsy_proven_status": None,
                 "dataset": "inbreast",
+                "healthy": False,
                 # "contour": c.tolist(),
             }
             start_index += 1
@@ -265,8 +266,9 @@ def generate_bcdr_metapoints(
         "roi_type": get_bcdr_lesion_type(row_df),
         "biopsy_proven_status": row_df["classification"].strip(),
         "dataset": "bcdr",
-        # "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
-        "contour": None,
+        "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        # "contour": None,
+        "healthy": False,
     }
     return metapoint
 

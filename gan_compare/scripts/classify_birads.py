@@ -137,7 +137,7 @@ if __name__ == "__main__":
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
             current_length=len(train_dataset),
-            config=config
+            config=config,
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
         logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
@@ -264,9 +264,7 @@ if __name__ == "__main__":
         best_loss = 10000
         best_f1 = 0
         best_epoch = 0
-
-        # START TRAINING LOOP
-
+        best_prc_auc = 0
         for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
             running_loss = 0.0
             logging.info("Training...")
@@ -306,15 +304,19 @@ if __name__ == "__main__":
                     y_true.append(labels)
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
-                _, _, prec_rec_f1, _, _ = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
+                _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
-                if val_f1 > best_f1:
+                # if val_f1 > best_f1:
+                if prc_auc is None or np.isnan(prc_auc):
+                    prc_auc = best_prc_auc
+                if prc_auc > best_prc_auc:
                     best_loss = val_loss
                     best_f1 = val_f1
+                    best_prc_auc = prc_auc
                     best_epoch = epoch
                     torch.save(net.state_dict(), config.out_checkpoint_path)
-                    logging.info(f"Saving best model so far at epoch {epoch} with f1 = {val_f1}")
+                    logging.info(f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}")
 
 
         logging.info("Finished Training")

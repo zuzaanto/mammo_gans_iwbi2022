@@ -24,23 +24,26 @@ class BaseDataset(Dataset):
             conditional_birads: bool = False,
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
-            config = None
+            config = None,
+            sampling_ratio: float = 1.0
     ):
+        assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
+        self.metadata = []
+        with open(metadata_path, "r") as metadata_file:
+            self.metadata_unfiltered = json.load(metadata_file)
+        logging.info(f"Number of train metadata before sampling: {len(self.metadata_unfiltered)}")
+        random.seed(config.seed)
+        self.metadata_unfiltered = random.sample(self.metadata_unfiltered, int(sampling_ratio * len(self.metadata_unfiltered)))
+        logging.info(f"Number of train metadata after sampling: {len(self.metadata_unfiltered)}")
 
-        self.config = config
-
-        if metadata_path is not None:
-            assert Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
-            self.metadata = []
-            with open(metadata_path, "r") as metadata_file:
-                self.metadata_unfiltered = json.load(metadata_file)
-        
         self.crop = crop
         self.min_size = min_size
         self.margin = margin
         self.conditional_birads = conditional_birads
+        self.config = config
+        self.model_name = config.model_name
         self.final_shape = (self.config.image_size, self.config.image_size)
-        self.transform = transform     
+        self.transform = transform
 
 
     def __len__(self):

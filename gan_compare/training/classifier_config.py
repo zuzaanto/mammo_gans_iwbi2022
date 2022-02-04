@@ -18,11 +18,13 @@ class ClassifierConfig(BaseConfig):
     train_shuffle_proportion: float = 0.4
     validation_shuffle_proportion: float = 0
 
+    training_sampling_proportion: float = 1.0
+
     # Directory with synthetic patches
     synthetic_data_dir: str = None
     
     # Proportion of training artificial images
-    gan_images_ratio: float = 0.4
+    gan_images_ratio: float = 0.5
 
     no_transforms: bool = False
 
@@ -32,7 +34,7 @@ class ClassifierConfig(BaseConfig):
     # Dropout rate
     dropout_rate: float = 0.3
 
-    out_checkpoint_path: str = "model_checkpoints//classifier/best_classifier.pt"
+    out_checkpoint_path: str = "model_checkpoints/classifier/best_classifier.pt"
     
     classes: str = "is_healthy"
 
@@ -54,3 +56,5 @@ class ClassifierConfig(BaseConfig):
         assert 1 >= self.train_shuffle_proportion >= 0, "Train shuffle proportion must be from <0,1> range"
         assert 1 >= self.validation_shuffle_proportion >= 0, "Validation shuffle proportion must be from <0,1> range"
         assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)
+        if self.model_name == "swin_transformer":
+            self.image_size = 224 # swin transformer currently only supports 224x224 images
