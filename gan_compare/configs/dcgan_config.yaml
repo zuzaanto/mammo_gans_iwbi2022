@@ -1,4 +1,4 @@
-model_name: "swin_transformer"
+model_name: "swin_transformer" #"cnn"
 pretrain_classifier: True
 batch_size: 16
 image_size: 128
@@ -19,5 +19,5 @@ leakiness: 0.1
 num_epochs: 5000
 ngpu: 1
 dataset_names:
-  - bcdr
   - inbreast
+  - bcdr

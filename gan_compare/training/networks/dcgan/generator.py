@@ -42,6 +42,11 @@ class Generator(BaseGenerator):
 
         # whether the is a conditional input into the GAN i.e. cGAN
         self.conditional: bool = conditional
+        if conditional:
+            # ingesting condition as additional channel into G (and D).
+            self.cond_channel = 1
+        else:
+            self.cond_channel = 0
 
         # The image size (supported params should be 128 or 64)
         self.image_size = image_size
@@ -49,7 +54,7 @@ class Generator(BaseGenerator):
         if self.image_size == 224:
             self.first_layers = nn.Sequential(
                 # input is Z, going into a convolution
-                nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 32, 4, 1, 0, bias=self.bias),
+                nn.ConvTranspose2d(self.nz * (1 + self.cond_channel), self.ngf * 32, 4, 1, 0, bias=self.bias),
                 nn.BatchNorm2d(self.ngf * 32),
                 nn.ReLU(True),
                 # state size. (ngf*32) x 4 x 4
@@ -64,7 +69,7 @@ class Generator(BaseGenerator):
         elif self.image_size == 128:
             self.first_layers = nn.Sequential(
                 # input is Z, going into a convolution
-                nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 16, 4, 1, 0, bias=self.bias),
+                nn.ConvTranspose2d(self.nz * (1 + self.cond_channel), self.ngf * 16, 4, 1, 0, bias=self.bias),
                 nn.BatchNorm2d(self.ngf * 16),
                 nn.ReLU(True),
                 # state size. (ngf*16) x 4 x 4
@@ -75,7 +80,7 @@ class Generator(BaseGenerator):
         elif self.image_size == 64:
             self.first_layers = nn.Sequential(
                 # input is Z, going into a convolution
-                nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 8, 4, 1, 0, bias=self.bias),
+                nn.ConvTranspose2d(self.nz * (1 + self.cond_channel), self.ngf * 8, 4, 1, 0, bias=self.bias),
                 nn.BatchNorm2d(self.ngf * 8),
                 nn.ReLU(True),
             )
@@ -99,7 +104,7 @@ class Generator(BaseGenerator):
             # state size. (ngf) x 64 x 64
             # Note that out_channels=1 instead of out_channels=self.nc.
             # This is due to conditional input channel of our grayscale images
-            nn.ConvTranspose2d(in_channels=self.ngf, out_channels=1, kernel_size=4, stride=2, padding=1,
+            nn.ConvTranspose2d(in_channels=self.ngf, out_channels=self.nc-self.cond_channel, kernel_size=4, stride=2, padding=1,
                                bias=self.bias),
             nn.Tanh()
             # state size. (nc) x 128 x 128

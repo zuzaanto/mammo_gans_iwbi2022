@@ -48,7 +48,8 @@ class Net(nn.Module):
             F.relu(self.fcbn1(self.fc1(s))), p=self.dropout_rate, training=self.training
         )  # batch_size x 128
         s = self.fc2(s)  # batch_size x num_labels
-        
+
+        # TODO Could naming ("logits") be confusion here, as logits are often referred to as the output of the layer before the softmax?
         logits = F.log_softmax(s, dim=1)
 
         if self.return_probabilities:

@@ -79,8 +79,9 @@ class BCDRDataset(BaseDataset):
                                             "bcdr_only_train"], "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
         if self.model_name == "swin_transformer":
-            image = cv2.imread(image_path)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            # Background info: https://stackoverflow.com/a/58108613
+            grayscale_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            image = cv2.merge([grayscale_image, grayscale_image, grayscale_image]) # 3 channels
         else:
             image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         if image is None:

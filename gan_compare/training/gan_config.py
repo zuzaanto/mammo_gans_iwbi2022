@@ -44,7 +44,9 @@ class GANConfig(BaseConfig):
     nc: int = 1
 
     # Size of z latent vector (i.e. size of generator input)
-    nz: int = 100
+    # 07.02.2022: Default changed from 100 to 200.
+    # TODO: Check if 200 works better than 100 latent variable
+    nz: int = 200
 
     # Size of feature maps in generator
     ngf: int = 64
@@ -73,7 +75,13 @@ class GANConfig(BaseConfig):
     # Where the files and information produced for this model will be stored
     output_model_dir: str = f"model_checkpoints/GAN_training_{model_name}_{time()}/"
 
+    # Is the classifier pretrained during GAN training?
     pretrain_classifier: bool = False
+
+    # Is the type of classifier pretraining during GAN training adversarial? i.e. real/fake prediction with BCE loss.
+    is_pretraining_adversarial: bool = True
+
+    # TODO Add other, non-adversarial, CLF pretraining methods during GAN training
 
     ########## Start: Variables related to condition ###########
 
@@ -123,3 +131,4 @@ class GANConfig(BaseConfig):
         assert all(dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names)
         if self.model_name == "swin_transformer":
             self.image_size = 224  # swin transformer currently only supports 224x224 images
+            self.nc = 3

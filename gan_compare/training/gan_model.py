@@ -4,7 +4,6 @@ import logging
 import os
 import random
 from pathlib import Path
-import tqdm
 
 import torch
 import torch.nn as nn
@@ -30,11 +29,11 @@ from gan_compare.dataset.constants import DENSITY_DICT
 from gan_compare.constants import get_classifier
 
 
-
 class GANModel:
     def __init__(
             self,
             model_name: str,
+            # TODO: Change naming convention. This should be "gan_type". config.model_name already in use -> This could cause confusion.
             config: GANConfig,
             dataloader: DataLoader,
             out_dataset_path: Union[str, Path] = "visualisation/inbreast_dataset/",
@@ -56,6 +55,7 @@ class GANModel:
         )
         self._create_network()
         self.output_model_dir = Path(self.config.output_model_dir)
+        self.are_outputs_logits = None # Outputs of D can be probabilities or logits. We need to handle both cases.
 
     def _mkdir_model_dir(self):
         if not self.output_model_dir.exists():
@@ -73,21 +73,20 @@ class GANModel:
             out_path = self.output_model_dir / "model.pt"
         else:
             out_path = self.output_model_dir / f"{epoch_number}.pt"
-        
+
         d = {
-                "discriminator": self.netD.state_dict(),
-                "generator": self.netG.state_dict(),
-                "optim_discriminator": self.optimizerD.state_dict(),
-                "optim_generator": self.optimizerG.state_dict(),
-            }
+            "discriminator": self.netD.state_dict(),
+            "generator": self.netG.state_dict(),
+            "optim_discriminator": self.optimizerD.state_dict(),
+            "optim_generator": self.optimizerG.state_dict(),
+        }
         if self.config.pretrain_classifier: d["discriminator2"] = self.netD2.state_dict()
         torch.save(d, out_path)
-        print(f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}")
-
+        logging.info(f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}")
 
     def _create_network(self):
-        # TODO: Rename model_name - perhaps something like "gan_type" would be fine.
-        if self.model_name == "dcgan": # Note that this is not self.config.model_name! This here is passed as args.
+        # TODO: Rename model_name - perhaps something like "gan_type" would be fine. config.model_name already in use -> This could cause confusion.
+        if self.model_name == "dcgan":  # Note that this is not self.config.model_name! This here is passed as args.
             logging.info(f"self.config.kernel_size: {self.config.kernel_size}")
             logging.info(f"self.config.image_size: {self.config.image_size}")
 
@@ -152,17 +151,17 @@ class GANModel:
             ).to(self.device)
 
         else:
-            raise ValueError(f"Unknown model name: {self.model_name}")
+            raise ValueError(f"Unknown gan_type. Please revise the name of the GAN model: {self.model_name}")
 
         # Check if channel size is correct
         if self.config.conditional:
             assert (
-                    self.config.nc == 2
-            ), "To use conditional input, change number of channels (nc) to 2."
+                    self.config.nc == 2 or (self.config.nc == 4 and self.config.model_name == "swin_transformer")
+            ), "To use conditional input, change number of channels (nc) to 2 (default) or 4 (swin transformer)."
         else:
             assert (
-                    self.config.nc == 1
-            ), "Without conditional input into GAN, change number of channels (nc) to 1."
+                    self.config.nc == 1 or (self.config.nc == 3 and self.config.model_name == "swin_transformer")
+            ), "Without conditional input into GAN, change number of channels (nc) to 1 (default) or 3 (swin transformer)."
 
         # Handle multi-gpu if desired
         if (self.device.type == "cuda") and (self.config.ngpu > 1):
@@ -184,13 +183,16 @@ class GANModel:
         logging.info(self.netD)
 
         if self.config.pretrain_classifier:
-            self.netD2 = get_classifier(self.config).to(self.device)
+            if self.config.is_pretraining_adversarial:  # real/fake prediction
+                num_classes = 1
+            self.netD2 = get_classifier(self.config, num_classes=num_classes).to(self.device)
             if (self.device.type == "cuda") and (self.config.ngpu > 1):
                 self.netD2 = nn.DataParallel(self.netD2, list(range(self.config.ngpu)))
             self.netD2.apply(weights_init)
             logging.info(self.netD2)
 
-    def _netG_update(self, netD, fake_images, fake_conditions, epoch: int, retain_graph: bool = False):
+    def _netG_update(self, netD, fake_images, fake_conditions, epoch: int, are_outputs_logits: bool = False,
+                     retain_graph: bool = False):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
@@ -207,10 +209,11 @@ class GANModel:
             output = netD(fake_images).view(-1)
 
         # Calculate G's loss based on this output
-        errG = self._compute_loss(output=output, label=labels, epoch=epoch)
+        errG = self._compute_loss(output=output, label=labels, epoch=epoch, are_outputs_logits=are_outputs_logits)
 
         # Calculate gradients for G
-        errG.backward(retain_graph=retain_graph) # another call to this backward() will happen iff we pretrain the classifier
+        errG.backward(
+            retain_graph=retain_graph)  # another call to this backward() will happen iff we pretrain the classifier
 
         # D output mean on the second generator input
         D_G_z2 = output.mean().item()
@@ -220,7 +223,8 @@ class GANModel:
 
         return output, D_G_z2, errG
 
-    def _netD_update(self, netD, real_images, fake_images, epoch: int, real_conditions=None, fake_conditions=None):
+    def _netD_update(self, netD, real_images, fake_images, epoch: int, are_outputs_logits: bool = False,
+                     real_conditions=None, fake_conditions=None):
         ''' Update Discriminator network on real AND fake data. '''
 
         # Forward pass real batch through D
@@ -230,6 +234,7 @@ class GANModel:
             self._get_labels().get('real'),
             real_conditions,
             epoch=epoch,
+            are_outputs_logits=are_outputs_logits,
         )
         # remove gradient only if fake_conditions is a torch tensor
         if fake_conditions is not None:
@@ -242,6 +247,7 @@ class GANModel:
             self._get_labels().get('fake'),
             fake_conditions,
             epoch=epoch,
+            are_outputs_logits=are_outputs_logits,
         )
 
         # Add the gradients from the all-real and all-fake batches
@@ -252,7 +258,8 @@ class GANModel:
 
         return output_real, errD_real, D_x, output_fake, errD_fake, D_G_z1, errD
 
-    def _netD_forward_backward_pass(self, netD, images, label_as_float, conditions, epoch: int):
+    def _netD_forward_backward_pass(self, netD, images, label_as_float, conditions, epoch: int,
+                                    are_outputs_logits: bool = False):
         ''' Forward and backward pass through discriminator network '''
 
         # Forward pass batch through D
@@ -266,7 +273,7 @@ class GANModel:
         labels = torch.full((images.size(0),), label_as_float, dtype=torch.float, device=self.device)
 
         # Calculate loss on all-real batch
-        errD = self._compute_loss(output=output, label=labels, epoch=epoch)
+        errD = self._compute_loss(output=output, label=labels, epoch=epoch, are_outputs_logits=are_outputs_logits)
 
         # Calculate gradients for D in backward pass of real data batch
         errD.backward()
@@ -274,10 +281,18 @@ class GANModel:
 
         return output, errD, D_input
 
-    def _compute_loss(self, output, label, epoch: int):
-        if not hasattr(self, 'criterion') or self.criterion is None:
+    def _compute_loss(self, output, label, epoch: int, are_outputs_logits: bool = False):
+        ''' Setting the loss function. Computing and returning the loss. '''
+
+        # Avoiding to reset self.criterion on each loss calculation
+        is_output_type_changed = self.are_outputs_logits != are_outputs_logits
+        self.are_outputs_logits = are_outputs_logits
+        if not hasattr(self, 'criterion') or self.criterion is None or is_output_type_changed:
             # Initialize standard criterion. Note: Could be moved to config.
-            self.criterion = nn.BCELoss()
+            if are_outputs_logits:
+                self.criterion = nn.BCEWithLogitsLoss()
+            else:
+                self.criterion = nn.BCELoss()
         if self.config.switch_loss_each_epoch:
             # Note this design decision: switch_loss_each_epoch:bool=True overwrites use_lsgan_loss:bool=False
             if epoch % 2 == 0:
@@ -288,14 +303,20 @@ class GANModel:
             else:
                 logging.debug(
                     f'switch_loss={self.config.switch_loss_each_epoch}, epoch={epoch}, epoch%2 = {epoch % 2} != 0 -> LS loss.')
-                return 0.5 * torch.mean((output - label) ** 2)
+                if not are_outputs_logits:
+                    return 0.5 * torch.mean((output - label) ** 2)
+                else:
+                    raise Exception("Please revise ls loss before using it with logits as input.")
         else:
             if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
-                # Standard criterion defined above - i.e. Vanilla GAN's binary cross entropy (BCE) loss
+                # Standard criterion defined above - e.g. Vanilla GAN's binary cross entropy (BCE) loss
                 return self.criterion(output, label)
             else:
                 # Least Square Loss - https://arxiv.org/abs/1611.04076
-                return 0.5 * torch.mean((output - label) ** 2)
+                if not are_outputs_logits:
+                    return 0.5 * torch.mean((output - label) ** 2)
+                else:
+                    raise Exception("Please revise ls loss before using it with logits as input.")
 
     def _get_labels(self, smoothing: bool = True):
         # if enabled, let's smooth the labels for "real" (--> real !=1)
@@ -363,7 +384,6 @@ class GANModel:
             weight_decay=self.config.weight_decay,
         )
 
-
         self.optimizerG = optim.Adam(
             self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
         )
@@ -382,13 +402,12 @@ class GANModel:
         D_losses = []
         iters = 0
 
-        running_loss_of_discriminator2 = None # set to None for function calls later below
+        running_loss_of_discriminator2 = None  # set to None for function calls later below
         running_real_discriminator2_accuracy = None
         running_fake_discriminator2_accuracy = None
         D2_losses = None
 
         if self.config.pretrain_classifier:
-
             # TODO: Check if the learning rate should differ between swin/transformers and cnn.
             self.optimizerD2 = optim.Adam(
                 self.netD2.parameters(),
@@ -421,7 +440,6 @@ class GANModel:
                     data, conditions, _, = data
                 except:
                     data, conditions, _, _ = data
-
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
                 real_images = data.to(self.device)
@@ -462,15 +480,16 @@ class GANModel:
 
                 if self.config.pretrain_classifier:
                     self.netD2.zero_grad()
+                    are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
                     output_real_2, errD2_real, D2_x, output_fake_1_2, errD2_fake, D2_G_z1, errD2 = self._netD_update(
                         netD=self.netD2,
                         real_images=real_images,
                         fake_images=fake_images.detach(),
                         epoch=epoch,
+                        are_outputs_logits=are_outputs_logits,
                         real_conditions=real_conditions,
                         fake_conditions=fake_conditions,
                     )
-
 
                 # After updating the discriminator, we now update the generator
                 # Reset to zero as previous gradient should have already been used to update the generator network
@@ -482,18 +501,22 @@ class GANModel:
                     netD=self.netD,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
-                    retain_graph=self.config.pretrain_classifier, # another call to backward() will happen if we pretrain the classifier
+                    retain_graph=self.config.pretrain_classifier,
+                    # another call to backward() will happen if we pretrain the classifier
                     epoch=epoch,
                 )
 
                 if self.config.pretrain_classifier:
                     self.netG.zero_grad()
-                    output_fake_2_2, D2_G_z, errG_2 = self._netG_update( # TODO: errG_2 not in use yet. take avg of errG and errG_2?
+                    are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
+                    output_fake_2_2, D2_G_z, errG_2 = self._netG_update(
+                        # TODO: errG_2 not in use yet. take avg of errG and errG_2? <- Report errors separately.
                         netD=self.netD2,
                         fake_images=fake_images.detach(),
                         fake_conditions=fake_conditions,
                         retain_graph=False,
                         epoch=epoch,
+                        are_outputs_logits=are_outputs_logits,
                     )
 
                 # Calculate D's accuracy on the real data with real_label being = 1.
@@ -516,16 +539,15 @@ class GANModel:
                 running_loss_of_generator += errG.item()
                 running_loss_of_discriminator += errD.item()
 
-
                 if self.config.pretrain_classifier:
                     current_real_acc_2 = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
-                                    list(output_real.size())[0]
+                                         list(output_real.size())[0]
                     running_real_discriminator2_accuracy += current_real_acc_2
 
                     current_fake_acc_2 = torch.sum(output_fake_1 < self.config.discriminator_clf_threshold).item() / \
-                                    list(output_fake_1.size())[0]
+                                         list(output_fake_1.size())[0]
                     running_fake_discriminator2_accuracy += current_fake_acc_2
-                    
+
                     D2_losses.append(errD2.item())
 
                     running_loss_of_discriminator2 += errD2.item()
@@ -534,14 +556,15 @@ class GANModel:
                 if i % self.config.num_iterations_between_prints == 0:
                     if self.config.pretrain_classifier:
                         logging.info(
-                        '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_D2: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f'
-                        % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
-                           errD.item(), errD2.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc, D2_x, D2_G_z1, D2_G_z, current_real_acc_2, current_fake_acc_2))
+                            '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_D2: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f'
+                            % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
+                               errD.item(), errD2.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc,
+                               current_fake_acc, D2_x, D2_G_z1, D2_G_z, current_real_acc_2, current_fake_acc_2))
                     else:
                         logging.info(
-                        '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
-                        % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
-                           errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
+                            '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f'
+                            % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
+                               errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc, current_fake_acc))
 
                     # Add loss scalars to tensorboard
                     visualization_utils.add_value_to_tensorboard_loss_diagram(epoch=epoch,
@@ -601,7 +624,7 @@ class GANModel:
         self.netG.eval()
 
         img_list = []
-        #for ind in tqdm(range(num_samples)):
+        # for ind in tqdm(range(num_samples)):
         if fixed_noise is None:
             fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=self.device)
         if self.config.conditional:

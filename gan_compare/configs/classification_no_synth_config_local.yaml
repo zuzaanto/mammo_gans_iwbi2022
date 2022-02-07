@@ -1,4 +1,4 @@
-model_name: "cnn"
+model_name: "swin_transformer"
 batch_size: 8
 num_epochs: 50
 # watch out, this is only for testing. Different train, test, val metadata.json files are expected.

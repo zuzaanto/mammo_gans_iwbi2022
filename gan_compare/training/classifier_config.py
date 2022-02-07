@@ -22,7 +22,6 @@ class ClassifierConfig(BaseConfig):
     # Directory with synthetic patches
     synthetic_data_dir: str = None
 
-    
     # Proportion of training artificial images
     gan_images_ratio: float = 0.5
 
@@ -34,11 +33,11 @@ class ClassifierConfig(BaseConfig):
     # Dropout rate
     dropout_rate: float = 0.3
 
-    # Where the files and information produced for this model will be stored
-    # Using time() to avoid overwriting existing model_checkpoints
-    out_checkpoint_path: str = f"model_checkpoints/CLF_training_{model_name}_{time()}/best_classifier.pt"
-    
     classes: str = "is_healthy"
+
+    # out_checkpoint_path is where the files and information produced for this model will be stored
+    # Using time() to avoid overwriting existing model_checkpoints
+    out_checkpoint_path = f"model_checkpoints/CLF_training_{time()}/"
 
     # Variables for utils.py -> get_measures_for_crop():
     zoom_offset: float = 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
@@ -58,3 +57,7 @@ class ClassifierConfig(BaseConfig):
         assert 1 >= self.train_shuffle_proportion >= 0, "Train shuffle proportion must be from <0,1> range"
         assert 1 >= self.validation_shuffle_proportion >= 0, "Validation shuffle proportion must be from <0,1> range"
         assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)
+        if self.model_name == "swin_transformer":
+            self.image_size = 224  # swin transformer currently only supports 224x224 images
+            self.nc = 3
+
