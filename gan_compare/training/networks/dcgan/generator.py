@@ -46,7 +46,22 @@ class Generator(BaseGenerator):
         # The image size (supported params should be 128 or 64)
         self.image_size = image_size
 
-        if self.image_size == 128:
+        if self.image_size == 224:
+            self.first_layers = nn.Sequential(
+                # input is Z, going into a convolution
+                nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 32, 4, 1, 0, bias=self.bias),
+                nn.BatchNorm2d(self.ngf * 32),
+                nn.ReLU(True),
+                # state size. (ngf*32) x 4 x 4
+                nn.ConvTranspose2d(self.ngf * 32, self.ngf * 16, 4, 1, 0, bias=self.bias),
+                nn.BatchNorm2d(self.ngf * 16),
+                nn.ReLU(True),
+                # state size. (ngf*16) x 7 x 7
+                nn.ConvTranspose2d(self.ngf * 16, self.ngf * 8, 4, 2, 1, bias=self.bias),
+                nn.BatchNorm2d(self.ngf * 8),
+                nn.ReLU(True),
+            )
+        elif self.image_size == 128:
             self.first_layers = nn.Sequential(
                 # input is Z, going into a convolution
                 nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 16, 4, 1, 0, bias=self.bias),

@@ -30,11 +30,11 @@ class BaseDataset(Dataset):
             calcifications_only: bool = False,  # TODO: This variable may be moved inside config
             masses_only: bool = False,  # TODO: This variable may be moved inside config
     ):
-
         assert metadata_path is not None and Path(metadata_path).is_file(), f"Metadata not found in {metadata_path}"
         self.metadata = []
         with open(metadata_path, "r") as metadata_file:
             self.metadata_unfiltered = json.load(metadata_file)
+
         logging.info(f"Number of train metadata before sampling: {len(self.metadata_unfiltered)}")
         random.seed(config.seed)
         self.metadata_unfiltered = random.sample(self.metadata_unfiltered,

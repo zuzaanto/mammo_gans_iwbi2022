@@ -15,13 +15,14 @@ DATASET_DICT = {
 
 DENSITIES = [1,2,3,4]
 
-def get_classifier(name: str, num_classes: int, img_size: Optional[int] = None) -> nn.Module:
-    if name == "swin_transformer":
-        return SwinTransformer(num_classes=num_classes)
-    if name == "cnn":
-        if img_size == 64:
-            return Net64(num_labels=num_classes)
-        elif img_size == 128:
-            return Net128(num_labels=num_classes)
-        raise ValueError(f"Unrecognized CNN image size = {img_size}")
-    raise ValueError(f"Unrecognized model name = {name}")
+def get_classifier(config) -> nn.Module:
+    if config.model_name == "swin_transformer":
+        return SwinTransformer(num_classes=config.n_cond, img_size=config.image_size)
+    if config.model_name == "cnn":
+        return_probabilities = False if hasattr(config, "pretrain_classifier") is False else config.pretrain_classifier
+        if config.image_size == 64:
+            return Net64(num_labels=config.n_cond, return_probabilities=return_probabilities)
+        elif config.image_size == 128:
+            return Net128(num_labels=config.n_cond, return_probabilities=return_probabilities)
+        raise ValueError(f"Unrecognized CNN image size = {config.image_size}")
+    raise ValueError(f"Unrecognized model name = {config.name}")

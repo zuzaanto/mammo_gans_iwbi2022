@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import torchvision
 
+import logging
+
 from gan_compare.dataset.base_dataset import BaseDataset
 
 
@@ -22,7 +24,8 @@ class BCDRDataset(BaseDataset):
             # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
             transform: any = None,
             config: dict = None,
-            sampling_ratio: float = 1.0,  # TODO: This variable may be moved inside config
+            sampling_ratio: float = 1.0, # TODO: This variable may be moved inside config
+
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -33,6 +36,7 @@ class BCDRDataset(BaseDataset):
             transform=transform,
             config=config,
             sampling_ratio=sampling_ratio,  # TODO: This variable may be moved inside config
+
         )
         if self.config.classify_binary_healthy:
             self.metadata.extend(
@@ -76,9 +80,9 @@ class BCDRDataset(BaseDataset):
         image_path = metapoint["image_path"]
         if self.model_name == "swin_transformer":
             image = cv2.imread(image_path)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
             image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         if image is None:
             logging.warning(
                 f"image in path {image_path} was not read in properly. Is file there (?): {Path(image_path).is_file()}. "
@@ -111,12 +115,14 @@ class BCDRDataset(BaseDataset):
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
         # scale
-
         try:
+            # TODO: Create check (self.final_shape != image.shape) and log a warning with the below outcommented information before resizing
+            # Note: Instead of resizing, which needs to make assumptions in interpolation, it might be better to
+            # rather change the size of the cropped patches extracted from the original image in create_metadata
             image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
             # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
         except Exception as e:
-            # TODO: Check why some images have a width or height of zero, which causes this exception.
+            # TODO: Check why some images have a width or height of zero, which may have caused this exception.
             logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
             return None
 

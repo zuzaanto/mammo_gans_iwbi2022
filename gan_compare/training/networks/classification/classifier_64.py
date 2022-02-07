@@ -7,7 +7,7 @@ DROPOUT_RATE = 0.2
 
 
 class Net(nn.Module):
-    def __init__(self, num_labels: int):
+    def __init__(self, num_labels: int, return_probabilities=False):
         super(Net, self).__init__()
         self.num_labels = num_labels
         self.conv1 = nn.Conv2d(
@@ -29,6 +29,8 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(in_features=128, out_features=self.num_labels)
         self.dropout_rate = DROPOUT_RATE
 
+        self.return_probabilities = return_probabilities
+
     def forward(self, s):
         # apply the convolution layers, followed by batch normalisation,
         # maxpool and relu x 3
@@ -46,4 +48,10 @@ class Net(nn.Module):
             F.relu(self.fcbn1(self.fc1(s))), p=self.dropout_rate, training=self.training
         )  # batch_size x 128
         s = self.fc2(s)  # batch_size x num_labels
-        return F.log_softmax(s, dim=1)
+        
+        logits = F.log_softmax(s, dim=1)
+
+        if self.return_probabilities:
+            return torch.exp(logits[:,-1]) # return only the probability of the true class
+        else:
+            return logits

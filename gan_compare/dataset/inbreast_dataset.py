@@ -25,6 +25,7 @@ class InbreastDataset(BaseDataset):
             transform: any = None,
             config: dict = None,
             sampling_ratio: float = 1.0, # TODO: This variable may be moved inside config
+
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -105,12 +106,16 @@ class InbreastDataset(BaseDataset):
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         # scale
         try:
+            # TODO: Create check (self.final_shape != image.shape) and log a warning with the below outcommented information before resizing
+            # Note: Instead of resizing, which needs to make assumptions in interpolation, it might be better to
+            # rather change the size of the cropped patches extracted from the original image in create_metadata
             image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
             # mask = cv2.resize(mask, self.final_shape, interpolation=cv2.INTER_AREA)
         except Exception as e:
-            # TODO: Check why some images have a width or height of zero, which causes this exception.
+            # TODO: Check why some images have a width or height of zero, which may have caused this exception.
             logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
             return None
+
         if self.model_name != "swin_transformer":
             sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
         else:

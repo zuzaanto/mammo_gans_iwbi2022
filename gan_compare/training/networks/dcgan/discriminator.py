@@ -44,9 +44,29 @@ class Discriminator(BaseDiscriminator):
             padding = 1
         elif kernel_size != 6:
             raise ValueError(f"Allowed kernel sizes are 6 and 4. You provided {self.kernel_size}. Please adjust.")
-
-        if self.image_size == 128:
-            self.ndf_input_main = self.ndf * 2
+        if self.image_size == 224:
+            self.ndf_input_main = self.ndf * 4 # = number of out_channels of the below self.first_layers
+            self.first_layers = nn.Sequential(
+                # input is (nc) x 224 x 224
+                nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=self.kernel_size, stride=stride,
+                          padding=padding,
+                          bias=self.bias),
+                nn.LeakyReLU(self.leakiness, inplace=True),
+                # input is (nc) x 112 x 112
+                nn.Conv2d(in_channels=self.ndf, out_channels=self.ndf * 2, kernel_size=self.kernel_size, stride=stride,
+                          padding=padding + 2,
+                          bias=self.bias),
+                nn.LeakyReLU(self.leakiness, inplace=True),
+                # state size. (ndf) x 58 x 58
+                nn.Conv2d(self.ndf * 2, out_channels=self.ndf * 4, kernel_size=self.kernel_size, stride=stride,
+                          padding=padding + 3,
+                          bias=self.bias),
+                nn.BatchNorm2d(self.ndf * 2),
+                nn.LeakyReLU(self.leakiness, inplace=True),
+                # state size. (ndf) x 32 x 32
+            )
+        elif self.image_size == 128:
+            self.ndf_input_main = self.ndf * 2 # = number of out_channels of the below self.first_layers
             self.first_layers = nn.Sequential(
                 # input is (nc) x 128 x 128
                 nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=self.kernel_size, stride=stride,
@@ -54,18 +74,20 @@ class Discriminator(BaseDiscriminator):
                           bias=self.bias),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # state size. (ndf) x 64 x 64
-                nn.Conv2d(self.ndf, self.ndf * 2, kernel_size=self.kernel_size, stride=stride, padding=padding,
+                nn.Conv2d(self.ndf, out_channels=self.ndf * 2, kernel_size=self.kernel_size, stride=stride, padding=padding,
                           bias=self.bias),
                 nn.BatchNorm2d(self.ndf * 2),
                 nn.LeakyReLU(self.leakiness, inplace=True),
+                # state size. (ndf) x 32 x 32
             )
         elif self.image_size == 64:
-            self.ndf_input_main = self.ndf
+            self.ndf_input_main = self.ndf # = number of out_channels of the below self.first_layers
             self.first_layers = nn.Sequential(
                 # input is (self.nc) x 64 x 64
                 nn.Conv2d(self.nc, self.ndf, kernel_size=self.kernel_size, stride=stride, padding=padding,
                           bias=self.bias),
                 nn.LeakyReLU(self.leakiness, inplace=True),
+                # state size. (ndf) x 32 x 32
             )
         else:
             raise ValueError(f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust.")

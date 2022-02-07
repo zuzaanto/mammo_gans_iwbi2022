@@ -18,6 +18,6 @@ is_training_data_augmented: True
 leakiness: 0.1
 num_epochs: 5000
 ngpu: 1
-dataset_names: 
+dataset_names:
   - bcdr
   - inbreast

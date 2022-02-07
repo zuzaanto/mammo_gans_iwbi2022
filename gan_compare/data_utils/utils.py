@@ -434,10 +434,13 @@ def setup_logger():
             logging.StreamHandler()
         ]
     )
+    return logfilename
 
 def get_logfilename(is_time_reset=False):
     global LOGFILENAME
     if LOGFILENAME is None or is_time_reset is True:
         LOGFILENAME = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
     return LOGFILENAME
+
+
 

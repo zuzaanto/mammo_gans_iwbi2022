@@ -45,6 +45,7 @@ def parse_args() -> argparse.Namespace:
         "--per_image_count", type=int, default=5, help="Number of patches to generate from 1 healthy img."
     )
     parser.add_argument(
+        # TODO. In the future, it we might need to extend this and separate into width and height (and depth)
         "--healthy_size", type=int, default=128, help="Size of patches to generate from 1 healthy img."
     )
     parser.add_argument(
@@ -60,6 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--only_masses", action="store_true", help="Whether to keep only masses. If False, all lesion types are kept.",
     )
+
     args = parser.parse_args()
     return args
 
