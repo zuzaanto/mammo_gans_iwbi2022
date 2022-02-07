@@ -51,17 +51,19 @@ class Discriminator(BaseDiscriminator):
                 nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=self.kernel_size, stride=stride,
                           padding=padding,
                           bias=self.bias),
+                nn.BatchNorm2d(self.ndf),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # input is (nc) x 112 x 112
                 nn.Conv2d(in_channels=self.ndf, out_channels=self.ndf * 2, kernel_size=self.kernel_size, stride=stride,
                           padding=padding + 2,
                           bias=self.bias),
+                nn.BatchNorm2d(self.ndf*2),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # state size. (ndf) x 58 x 58
                 nn.Conv2d(self.ndf * 2, out_channels=self.ndf * 4, kernel_size=self.kernel_size, stride=stride,
                           padding=padding + 3,
                           bias=self.bias),
-                nn.BatchNorm2d(self.ndf * 2),
+                nn.BatchNorm2d(self.ndf * 4),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # state size. (ndf) x 32 x 32
             )
@@ -72,6 +74,7 @@ class Discriminator(BaseDiscriminator):
                 nn.Conv2d(in_channels=self.nc, out_channels=self.ndf, kernel_size=self.kernel_size, stride=stride,
                           padding=padding,
                           bias=self.bias),
+                nn.BatchNorm2d(self.ndf),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # state size. (ndf) x 64 x 64
                 nn.Conv2d(self.ndf, out_channels=self.ndf * 2, kernel_size=self.kernel_size, stride=stride, padding=padding,
