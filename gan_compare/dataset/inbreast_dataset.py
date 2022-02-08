@@ -67,8 +67,12 @@ class InbreastDataset(BaseDataset):
         metapoint = self.metadata[idx]
         assert metapoint.get("dataset") == "inbreast", "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
-        ds = dicom.dcmread(image_path)
-        if ds is None:
+        ds = None
+        try:
+            ds = dicom.dcmread(image_path)
+        except Exception as e:
+            logging.warning(e)
+        if ds is None or not Path(image_path).is_file():
             logging.warning(
                 f"image in path {image_path} was not read in properly. Is file there (?): {Path(image_path).is_file()}. "
                 f"Fallback: Using next file at index {idx + 1} instead. Please check your metadata file.")

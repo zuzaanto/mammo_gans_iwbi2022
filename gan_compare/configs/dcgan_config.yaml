@@ -1,6 +1,6 @@
 model_name: "swin_transformer" #"cnn"
 pretrain_classifier: True
-batch_size: 16
+batch_size: 4
 image_size: 128
 use_lsgan_loss: False
 switch_loss_each_epoch: False
@@ -12,12 +12,12 @@ is_condition_binary: True
 is_condition_categorical: False
 split_birads_fours: False
 is_trained_on_masses: True
-is_trained_on_calcifications: True
+is_trained_on_calcifications: False
 is_trained_on_other_roi_types: False
 is_training_data_augmented: True
 leakiness: 0.1
 num_epochs: 5000
 ngpu: 1
 dataset_names:
-  - inbreast
   - bcdr
+  - inbreast

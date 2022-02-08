@@ -78,13 +78,17 @@ class BCDRDataset(BaseDataset):
         assert metapoint.get("dataset") in ["bcdr",
                                             "bcdr_only_train"], "Dataset name mismatch, you're using a wrong metadata file!"
         image_path = metapoint["image_path"]
-        if self.model_name == "swin_transformer":
-            # Background info: https://stackoverflow.com/a/58108613
-            grayscale_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-            image = cv2.merge([grayscale_image, grayscale_image, grayscale_image]) # 3 channels
-        else:
-            image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        if image is None:
+        image = None
+        try:
+            if self.model_name == "swin_transformer":
+                # Background info: https://stackoverflow.com/a/58108613
+                grayscale_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+                image = cv2.merge([grayscale_image, grayscale_image, grayscale_image]) # 3 channels
+            else:
+                image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        except Exception as e:
+            logging.warning(e)
+        if image is None or not Path(image_path).is_file():
             logging.warning(
                 f"image in path {image_path} was not read in properly. Is file there (?): {Path(image_path).is_file()}. "
                 f"Fallback: Using next file at index {idx + 1} instead. Please check your metadata file.")

@@ -164,8 +164,9 @@ class GANModel:
             ), "Without conditional input into GAN, change number of channels (nc) to 1 (default) or 3 (swin transformer)."
 
         # Handle multi-gpu if desired
-        if (self.device.type == "cuda") and (self.config.ngpu > 1):
-            self.netG = nn.DataParallel(self.netG, list(range(self.config.ngpu)))
+        # TODO: Implement multi-gpu for all networks CLF, G, D - moving this to utils function.
+        #if (self.device.type == "cuda") and (self.config.ngpu > 1):
+        #    self.netG = nn.DataParallel(self.netG, list(range(self.config.ngpu)))
         # Apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
         self.netG.apply(weights_init)
 
