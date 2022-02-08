@@ -57,7 +57,6 @@ class Net(nn.Module):
 
         logits = s
         if self.return_probabilities:
-            # TODO Could naming ("logits") be confusion here, as logits are often referred to as the output of the layer before the softmax?
             softmaxed_logits = F.log_softmax(logits, dim=1)
             return torch.exp(logits[:,-1]) # return only the probability of the true class
         else:

@@ -57,8 +57,8 @@ class GANConfig(BaseConfig):
     # Beta1 hyperparam for Adam optimizers
     beta1: float = 0.5
 
-    # The number of iterations between: i) prints ii) storage of results in tensorboard
-    num_iterations_between_prints: int = 500
+    # The number of iterations between: i) prints and ii) storage of results in tensorboard
+    num_iterations_between_prints: int = 1000
 
     # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
     discriminator_clf_threshold: float = 0.5

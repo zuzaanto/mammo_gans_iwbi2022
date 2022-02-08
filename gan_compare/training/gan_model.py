@@ -8,6 +8,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
 from torch.utils.data import DataLoader
@@ -164,9 +165,9 @@ class GANModel:
             ), "Without conditional input into GAN, change number of channels (nc) to 1 (default) or 3 (swin transformer)."
 
         # Handle multi-gpu if desired
-        # TODO: Implement multi-gpu for all networks CLF, G, D - moving this to utils function.
-        #if (self.device.type == "cuda") and (self.config.ngpu > 1):
-        #    self.netG = nn.DataParallel(self.netG, list(range(self.config.ngpu)))
+
+        if (self.device.type == "cuda") and (self.config.ngpu > 1):
+            self.netG = nn.DataParallel(self.netG, list(range(self.config.ngpu)))
         # Apply the weights_init function to randomly initialize all weights to mean=0, stdev=0.2.
         self.netG.apply(weights_init)
 
@@ -192,7 +193,7 @@ class GANModel:
             self.netD2.apply(weights_init)
             logging.info(self.netD2)
 
-    def _netG_update(self, netD, fake_images, fake_conditions, epoch: int, are_outputs_logits: bool = False,
+    def _netG_update(self, netD, optimizerG, fake_images, fake_conditions, epoch: int, are_outputs_logits: bool = False,
                      retain_graph: bool = False):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
@@ -214,17 +215,17 @@ class GANModel:
 
         # Calculate gradients for G
         errG.backward(
-            retain_graph=retain_graph)  # another call to this backward() will happen iff we pretrain the classifier
+            retain_graph=retain_graph)  # another call to this backward() will happen if we pretrain the classifier
 
         # D output mean on the second generator input
         D_G_z2 = output.mean().item()
 
         # Update G
-        self.optimizerG.step()
+        optimizerG.step()
 
         return output, D_G_z2, errG
 
-    def _netD_update(self, netD, real_images, fake_images, epoch: int, are_outputs_logits: bool = False,
+    def _netD_update(self, netD, optimizerD, real_images, fake_images, epoch: int, are_outputs_logits: bool = False,
                      real_conditions=None, fake_conditions=None):
         ''' Update Discriminator network on real AND fake data. '''
 
@@ -255,7 +256,7 @@ class GANModel:
         errD = errD_real + errD_fake
 
         # Update D
-        self.optimizerD.step()
+        optimizerD.step()
 
         return output_real, errD_real, D_x, output_fake, errD_fake, D_G_z1, errD
 
@@ -404,9 +405,11 @@ class GANModel:
         iters = 0
 
         running_loss_of_discriminator2 = None  # set to None for function calls later below
+        running_loss_of_generator_D2 = None
         running_real_discriminator2_accuracy = None
         running_fake_discriminator2_accuracy = None
         D2_losses = None
+        G2_losses = None
 
         if self.config.pretrain_classifier:
             # TODO: Check if the learning rate should differ between swin/transformers and cnn.
@@ -416,10 +419,12 @@ class GANModel:
                 betas=(self.config.beta1, 0.999),
                 weight_decay=self.config.weight_decay,
             )
+            running_loss_of_generator_D2 = 0.
             running_loss_of_discriminator2 = 0.
             running_real_discriminator2_accuracy = 0.
             running_fake_discriminator2_accuracy = 0.
             D2_losses = []
+            G2_losses = []
 
         # Training Loop
         logging.info(f"Starting Training on {self.device}.. Image size: {self.config.image_size}")
@@ -432,9 +437,6 @@ class GANModel:
 
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
-                # We start by updating the discriminator
-                # Reset the gradient of the discriminator of previous training iterations
-                self.netD.zero_grad()
 
                 # Unpack data (=image batch) alongside condition (i.e. birads number). Conditions are all -1 if unconditioned.
                 try:
@@ -469,12 +471,18 @@ class GANModel:
                     # Generate fake image batch with G (without condition)
                     fake_images = self.netG(noise)
 
+                # We start by updating the discriminator
+                # Reset the gradient of the discriminator of previous training iterations
+                self.netD.zero_grad()
+
                 # Perform a forward backward training step for D with optimizer weight update for real and fake data
                 output_real, errD_real, D_x, output_fake_1, errD_fake, D_G_z1, errD = self._netD_update(
                     netD=self.netD,
+                    optimizerD=self.optimizerD,
                     real_images=real_images,
                     fake_images=fake_images,
                     epoch=epoch,
+                    are_outputs_logits=False,
                     real_conditions=real_conditions,
                     fake_conditions=fake_conditions,
                 )
@@ -484,6 +492,7 @@ class GANModel:
                     are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
                     output_real_2, errD2_real, D2_x, output_fake_1_2, errD2_fake, D2_G_z1, errD2 = self._netD_update(
                         netD=self.netD2,
+                        optimizerD=self.optimizerD2,
                         real_images=real_images,
                         fake_images=fake_images.detach(),
                         epoch=epoch,
@@ -500,19 +509,21 @@ class GANModel:
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
                 output_fake_2, D_G_z2, errG = self._netG_update(
                     netD=self.netD,
+                    optimizerG=self.optimizerG,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=self.config.pretrain_classifier,
                     # another call to backward() will happen if we pretrain the classifier
                     epoch=epoch,
+                    are_outputs_logits=False,
                 )
 
                 if self.config.pretrain_classifier:
                     self.netG.zero_grad()
                     are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
                     output_fake_2_2, D2_G_z, errG_2 = self._netG_update(
-                        # TODO: errG_2 not in use yet. take avg of errG and errG_2? <- Report errors separately.
                         netD=self.netD2,
+                        optimizerG=self.optimizerG,
                         fake_images=fake_images.detach(),
                         fake_conditions=fake_conditions,
                         retain_graph=False,
@@ -541,25 +552,29 @@ class GANModel:
                 running_loss_of_discriminator += errD.item()
 
                 if self.config.pretrain_classifier:
-                    current_real_acc_2 = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
-                                         list(output_real.size())[0]
+                    current_real_acc_2 = torch.sum(output_real_2 > self.config.discriminator_clf_threshold).item() / \
+                                         list(output_real_2.size())[0]
                     running_real_discriminator2_accuracy += current_real_acc_2
 
-                    current_fake_acc_2 = torch.sum(output_fake_1 < self.config.discriminator_clf_threshold).item() / \
-                                         list(output_fake_1.size())[0]
+                    current_fake_acc_2 = torch.sum(output_fake_1_2 < self.config.discriminator_clf_threshold).item() / \
+                                         list(output_fake_1_2.size())[0]
                     running_fake_discriminator2_accuracy += current_fake_acc_2
 
                     D2_losses.append(errD2.item())
 
+                    G2_losses.append(errG_2.item())
+
                     running_loss_of_discriminator2 += errD2.item()
+
+                    running_loss_of_generator_D2 += errG_2.item()
 
                 # Output training stats on each iteration length threshold
                 if i % self.config.num_iterations_between_prints == 0:
                     if self.config.pretrain_classifier:
                         logging.info(
-                            '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_D2: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f'
+                            '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f'
                             % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
-                               errD.item(), errD2.item(), errG.item(), D_x, D_G_z1, D_G_z2, current_real_acc,
+                               errD.item(), errD2.item(), errG.item(), errG_2.item(), D_x, D_G_z1, D_G_z2, current_real_acc,
                                current_fake_acc, D2_x, D2_G_z1, D2_G_z, current_real_acc_2, current_fake_acc_2))
                     else:
                         logging.info(
@@ -571,6 +586,7 @@ class GANModel:
                     visualization_utils.add_value_to_tensorboard_loss_diagram(epoch=epoch,
                                                                               iteration=i,
                                                                               running_loss_of_generator=running_loss_of_generator,
+                                                                              running_loss_of_generator_D2=running_loss_of_generator_D2,
                                                                               running_loss_of_discriminator=running_loss_of_discriminator,
                                                                               running_loss_of_discriminator2=running_loss_of_discriminator2)
                     # Add accuracy scalars to tensorboard
@@ -587,6 +603,7 @@ class GANModel:
                     running_fake_discriminator_accuracy = 0.
 
                     if self.config.pretrain_classifier:
+                        running_loss_of_generator_D2 = 0.
                         running_loss_of_discriminator2 = 0.
                         running_real_discriminator2_accuracy = 0.
                         running_fake_discriminator2_accuracy = 0.
