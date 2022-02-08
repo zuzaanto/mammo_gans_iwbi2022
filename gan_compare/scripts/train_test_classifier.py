@@ -267,7 +267,7 @@ if __name__ == "__main__":
                 optimizer.zero_grad()
                 # forward + backward + optimize
                 outputs = net(samples.to(device))
-                print(f"outputs: {outputs}")
+                logging.debug(f"outputs: {outputs}")
                 loss = criterion(outputs, labels.to(device))
                 loss.backward()
                 optimizer.step()
