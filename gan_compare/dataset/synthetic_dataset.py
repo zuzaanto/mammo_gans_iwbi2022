@@ -1,3 +1,4 @@
+from operator import mod
 from os import stat
 from typing import Optional, Tuple
 
@@ -28,7 +29,8 @@ class SyntheticDataset(BaseDataset):
         transform: any = None,
         shuffle_proportion: Optional[int] = None,
         current_length: Optional[int] = None,
-        config = None
+        config = None,
+        model_name: str = "cnn"
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -37,7 +39,8 @@ class SyntheticDataset(BaseDataset):
             margin=margin,
             conditional_birads=conditional_birads,
             transform=transform,
-            config=config
+            config=config,
+            model_name=model_name,
         )
         # # TODO adjust along with synthetic metadata creation
         # self.metadata = self.metadata_unfiltered
@@ -72,7 +75,9 @@ class SyntheticDataset(BaseDataset):
         assert ".png" in image_path
         # Synthetic images don't need cropping
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-
+        if self.model_name == "swin_transformer":
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            
         # mask = np.zeros(image.shape)
         # mask = mask.astype("uint8")
 
@@ -83,9 +88,13 @@ class SyntheticDataset(BaseDataset):
         #         return image, condition
         #     else:
         #         return image
+        # scale
+        image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
+        if self.model_name != "swin_transformer":
+            sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
+        else:
+            sample = torchvision.transforms.functional.to_tensor(image)
 
-        sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
-        
         if self.transform: sample = self.transform(sample)
 
         # label = self.determine_label(metapoint)

@@ -12,3 +12,4 @@ visualisation/
 logs
 save_dataset
 medigan
+*.out
