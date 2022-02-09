@@ -64,9 +64,8 @@ class BaseDataset(Dataset):
             if d['healthy']: cnt += 1
         return len(self) - cnt, cnt
     
-    def get_weights(self, weight_non_healthy, weigth_healthy):
-        weights = [weigth_healthy if type(d) is not str and d['healthy'] else weight_non_healthy for d in self.metadata]
-        return weights
+    def arrange_weights(self, weight_non_healthy, weigth_healthy):
+        return [weigth_healthy if type(d) is not str and d['healthy'] else weight_non_healthy for d in self.metadata]
 
     def retrieve_condition(self, metapoint):
         condition = -1 # None does not work

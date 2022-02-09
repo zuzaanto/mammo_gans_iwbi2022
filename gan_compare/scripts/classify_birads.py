@@ -186,12 +186,15 @@ if __name__ == "__main__":
     logging.info(f'Share of healthy: {num_train_healthy/len(train_dataset)}')
 
 
+    # Compute the weights for the WeightedRandomSampler for the training set:
+    # Example: labels of training set: [true, true, false] => weight_true = 3/2; weight_false = 3/1
     weight_non_healthy = len(train_dataset) / num_train_non_healthy
     weight_healthy = len(train_dataset) / num_train_healthy
     train_weights = []
     for d in train_dataset_list:
-        train_weights.extend(d.get_weights(weight_non_healthy, weight_healthy))
+        train_weights.extend(d.arrange_weights(weight_non_healthy, weight_healthy))
     
+    # We don't want any sample weights in validation and test sets:
     valid_weights = np.ones(len(val_dataset))
     test_weights = np.ones(len(test_dataset))
 
@@ -202,21 +205,18 @@ if __name__ == "__main__":
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
         sampler=train_sampler
     )
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
         sampler=valid_sampler
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
         sampler=test_sampler
     )
