@@ -58,7 +58,7 @@ class GANConfig(BaseConfig):
     beta1: float = 0.5
 
     # The number of iterations between: i) prints and ii) storage of results in tensorboard
-    num_iterations_between_prints: int = 1000
+    num_iterations_between_prints: int = 2000
 
     # When plotting the discriminator accuracy, we need to set a threshold for its output in range [0,1]
     discriminator_clf_threshold: float = 0.5
@@ -80,6 +80,10 @@ class GANConfig(BaseConfig):
 
     # Is the type of classifier pretraining during GAN training adversarial? i.e. real/fake prediction with BCE loss.
     is_pretraining_adversarial: bool = True
+
+    # If we pretrain_classifier, then the updates of G alternate per batch, e.g. in iteration 1 update is based on
+    # prediction from D1 and in iteration 2 it is based on D2, and so on.
+    are_Ds_alternating_to_update_G: bool = True
 
     # TODO Add other, non-adversarial, CLF pretraining methods during GAN training
 

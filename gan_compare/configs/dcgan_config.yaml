@@ -1,5 +1,6 @@
 model_name: "swin_transformer" #"cnn"
 pretrain_classifier: True
+are_Ds_alternating_to_update_G: True
 batch_size: 16
 image_size: 128
 use_lsgan_loss: False

@@ -13,10 +13,5 @@ logs
 save_dataset
 combined_synthetic/
 medigan
-<<<<<<< HEAD
 archived_files/
 *.out
-
-=======
-*.out
->>>>>>> d74460ddf17006c3948761c448191c0c6baf972e
