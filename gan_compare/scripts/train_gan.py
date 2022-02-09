@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+
 import argparse
 import os
 from dataclasses import asdict
@@ -8,6 +9,7 @@ import logging
 import cv2
 import torchvision.transforms as transforms
 from dacite import from_dict
+import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
@@ -127,4 +129,6 @@ if __name__ == "__main__":
         out_dataset_path=args.out_dataset_path,
     )
     logging.info("Loaded model. Starting training...")
+    # Emptying the cache to avoid cuda out of memory issues
+    torch.cuda.empty_cache()
     model.train()

@@ -531,15 +531,15 @@ class GANModel:
                 f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
-            # We check if netD2 was initialized, which means self.pretrain_classifier was true.
+            # We check if netD2 was initialized, which means self.confif.pretrain_classifier was true.
             if hasattr(self, 'netD2') and epoch >= self.config.start_training_D2_after_epoch:
                 if not self.config.pretrain_classifier or epoch == 0:
                     logging.info(f"As we have reached epoch={epoch}, we now start training D2 ({self.config.model_name}).")
                 self.config.pretrain_classifier = True
             else:
-                # We only want to train D2 after a certain number of epochs, hence we set self.pretrain_classifier = False
+                # We only want to train D2 after a certain number of epochs, hence we set self.config.pretrain_classifier = False
                 # until that number of epochs is reached.
-                self.pretrain_classifier = False
+                self.config.pretrain_classifier = False
 
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
