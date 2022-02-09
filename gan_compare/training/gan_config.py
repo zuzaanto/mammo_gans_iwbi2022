@@ -85,6 +85,12 @@ class GANConfig(BaseConfig):
     # prediction from D1 and in iteration 2 it is based on D2, and so on.
     are_Ds_alternating_to_update_G: bool = True
 
+    # If we want to wait with the backpropagation of D2, we specify the number of the epoch, in which D2 will start to backpropagate into G
+    start_backprop_D2_into_G_after_epoch: int = 0
+
+    # If we want to start the training of D2 later during GAN training, we specify the number of the epoch, in which D2 will start to train itself
+    start_training_D2_after_epoch: int = 0
+
     # TODO Add other, non-adversarial, CLF pretraining methods during GAN training
 
     ########## Start: Variables related to condition ###########

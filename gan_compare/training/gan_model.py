@@ -364,7 +364,7 @@ class GANModel:
                 requires_grad=requires_grad)
 
 
-    def handle_G_updates(self, batch_iteration: int, fake_images, fake_conditions, epoch: int):
+    def handle_G_updates(self, iteration: int, fake_images, fake_conditions, epoch: int):
 
         self.netG.zero_grad()
 
@@ -376,11 +376,19 @@ class GANModel:
         D2_G_z = None
         errG_2 = None
 
-        # Checking which Ds should backpropagate
-        if self.config.pretrain_classifier and self.config.are_Ds_alternating_to_update_G:
-            # We always pass the two outputs of D1 and D2 through G, but only update with one of the outputs.
+        if self.config.pretrain_classifier:
+            # In case D2 only backpropagates after a certain number of epochs has passed.
+            is_D2_backpropagated:bool = epoch >= self.config.start_backprop_D2_into_G_after_epoch
+            if epoch == self.config.start_backprop_D2_into_G_after_epoch and iteration == 0:
+                logging.info(f"As we have reached epoch={epoch}, we now start to backpropagate into G the gradients of D2 ({self.config.model_name}).")
+            # Swin transformer returns last layer logits instead of probabilities
             are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
-            if batch_iteration % 2 == 0:
+
+        # Checking which D should backpropagate into G in this epoch.
+        if self.config.pretrain_classifier and self.config.are_Ds_alternating_to_update_G and is_D2_backpropagated:
+
+            # We always pass the two outputs of D1 and D2 through G, but only update with one of the outputs.
+            if iteration % 2 == 0:
                 # D1 output passed through G, AND backpropagated
                 output_fake_2, D_G_z2, errG = self._netG_update(
                     netD=self.netD,
@@ -436,11 +444,11 @@ class GANModel:
                 # another call to backward() will happen if we pretrain the classifier
                 epoch=epoch,
                 are_outputs_logits=False,
+                is_G_updated=True,
             )
 
             if self.config.pretrain_classifier:
                 self.netG.zero_grad()
-                are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
                 output_fake_2_2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
                     optimizerG=self.optimizerG,
@@ -449,6 +457,7 @@ class GANModel:
                     retain_graph=False,
                     epoch=epoch,
                     are_outputs_logits=are_outputs_logits,
+                    is_G_updated=is_D2_backpropagated,
                 )
         return output_fake_2, D_G_z2, errG, output_fake_2_2, D2_G_z, errG_2
 
@@ -522,6 +531,15 @@ class GANModel:
                 f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable")
         # For each epoch
         for epoch in range(self.config.num_epochs):
+            # We check if netD2 was initialized, which means self.pretrain_classifier was true.
+            if hasattr(self, 'netD2') and epoch >= self.config.start_training_D2_after_epoch:
+                if not self.config.pretrain_classifier or epoch == 0:
+                    logging.info(f"As we have reached epoch={epoch}, we now start training D2 ({self.config.model_name}).")
+                self.config.pretrain_classifier = True
+            else:
+                # We only want to train D2 after a certain number of epochs, hence we set self.pretrain_classifier = False
+                # until that number of epochs is reached.
+                self.pretrain_classifier = False
 
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
@@ -596,7 +614,7 @@ class GANModel:
                 # Perform a forward backward training step for G with optimizer weight update including a second
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
                 output_fake_2, D_G_z2, errG, output_fake_2_2, D2_G_z, errG_2 = self.handle_G_updates(
-                    batch_iteration=i,
+                    iteration=i,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     epoch=epoch
