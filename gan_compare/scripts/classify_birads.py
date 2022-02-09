@@ -21,6 +21,7 @@ import cv2
 from tqdm import tqdm
 import logging
 from datetime import datetime
+from gan_compare.data_utils.utils import init_seed
 
 
 def parse_args():
@@ -45,6 +46,12 @@ def parse_args():
     parser.add_argument(
         "--save_dataset", action="store_true", help="Whether to save image patches to images_classifier dir",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Global random seed.",
+    )
 
     args = parser.parse_args()
     return args
@@ -64,7 +71,9 @@ if __name__ == "__main__":
         ]
     )
 
+
     args = parse_args()
+
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(ClassifierConfig, config_dict)
@@ -74,6 +83,7 @@ if __name__ == "__main__":
     logging.info(str(asdict(config)))
     logging.info("Loading dataset...")  # When we have more datasets implemented, we can specify which one(s) to load in config.
 
+    init_seed(args.seed) # TODO: decide to take from args or from config
     
 
     if config.use_synthetic: 
