@@ -193,14 +193,10 @@ if __name__ == "__main__":
     train_weights = []
     for d in train_dataset_list:
         train_weights.extend(d.arrange_weights(weight_non_healthy, weight_healthy))
-    
-    # We don't want any sample weights in validation and test sets:
-    valid_weights = np.ones(len(val_dataset))
-    test_weights = np.ones(len(test_dataset))
 
     train_sampler = WeightedRandomSampler(train_weights, len(train_dataset))
-    valid_sampler = WeightedRandomSampler(valid_weights, len(val_dataset))
-    test_sampler = WeightedRandomSampler(test_weights, len(test_dataset))
+
+    # We don't want any sample weights in validation and test sets, so we stick with shuffle=True below.
 
     train_dataloader = DataLoader(
         train_dataset,
@@ -212,13 +208,13 @@ if __name__ == "__main__":
         val_dataset,
         batch_size=config.batch_size,
         num_workers=config.workers,
-        sampler=valid_sampler
+        shuffle=False
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
         num_workers=config.workers,
-        sampler=test_sampler
+        shuffle=False
     )
     
     if not Path(config.out_checkpoint_path).parent.exists():
