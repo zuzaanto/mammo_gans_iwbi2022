@@ -141,6 +141,7 @@ class VisualizationUtils:
             G_losses,
             D_losses,
             D2_losses=None,
+            G2_losses=None,
             figsize=(20, 10),
             title: str = "Generator and Discriminator Loss During Training",
             is_shown: bool = False,
@@ -151,6 +152,7 @@ class VisualizationUtils:
         plt.plot(G_losses, label="G losses")
         plt.plot(D_losses, label="D losses")
         if D2_losses is not None: plt.plot(D2_losses, label="D2 losses")
+        if G2_losses is not None: plt.plot(G2_losses, label="G2 losses")
         plt.xlabel("iterations")
         plt.ylabel("Loss")
         plt.legend()

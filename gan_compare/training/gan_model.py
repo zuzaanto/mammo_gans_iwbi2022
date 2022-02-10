@@ -193,7 +193,7 @@ class GANModel:
             logging.info(self.netD2)
 
     def _netG_update(self, netD, optimizerG, fake_images, fake_conditions, epoch: int, are_outputs_logits: bool = False,
-                     retain_graph: bool = False, is_G_updated: bool=True):
+                     retain_graph: bool = False, is_G_updated: bool = True):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
@@ -218,7 +218,7 @@ class GANModel:
         if is_G_updated:
             # Calculate gradients for G
             errG.backward(
-                retain_graph=retain_graph)  # another call to this backward() will happen if we pretrain the classifier
+                retain_graph=retain_graph) # another call to this backward() will happen if we pretrain the classifier
             # Update G
             optimizerG.step()
 
@@ -363,24 +363,21 @@ class GANModel:
                 device=self.device,
                 requires_grad=requires_grad)
 
-
     def handle_G_updates(self, iteration: int, fake_images, fake_conditions, epoch: int):
 
         self.netG.zero_grad()
 
         # return variable init
-        output_fake_2 = None
-        D_G_z2 = None
-        errG = None
-        output_fake_2_2 = None
+        output_fake_2_D2 = None
         D2_G_z = None
         errG_2 = None
 
         if self.config.pretrain_classifier:
             # In case D2 only backpropagates after a certain number of epochs has passed.
-            is_D2_backpropagated:bool = epoch >= self.config.start_backprop_D2_into_G_after_epoch
+            is_D2_backpropagated: bool = epoch >= self.config.start_backprop_D2_into_G_after_epoch
             if epoch == self.config.start_backprop_D2_into_G_after_epoch and iteration == 0:
-                logging.info(f"As we have reached epoch={epoch}, we now start to backpropagate into G the gradients of D2 ({self.config.model_name}).")
+                logging.info(
+                    f"As we have reached epoch={epoch}, we now start to backpropagate into G the gradients of D2 ({self.config.model_name}).")
             # Swin transformer returns last layer logits instead of probabilities
             are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
 
@@ -390,7 +387,7 @@ class GANModel:
             # We always pass the two outputs of D1 and D2 through G, but only update with one of the outputs.
             if iteration % 2 == 0:
                 # D1 output passed through G, AND backpropagated
-                output_fake_2, D_G_z2, errG = self._netG_update(
+                output_fake_2_D1, D_G_z2, errG = self._netG_update(
                     netD=self.netD,
                     optimizerG=self.optimizerG,
                     fake_images=fake_images,
@@ -398,22 +395,22 @@ class GANModel:
                     retain_graph=False,
                     epoch=epoch,
                     are_outputs_logits=False,
-                    is_G_updated = True
+                    is_G_updated=True,
                 )
                 # D2 output passed through G, NOT backpropagated
-                output_fake_2_2, D2_G_z, errG_2 = self._netG_update(
+                output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
                     optimizerG=self.optimizerG,
-                    fake_images=fake_images.detach(),
+                    fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
                     epoch=epoch,
                     are_outputs_logits=are_outputs_logits,
-                    is_G_updated=False
+                    is_G_updated=False,
                 )
             else:
                 # D1 output passed through G, NOT backpropagated
-                output_fake_2, D_G_z2, errG = self._netG_update(
+                output_fake_2_D1, D_G_z2, errG = self._netG_update(
                     netD=self.netD,
                     optimizerG=self.optimizerG,
                     fake_images=fake_images,
@@ -424,10 +421,10 @@ class GANModel:
                     is_G_updated=False
                 )
                 # D2 output passed through G, AND backpropagated
-                output_fake_2_2, D2_G_z, errG_2 = self._netG_update(
+                output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
                     optimizerG=self.optimizerG,
-                    fake_images=fake_images.detach(),
+                    fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
                     epoch=epoch,
@@ -435,7 +432,7 @@ class GANModel:
                     is_G_updated=True
                 )
         else:
-            output_fake_2, D_G_z2, errG = self._netG_update(
+            output_fake_2_D1, D_G_z2, errG = self._netG_update(
                 netD=self.netD,
                 optimizerG=self.optimizerG,
                 fake_images=fake_images,
@@ -449,17 +446,17 @@ class GANModel:
 
             if self.config.pretrain_classifier:
                 self.netG.zero_grad()
-                output_fake_2_2, D2_G_z, errG_2 = self._netG_update(
+                output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
                     optimizerG=self.optimizerG,
-                    fake_images=fake_images.detach(),
+                    fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
                     epoch=epoch,
                     are_outputs_logits=are_outputs_logits,
                     is_G_updated=is_D2_backpropagated,
                 )
-        return output_fake_2, D_G_z2, errG, output_fake_2_2, D2_G_z, errG_2
+        return output_fake_2_D1, D_G_z2, errG, output_fake_2_D2, D2_G_z, errG_2
 
     def train(self):
 
@@ -516,8 +513,8 @@ class GANModel:
                 betas=(self.config.beta1, 0.999),
                 weight_decay=self.config.weight_decay,
             )
-            running_loss_of_generator_D2 = 0.
             running_loss_of_discriminator2 = 0.
+            running_loss_of_generator_D2 = 0.
             running_real_discriminator2_accuracy = 0.
             running_fake_discriminator2_accuracy = 0.
             D2_losses = []
@@ -534,7 +531,8 @@ class GANModel:
             # We check if netD2 was initialized, which means self.confif.pretrain_classifier was true.
             if hasattr(self, 'netD2') and epoch >= self.config.start_training_D2_after_epoch:
                 if not self.config.pretrain_classifier or epoch == 0:
-                    logging.info(f"As we have reached epoch={epoch}, we now start training D2 ({self.config.model_name}).")
+                    logging.info(
+                        f"As we have reached epoch={epoch}, we now start training D2 ({self.config.model_name}).")
                 self.config.pretrain_classifier = True
             else:
                 # We only want to train D2 after a certain number of epochs, hence we set self.config.pretrain_classifier = False
@@ -582,11 +580,11 @@ class GANModel:
                 self.netD.zero_grad()
 
                 # Perform a forward backward training step for D with optimizer weight update for real and fake data
-                output_real, errD_real, D_x, output_fake_1, errD_fake, D_G_z1, errD = self._netD_update(
+                output_real_1_D1, errD_real, D_x, output_fake_1_D1, errD_fake, D_G_z1, errD = self._netD_update(
                     netD=self.netD,
                     optimizerD=self.optimizerD,
                     real_images=real_images,
-                    fake_images=fake_images,
+                    fake_images=fake_images.detach(),
                     epoch=epoch,
                     are_outputs_logits=False,
                     real_conditions=real_conditions,
@@ -596,7 +594,7 @@ class GANModel:
                 if self.config.pretrain_classifier:
                     self.netD2.zero_grad()
                     are_outputs_logits = True if self.config.model_name == "swin_transformer" else False
-                    output_real_2, errD2_real, D2_x, output_fake_1_2, errD2_fake, D2_G_z1, errD2 = self._netD_update(
+                    output_real_1_D2, errD2_real, D2_x, output_fake_1_D2, errD2_fake, D2_G_z1, errD2 = self._netD_update(
                         netD=self.netD2,
                         optimizerD=self.optimizerD2,
                         real_images=real_images,
@@ -613,7 +611,7 @@ class GANModel:
 
                 # Perform a forward backward training step for G with optimizer weight update including a second
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
-                output_fake_2, D_G_z2, errG, output_fake_2_2, D2_G_z, errG_2 = self.handle_G_updates(
+                output_fake_2_D1, D_G_z2, errG, output_fake_2_D2, D2_G_z2, errG_D2 = self.handle_G_updates(
                     iteration=i,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
@@ -621,53 +619,50 @@ class GANModel:
                 )
 
                 # Calculate D's accuracy on the real data with real_label being = 1.
-                current_real_acc = torch.sum(output_real > self.config.discriminator_clf_threshold).item() / \
-                                   list(output_real.size())[0]
+                current_real_acc = torch.sum(output_real_1_D1 > self.config.discriminator_clf_threshold).item() / \
+                                   list(output_real_1_D1.size())[0]
                 running_real_discriminator_accuracy += current_real_acc
 
-
                 # Calculate D's accuracy on the fake data from G with fake_label being = 0.
-                # Note that we use the output_fake_1 and not output_fake_2, as 2 would be unfair,
+                # Note that we use the output_fake_1_D1 and not output_fake_2_D1, as 2 would be unfair,
                 # as the discriminator has already received a weight update for the training batch
-                current_fake_acc = torch.sum(output_fake_1 < self.config.discriminator_clf_threshold).item() / \
-                                   list(output_fake_1.size())[0]
+                current_fake_acc = torch.sum(output_fake_1_D1 < self.config.discriminator_clf_threshold).item() / \
+                                   list(output_fake_1_D1.size())[0]
                 running_fake_discriminator_accuracy += current_fake_acc
-
 
                 # Save Losses for plotting later
                 G_losses.append(errG.item())
                 # Update the running loss which is used in visualization
                 running_loss_of_generator += errG.item()
 
-
                 D_losses.append(errD.item())
                 # Update the running loss which is used in visualization
                 running_loss_of_discriminator += errD.item()
 
                 if self.config.pretrain_classifier:
-                    current_real_acc_2 = torch.sum(output_real_2 > self.config.discriminator_clf_threshold).item() / \
-                                         list(output_real_2.size())[0]
+                    current_real_acc_2 = torch.sum(output_real_1_D2 > self.config.discriminator_clf_threshold).item() / \
+                                         list(output_real_1_D2.size())[0]
                     running_real_discriminator2_accuracy += current_real_acc_2
-                    current_fake_acc_2 = torch.sum(output_fake_1_2 < self.config.discriminator_clf_threshold).item() / \
-                                         list(output_fake_1_2.size())[0]
+                    current_fake_acc_2 = torch.sum(output_fake_1_D2 < self.config.discriminator_clf_threshold).item() / \
+                                         list(output_fake_1_D2.size())[0]
                     running_fake_discriminator2_accuracy += current_fake_acc_2
 
                     D2_losses.append(errD2.item())
                     running_loss_of_discriminator2 += errD2.item()
 
-                    G2_losses.append(errG_2.item())
-                    running_loss_of_generator_D2 += errG_2.item()
+                    G2_losses.append(errG_D2.item())
+                    running_loss_of_generator_D2 += errG_D2.item()
 
                 # Output training stats on each iteration length threshold
                 if i % self.config.num_iterations_between_prints == 0:
                     if self.config.pretrain_classifier:
                         # While not necessarily backpropagating into G, both D1 and D2 are used and we have all possible numbers available.
                         logging.info(
-                            '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f'
+                            '[%d/%d][%d/%d]\tLoss_D1: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f'
                             % (epoch, self.config.num_epochs - 1, i, len(self.dataloader),
-                               errD.item(), errD2.item(), errG.item(), errG_2.item(), D_x, D_G_z1, D_G_z2,
+                               errD.item(), errD2.item(), errG.item(), errG_D2.item(), D_x, D_G_z1, D_G_z2,
                                current_real_acc,
-                               current_fake_acc, D2_x, D2_G_z1, D2_G_z, current_real_acc_2, current_fake_acc_2))
+                               current_fake_acc, D2_x, D2_G_z1, D2_G_z2, current_real_acc_2, current_fake_acc_2))
                     else:
                         # We only log D1 and G statistics, as D2 was not used in GAN training.
                         logging.info(
@@ -716,7 +711,7 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
 
-            visualization_utils.plot_losses(D_losses=D_losses, D2_losses=D2_losses, G_losses=G_losses)
+            visualization_utils.plot_losses(D_losses=D_losses, D2_losses=D2_losses, G_losses=G_losses, G2_losses=G2_losses)
             if (epoch % 20 == 0 and epoch >= 5000):
                 # TODO: Handle storage of model on each x epochs via config variable
                 # Save on each 20th epoch starting at epoch 50.

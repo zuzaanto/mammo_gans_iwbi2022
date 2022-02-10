@@ -1,9 +1,9 @@
 model_name: "cnn" # "swin_transformer" #"cnn"
-pretrain_classifier: True
+pretrain_classifier: False
 are_Ds_alternating_to_update_G: False
-start_training_D2_after_epoch: 0
-start_backprop_D2_into_G_after_epoch: 10
-batch_size: 8
+start_training_D2_after_epoch: 20
+start_backprop_D2_into_G_after_epoch: 20
+batch_size: 16
 image_size: 128
 use_lsgan_loss: False
 switch_loss_each_epoch: False
@@ -18,7 +18,7 @@ is_trained_on_masses: True
 is_trained_on_calcifications: False
 is_trained_on_other_roi_types: False
 is_training_data_augmented: True
-leakiness: 0.1
+leakiness: 0.2
 num_epochs: 1000
 workers: 0
 ngpu: 1

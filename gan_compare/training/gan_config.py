@@ -37,16 +37,16 @@ class GANConfig(BaseConfig):
     label_smoothing_start: float = 0.8 # 0.95
     label_smoothing_end: float = 1.1 # 1.0
 
-    # Leakiness for ReLUs
-    leakiness: float = 0.1
+    # Leakiness for LReLUs
+    leakiness: float = 0.2
 
     # Number of channels in the training images. For color images this is 3
     nc: int = 1
 
     # Size of z latent vector (i.e. size of generator input)
     # 07.02.2022: Default changed from 100 to 200.
-    # TODO: Check if 200 works better than 100 latent variable
-    nz: int = 200
+    # TODO: Check if 200 works better than 100 latent variables
+    nz: int = 100
 
     # Size of feature maps in generator
     ngf: int = 64
