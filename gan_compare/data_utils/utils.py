@@ -360,6 +360,64 @@ def get_bcdr_bbox(lw_x_points: List[int], lw_y_points: List[int]) -> List[int]:
     width, height = max(lw_x_points) - tl_x, max(lw_y_points) - tl_y
     return [tl_x, tl_y, width, height]
 
+def generate_cbis_ddsm_metapoints(
+    mask: np.ndarray, 
+    image_id: str, 
+    patient_id: str, 
+    csv_metadata: pd.Series, 
+    image_path: Path, 
+    roi_type: str = "undefined",
+    start_index: int = 0,
+    only_masses: bool = False,
+    allowed_calcifications_birads_values: list = [],
+    mask_path: Path = None
+) -> list:
+    """
+    Generate CBIS-DDSM metapoints based on extracted contours and metadata
+    """
+    # Transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
+    mask = np.ascontiguousarray(mask, dtype=np.uint8)
+    
+    # Apply morphological closing to join small isolated artifacts to the main mask region
+    kernel = np.ones((9,9),np.uint8)
+    mask_small = cv2.resize(mask, (0,0), fx=0.25, fy=0.25, interpolation=cv2.INTER_NEAREST)
+    mask_closed_small = cv2.morphologyEx(mask_small, cv2.MORPH_CLOSE, kernel)
+    mask_closed = cv2.resize(mask_closed_small, (0,0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST)
+
+    contours, hierarchy = cv2.findContours(
+        mask_closed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+    )
+    lesion_metapoints = []
+    # For each contour, generate a metapoint object including the bounding box as rectangle
+    for indx, c in enumerate(contours):
+        if (allowed_calcifications_birads_values is not None) and (csv_metadata["assessment"] not in allowed_calcifications_birads_values): # don't add if it's not an allowed birads value
+            continue
+        elif only_masses and ('Mass' != roi_type): # don't add if it's not a mass
+            continue
+        elif c.shape[0] < 2:
+            continue
+        else:
+            # TODO this should be replaced with a Metapoint class object!
+            metapoint = {
+                "image_id": image_id,
+                "patient_id": patient_id,
+                "density": int(csv_metadata["breast density"]),
+                "birads": csv_metadata["assessment"],
+                "laterality": csv_metadata["left or right breast"],
+                "view": csv_metadata["image view"],
+                "lesion_id": csv_metadata["image view"] + "_" + str(start_index),
+                "bbox": cv2.boundingRect(c),
+                "image_path": str(image_path.resolve()),
+                "mask_path": str(mask_path.resolve()),
+                "xml_path": None,
+                "roi_type": roi_type,
+                "biopsy_proven_status": csv_metadata['pathology'],
+                "dataset": "cbis-ddsm",
+            }
+            start_index += 1
+            lesion_metapoints.append(metapoint)
+    return lesion_metapoints
+
 
 def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     # normalize value range between 0 and 255 and convert to 8-bit unsigned integer

@@ -19,3 +19,4 @@ ngpu: 1
 dataset_names: 
   - bcdr
   - inbreast
+  - cbis-ddsm

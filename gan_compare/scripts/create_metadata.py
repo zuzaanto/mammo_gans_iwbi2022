@@ -8,6 +8,7 @@ from tqdm import tqdm
 from pathlib import Path
 import os
 import pandas as pd
+import cv2
 
 from gan_compare.data_utils.utils import (
     load_inbreast_mask, 
@@ -17,9 +18,10 @@ from gan_compare.data_utils.utils import (
     generate_healthy_inbreast_metapoints,
     generate_bcdr_metapoints, 
     generate_healthy_bcdr_metapoints,
+    generate_cbis_ddsm_metapoints
 )
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH, BCDR_ROOT_PATH
-from gan_compare.dataset.constants import BCDR_SUBDIRECTORIES, BCDR_VIEW_DICT, BCDR_HEALTHY_SUBDIRECTORIES
+from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH, BCDR_ROOT_PATH, CBIS_DDSM_ROOT_PATH
+from gan_compare.dataset.constants import BCDR_SUBDIRECTORIES, BCDR_VIEW_DICT, BCDR_HEALTHY_SUBDIRECTORIES, CBIS_DDSM_CSV_DICT
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset", 
         type=str, 
-        default=["inbreast", "bcdr"], 
+        default=["inbreast", "bcdr", "cbis-ddsm"], 
         nargs="+", 
         help="Name of the dataset of interest.",
     )
@@ -38,6 +40,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--bcdr_subfolder", type=str, nargs="+", default=["d01", "d02"], help="Symbols of BCDR subdirectories to use."
+    )
+    parser.add_argument(
+        "--cbis_ddsm_csv_set", type=str, nargs="+", default=["train"], help="CBIS-DDSM train/test sets to use."
     )
     parser.add_argument(
         "--output_path", required=True, help="Path to json file to store metadata in."
@@ -163,6 +168,77 @@ def create_bcdr_metadata(
                     metadata.append(lesion_metapoint)
     return metadata
 
+def create_cbis_ddsm_metadata(
+    subsets: List[str],
+    healthy: bool = False, 
+    per_image_count: int = 5, 
+    target_size: int = 128,
+    rng = np.random.default_rng(),
+    only_masses: bool = False,
+    allowed_calcifications_birads_values: List = []
+) -> List[dict]:
+
+    metadata = []
+    csv_paths = []
+    # Select csv files with train/test and mass/calcification samples
+    for subset in subsets:
+        csv_paths.append(CBIS_DDSM_ROOT_PATH / CBIS_DDSM_CSV_DICT[subset+"_mass"])
+        if not only_masses:
+            csv_paths.append(CBIS_DDSM_ROOT_PATH / CBIS_DDSM_CSV_DICT[subset+"_calc"])
+
+    for csv_path in csv_paths:
+        cbis_ddsm_df = read_csv(csv_path, ",")
+
+        # Corrections for consistency in metadata.json file
+        cbis_ddsm_df = cbis_ddsm_df.replace('mass','Mass')
+        cbis_ddsm_df = cbis_ddsm_df.replace('calcification','Calcification')
+        cbis_ddsm_df = cbis_ddsm_df.replace('MALIGNANT','Malign')
+        cbis_ddsm_df = cbis_ddsm_df.replace('BENIGN','Benign')
+        cbis_ddsm_df = cbis_ddsm_df.replace('BENIGN_WITHOUT_CALLBACK','Benign_without_callback')
+        cbis_ddsm_df = cbis_ddsm_df.replace('RIGHT','R')
+        cbis_ddsm_df = cbis_ddsm_df.replace('LEFT','L')
+        cbis_ddsm_df = cbis_ddsm_df.replace(r'\n','', regex=True)
+        cbis_ddsm_df = cbis_ddsm_df.rename(columns={'breast_density': 'breast density'})
+
+        for index, sample in tqdm(cbis_ddsm_df.iterrows(), total=cbis_ddsm_df.shape[0]):
+            image_path = CBIS_DDSM_ROOT_PATH / sample['image file path'].replace("000000.dcm", "1-1.dcm")
+            image_id = int(image_path.parent.suffix.replace('.',''))
+            if image_path.is_file():
+                if healthy:
+                    raise("No healthy samples in CBIS-DDSM dataset.")
+                else:
+                    ds = dicom.dcmread(image_path)
+                    mask_path = None
+                    mask_directory = CBIS_DDSM_ROOT_PATH / Path(sample['ROI mask file path']).parent
+                    for filename in os.listdir(mask_directory):
+                        file_path = mask_directory / filename
+                        ds_mask = dicom.dcmread(file_path)
+                        # Patches and masks can have the same name, so we need to distinguish them by size threshold
+                        if ds_mask.pixel_array.shape[0]>ds.pixel_array.shape[0]*0.5:
+                            if ds_mask.pixel_array.shape == ds.pixel_array.shape:
+                                mask_path = file_path
+                                mask = ds_mask.pixel_array
+                            else:
+                                # Mask size mismatch. Rescaling applied.
+                                mask = cv2.resize(ds_mask.pixel_array,list(ds.pixel_array.shape)[::-1], interpolation=cv2.INTER_NEAREST)
+                            mask_path = file_path
+                    if not mask_path:
+                        mask = np.zeros(ds.pixel_array.shape)
+                        print(f'No mask found. Please review why. Path: {mask_directory}')
+
+                    lesion_metapoints = generate_cbis_ddsm_metapoints(
+                        mask=mask, image_id=image_id,
+                        patient_id=sample['patient_id'], csv_metadata=sample,
+                        image_path=image_path,
+                        roi_type=sample['abnormality type'],
+                        start_index=0,
+                        only_masses=only_masses,
+                        allowed_calcifications_birads_values=allowed_calcifications_birads_values,
+                        mask_path=mask_path
+                    )
+                    # Add the metapoint objects of each contour to our metadata list
+                    metadata.extend(lesion_metapoints)
+    return metadata
 
 if __name__ == "__main__":
     args = parse_args()
@@ -185,6 +261,16 @@ if __name__ == "__main__":
             target_size=args.healthy_size,
             rng=rng,
             only_masses=args.only_masses
+        ))
+    if "cbis-ddsm" in args.dataset:
+        metadata.extend(create_cbis_ddsm_metadata(
+            args.cbis_ddsm_csv_set, 
+            healthy=args.healthy,
+            per_image_count=args.per_image_count, 
+            target_size=args.healthy_size,
+            rng=rng,
+            only_masses=args.only_masses,
+            allowed_calcifications_birads_values=args.allowed_calcifications_birads_values
         ))
     # Output metadata as json file to specified location on disk
     outpath = Path(args.output_path)

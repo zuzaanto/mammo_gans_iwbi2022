@@ -13,7 +13,7 @@ from torch.utils.data.dataset import ConcatDataset
 
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
-
+from gan_compare.dataset.cbis_ddsm_dataset import CBIS_DDSMDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
@@ -57,6 +57,7 @@ def parse_args() -> argparse.Namespace:
 DATASET_DICT = {
     "bcdr": BCDRDataset,
     "inbreast": InbreastDataset,
+    "cbis-ddsm": CBIS_DDSMDataset
 }
 
 
