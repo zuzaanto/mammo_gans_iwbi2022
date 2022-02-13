@@ -1,24 +1,21 @@
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
-from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list
-
-from typing import Tuple
-from pathlib import Path
-import os.path
-import glob
-import cv2
 import numpy as np
 import json
 import argparse
 from tqdm import tqdm
-import pydicom as dicom
 from matplotlib import pyplot as plt
-import statistics
-
+from tqdm import tqdm
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--metadata_path", required=True, help="Path to json file with metadata."
+    )
+    parser.add_argument(
+        "--attributes", 
+        type=str, 
+        default=["density", "birads", "laterality", "view", "biopsy_proven_status", "roi_type"], 
+        nargs="+", 
+        help="Metadata attributes to compute histograms of.",
     )
     args = parser.parse_args()
     return args
@@ -27,21 +24,46 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     metadata = None
-    heights = []
-    widths = []
+    attributes = args.attributes
     with open(args.metadata_path, "r") as metadata_file:
         metadata = json.load(metadata_file)
-    print(f"Number of metapoints: {len(metadata)}")
-    for j, metapoint in enumerate(metadata):
-        # print(metapoint)
-        # print(j)
-        widths.append(metapoint["bbox"][2])
-        heights.append(metapoint["bbox"][3])
-    print(f"Mean (heights): {statistics.mean(heights)}")
-    print(f"Mean (widths): {statistics.mean(widths)}")
-    print(f"Std dev (heights): {statistics.stdev(heights)}")
-    print(f"Std dev (widths): {statistics.stdev(widths)}")
-    fig, ax = plt.subplots(figsize=(10, 7))
-    ax.hist(widths, bins=1000)
-    # Show plot
-    plt.show()
+    dataset_stats = {}
+
+    for metapoint in tqdm(metadata):
+        dataset = metapoint['dataset']
+        if not dataset in dataset_stats.keys():
+            dataset_stats[dataset] = {}
+            for name in attributes:
+                dataset_stats[dataset][name] = []
+        for key, value in metapoint.items():
+            if key in dataset_stats[dataset].keys():
+                if value == None:
+                    value = "None"
+                if type(value) == list:
+                    for subvalue in value:
+                        dataset_stats[dataset][key].append(subvalue)
+                else:
+                    dataset_stats[dataset][key].append(value)
+    
+    for dataset, feature_samples in dataset_stats.items():
+        print(dataset.upper()+ ": "+ str(len(feature_samples[attributes[0]])) + " metapoints")
+
+        fig = plt.figure(constrained_layout=True)
+        fig.set_dpi(300)
+        fig.suptitle("Attribute histograms of " + dataset.upper())
+        mosaic = """
+                123
+                456
+                """
+        ax_dict = fig.subplot_mosaic(mosaic)
+
+        for (key, value), ax in zip(feature_samples.items(), ax_dict.values()):
+            ax.set_title(key, fontsize=7)
+            labels, counts = np.unique(value, return_counts=True)
+            ax.bar(labels, counts, align='center')
+            ax.set_xticks(labels)
+            ax.tick_params(axis='both', which='major', labelsize=7)
+            if key == "biopsy_proven_status":
+                ax.tick_params(axis='x', which='major', labelsize=4)
+
+        plt.show()
