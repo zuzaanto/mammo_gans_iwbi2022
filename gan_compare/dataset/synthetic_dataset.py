@@ -28,7 +28,6 @@ class SyntheticDataset(BaseDataset):
         conditional_birads: bool = False,
         transform: any = None,
         shuffle_proportion: Optional[int] = None,
-        current_length: Optional[int] = None,
         config = None,
         model_name: str = "cnn"
     ):

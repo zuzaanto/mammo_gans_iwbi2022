@@ -134,7 +134,6 @@ if __name__ == "__main__":
             conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
-            # current_length=len(train_dataset), TODO what was that for?
             config=config,
         )
         train_dataset_list.append(synth_train_images)
@@ -208,13 +207,13 @@ if __name__ == "__main__":
         val_dataset,
         batch_size=config.batch_size,
         num_workers=config.workers,
-        shuffle=False
+        shuffle=True
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
         num_workers=config.workers,
-        shuffle=False
+        shuffle=True
     )
     
     if not Path(config.out_checkpoint_path).parent.exists():
