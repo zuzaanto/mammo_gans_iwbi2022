@@ -9,6 +9,10 @@ BCDR_ROOT_PATH = Path("/mnt/ml-team/homes/zuzanna.szafranowska/mammo_gans/datase
 # INBREAST_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/InBreast/")
 # BCDR_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/BCDR/")
 
+INBREAST_ROOT_PATH = Path("/path/to/datasets/InBreast/")
+BCDR_ROOT_PATH = Path("/path/to/datasets/BCDR/")
+CBIS_DDSM_ROOT_PATH = Path("/path/to/datasets/CBIS-DDSM/")
+
 # INBREAST_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/InBreast/")
 # BCDR_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/BCDR/")
 

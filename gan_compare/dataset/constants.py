@@ -39,3 +39,10 @@ BCDR_VIEW_DICT = {
     3: {"laterality": "R", "view": "MLO"},
     4: {"laterality": "L", "view": "MLO"},
 }
+
+CBIS_DDSM_CSV_DICT = {
+    "train_mass": "mass_case_description_train_set.csv",
+    "train_calc": "calc_case_description_train_set.csv",
+    "test_mass": "mass_case_description_test_set.csv",
+    "test_calc": "calc_case_description_test_set.csv"
+}
