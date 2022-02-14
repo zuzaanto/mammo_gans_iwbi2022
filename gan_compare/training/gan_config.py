@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from time import time
+from time import strftime
 from typing import List
 from gan_compare.constants import DATASET_DICT
 from gan_compare.training.base_config import BaseConfig
@@ -66,7 +66,7 @@ class GANConfig(BaseConfig):
     # Specify whether basic data augmentation methods should be applied to the GAN training data.
     is_training_data_augmented: bool = True
 
-    output_model_dir: str = f"model_checkpoints/training_{time()}/"
+    output_model_dir: str = f"model_checkpoints/training_{strftime('%Y_%m_%d-%H_%M_%S')}/"
 
     ########## Start: Variables related to condition ###########
 
