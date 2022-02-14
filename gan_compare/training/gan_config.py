@@ -1,13 +1,12 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from time import time
-from typing import List
-from gan_compare.constants import DATASET_DICT
+import logging
+
 from gan_compare.training.base_config import BaseConfig
 
 
 @dataclass
 class GANConfig(BaseConfig):
-
     # This model_name default should be overwritten by and further specified in -> the yaml file.
     model_name: str = "dcgan"
 
@@ -15,10 +14,10 @@ class GANConfig(BaseConfig):
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
     # "weight decay often encourage some misclassification if the coefficient on the regularizer is set high enough"
     # - https://arxiv.org/pdf/1701.00160.pdf
-    weight_decay: float = 0 #5e-06  # 0.000005
+    weight_decay: float = 0  # 5e-06  # 0.000005
 
     # Whether to use least square loss
-    use_lsgan_loss: bool = False
+    use_lsgan_loss: bool = True  # FIXME Why does this not change in config
 
     # Whether to switch the loss function (i.e. from ls to bce) on each epoch.
     switch_loss_each_epoch: bool = False
@@ -34,8 +33,8 @@ class GANConfig(BaseConfig):
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.8 # 0.95
-    label_smoothing_end: float = 1.1 # 1.0
+    label_smoothing_start: float = 0.7 #0.8  # 0.95
+    label_smoothing_end: float = 1.2 #1.1  # 1.0
 
     # Leakiness for LReLUs
     leakiness: float = 0.2
@@ -112,11 +111,11 @@ class GANConfig(BaseConfig):
     num_embedding_dimensions: int = 50
 
     # Variables for utils.py -> get_measures_for_crop():
-    zoom_offset: float = 0. #0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-    zoom_spread: float = 0. #0.33 # the higher, the more variance in zooming. must be greater 0.
-    ratio_spread: float = 0. # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
-    translation_spread: float = 0. # 0.25 # the higher, the more variance in translation. must be greater 0.
-    max_translation_offset: float = 0. #0.33 # coefficient relative to the image size.
+    zoom_offset: float = 0.  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+    zoom_spread: float = 0.  # 0.33 # the higher, the more variance in zooming. must be greater 0.
+    ratio_spread: float = 0.  # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
+    translation_spread: float = 0.  # 0.25 # the higher, the more variance in translation. must be greater 0.
+    max_translation_offset: float = 0.  # 0.33 # coefficient relative to the image size.
 
     ########## End: Variables related to condition ###########
 
@@ -142,3 +141,5 @@ class GANConfig(BaseConfig):
         if self.model_name == "swin_transformer":
             self.image_size = 224  # swin transformer currently only supports 224x224 images
             self.nc = 3
+            logging.info(
+                f"Changed image shape to {self.image_size}x{self.image_size}x{self.nc}, as is needed for the selected model ({self.model_name})")

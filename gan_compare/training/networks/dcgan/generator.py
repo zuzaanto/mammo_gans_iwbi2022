@@ -121,7 +121,6 @@ class Generator(BaseGenerator):
                 # target output dim of dense layer is batch_size x self.nz x 1 x 1
                 # input is dimension of the embedding layer output
                 nn.Linear(in_features=self.num_embedding_dimensions, out_features=self.nz),
-                # nn.BatchNorm1d(self.nz),
                 nn.LeakyReLU(self.leakiness, inplace=True),
             )
         else:

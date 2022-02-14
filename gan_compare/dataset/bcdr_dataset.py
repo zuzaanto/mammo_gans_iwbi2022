@@ -80,7 +80,7 @@ class BCDRDataset(BaseDataset):
         image_path = metapoint["image_path"]
         image = None
         try:
-            if self.model_name == "swin_transformer":
+            if self.config.model_name == "swin_transformer":
                 # Background info: https://stackoverflow.com/a/58108613
                 grayscale_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
                 image = cv2.merge([grayscale_image, grayscale_image, grayscale_image]) # 3 channels
@@ -131,7 +131,7 @@ class BCDRDataset(BaseDataset):
             logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
             return None
 
-        if self.model_name != "swin_transformer":
+        if self.config.model_name != "swin_transformer":
             sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
         else:
             sample = torchvision.transforms.functional.to_tensor(image)

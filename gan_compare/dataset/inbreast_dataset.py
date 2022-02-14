@@ -106,7 +106,7 @@ class InbreastDataset(BaseDataset):
             # image, mask = image[y: y + h, x: x + w], mask[y: y + h, x: x + w]
             image = image[y: y + h, x: x + w]
 
-        if self.model_name == "swin_transformer":
+        if self.config.model_name == "swin_transformer":
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         # scale
         try:
@@ -120,7 +120,7 @@ class InbreastDataset(BaseDataset):
             logging.debug(f"Error in cv2.resize of image (shape: {image.shape}): {e}")
             return None
 
-        if self.model_name != "swin_transformer":
+        if self.config.model_name != "swin_transformer":
             sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
         else:
             sample = torchvision.transforms.functional.to_tensor(image)

@@ -46,7 +46,7 @@ class BaseDataset(Dataset):
         self.margin = margin
         self.conditional_birads = conditional_birads
         self.config = config
-        self.model_name = config.model_name
+        # self.model_name = config.model_name # rather calling self.config.model_name explicitely
         self.final_shape = (self.config.image_size, self.config.image_size)
         self.transform = transform
 

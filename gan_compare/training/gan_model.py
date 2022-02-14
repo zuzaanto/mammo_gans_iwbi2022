@@ -192,7 +192,7 @@ class GANModel:
             self.netD2.apply(weights_init)
             logging.info(self.netD2)
 
-    def _netG_update(self, netD, optimizerG, fake_images, fake_conditions, epoch: int, are_outputs_logits: bool = False,
+    def _netG_update(self, netD, fake_images, fake_conditions, epoch: int, are_outputs_logits: bool = False,
                      retain_graph: bool = False, is_G_updated: bool = True):
         ''' Update Generator network: maximize log(D(G(z))) '''
 
@@ -215,12 +215,16 @@ class GANModel:
         # D output mean on the second generator input
         D_G_z2 = output.mean().item()
 
+        torch.autograd.set_detect_anomaly(True)
         if is_G_updated:
             # Calculate gradients for G
             errG.backward(
                 retain_graph=retain_graph) # another call to this backward() will happen if we pretrain the classifier
             # Update G
-            optimizerG.step()
+            if not retain_graph:
+                # if the graph is retained, there will be another generator update pass through the network.
+                # We wait until the last one before running the optimizerG.step()
+                self.optimizerG.step()
 
         return output, D_G_z2, errG
 
@@ -283,7 +287,7 @@ class GANModel:
         return output, errD, D_input
 
     def _compute_loss(self, output, label, epoch: int, are_outputs_logits: bool = False):
-        ''' Setting the loss function. Computing and returning the loss. '''
+        """ Setting the loss function. Computing and returning the loss. """
 
         # Avoiding to reset self.criterion on each loss calculation
         is_output_type_changed = self.are_outputs_logits != are_outputs_logits
@@ -291,8 +295,10 @@ class GANModel:
         if not hasattr(self, 'criterion') or self.criterion is None or is_output_type_changed:
             # Initialize standard criterion. Note: Could be moved to config.
             if are_outputs_logits:
+                print("BCEWithLogitsLoss")
                 self.criterion = nn.BCEWithLogitsLoss()
             else:
+                print("BCELoss")
                 self.criterion = nn.BCELoss()
         if self.config.switch_loss_each_epoch:
             # Note this design decision: switch_loss_each_epoch:bool=True overwrites use_lsgan_loss:bool=False
@@ -317,7 +323,7 @@ class GANModel:
                 if not are_outputs_logits:
                     return 0.5 * torch.mean((output - label) ** 2)
                 else:
-                    raise Exception("Please revise ls loss before using it with logits as input.")
+                    raise Exception("Please revise ls-loss before using it with logits as input.")
 
     def _get_labels(self, smoothing: bool = True):
         # if enabled, let's smooth the labels for "real" (--> real !=1)
@@ -365,8 +371,6 @@ class GANModel:
 
     def handle_G_updates(self, iteration: int, fake_images, fake_conditions, epoch: int):
 
-        self.netG.zero_grad()
-
         # return variable init
         output_fake_2_D2 = None
         D2_G_z = None
@@ -389,7 +393,6 @@ class GANModel:
                 # D1 output passed through G, AND backpropagated
                 output_fake_2_D1, D_G_z2, errG = self._netG_update(
                     netD=self.netD,
-                    optimizerG=self.optimizerG,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
@@ -400,7 +403,6 @@ class GANModel:
                 # D2 output passed through G, NOT backpropagated
                 output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
-                    optimizerG=self.optimizerG,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
@@ -412,7 +414,6 @@ class GANModel:
                 # D1 output passed through G, NOT backpropagated
                 output_fake_2_D1, D_G_z2, errG = self._netG_update(
                     netD=self.netD,
-                    optimizerG=self.optimizerG,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
@@ -423,7 +424,6 @@ class GANModel:
                 # D2 output passed through G, AND backpropagated
                 output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
-                    optimizerG=self.optimizerG,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
@@ -432,9 +432,9 @@ class GANModel:
                     is_G_updated=True
                 )
         else:
+
             output_fake_2_D1, D_G_z2, errG = self._netG_update(
                 netD=self.netD,
-                optimizerG=self.optimizerG,
                 fake_images=fake_images,
                 fake_conditions=fake_conditions,
                 retain_graph=self.config.pretrain_classifier,
@@ -445,10 +445,10 @@ class GANModel:
             )
 
             if self.config.pretrain_classifier:
+
                 self.netG.zero_grad()
                 output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
-                    optimizerG=self.optimizerG,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     retain_graph=False,
@@ -556,24 +556,19 @@ class GANModel:
                 logging.debug(f'b_size: {b_size}')
                 logging.debug(f'condition: {conditions}')
 
-                # Generate batch of latent vectors as input into generator to generate fake images
-                noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
-
                 real_conditions = None
                 fake_conditions = None
                 if self.config.conditional:
                     real_conditions = conditions.to(self.device)
                     # generate fake conditions
-                    fake_conditions = self._get_random_conditions(batch_size=b_size)
+                    fake_images, fake_conditions = self.generate_during_training(b_size=b_size)
                     logging.debug(f"fake_conditions: {fake_conditions}")
-                    # Generate fake image batch with G (conditional_res64)
                     logging.debug(f"b_size: {b_size}")
                     logging.debug(f"noise.shape: {noise.shape}")
                     logging.debug(f"fake_conditions.shape: {fake_conditions.shape}")
-                    fake_images = self.netG(noise, fake_conditions)
                 else:
                     # Generate fake image batch with G (without condition)
-                    fake_images = self.netG(noise)
+                    fake_images, _ = self.generate_during_training(b_size=b_size)
 
                 # We start by updating the discriminator
                 # Reset the gradient of the discriminator of previous training iterations
@@ -605,9 +600,13 @@ class GANModel:
                         fake_conditions=fake_conditions,
                     )
 
+
                 # After updating the discriminator, we now update the generator
                 # Reset to zero as previous gradient should have already been used to update the generator network
                 self.netG.zero_grad()
+
+                # (optional) Generating new fake images as previous ones are already incorporated in D's gradient update
+                #fake_images, fake_conditions = self.generate_during_training(b_size=b_size)
 
                 # Perform a forward backward training step for G with optimizer weight update including a second
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
@@ -718,6 +717,22 @@ class GANModel:
                 # self._save_model(epoch)
                 pass
         self._save_model()
+
+    def generate_during_training(self, b_size, noise=None):
+        """ Generate batch of latent vectors (& conditions) as input into generator to generate fake images """
+
+        fake_conditions = None
+        if noise is None:
+            noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
+        if self.config.conditional:
+            fake_conditions = self._get_random_conditions(batch_size=b_size)
+            fake_images = self.netG(noise, fake_conditions)
+        else:
+            # Generate fake image batch with G (without condition)
+            fake_images = self.netG(noise)
+
+        return fake_images, fake_conditions
+
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
                  num_samples: int = 10, birads: int = None) -> list:

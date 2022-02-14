@@ -75,7 +75,7 @@ class SyntheticDataset(BaseDataset):
         assert ".png" in image_path
         # Synthetic images don't need cropping
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        if self.model_name == "swin_transformer":
+        if self.config.model_name == "swin_transformer":
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
             
         # mask = np.zeros(image.shape)
@@ -90,7 +90,7 @@ class SyntheticDataset(BaseDataset):
         #         return image
         # scale
         image = cv2.resize(image, self.final_shape, interpolation=cv2.INTER_AREA)
-        if self.model_name != "swin_transformer":
+        if self.config.model_name != "swin_transformer":
             sample = torchvision.transforms.functional.to_tensor(image[..., np.newaxis])
         else:
             sample = torchvision.transforms.functional.to_tensor(image)

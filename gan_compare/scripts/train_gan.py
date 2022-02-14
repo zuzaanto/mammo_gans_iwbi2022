@@ -73,6 +73,7 @@ if __name__ == "__main__":
     transform_to_use = None
     if config.is_training_data_augmented:
         transform_to_use = transforms.Compose([
+            #transforms.Normalize((0.), (1.)), # between -1 and 1 https://github.com/soumith/ganhacks #1
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.RandomVerticalFlip(p=0.5),
             # scale: min 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
@@ -100,7 +101,7 @@ if __name__ == "__main__":
         shuffle=True,
         num_workers=config.workers,
         batch_size=config.batch_size,
-        #collate_fn=collate_fn,  # Filter out None returned by DataSet.
+        collate_fn=collate_fn,  # Filter out None returned by DataSet.
         drop_last=True,
     )
 
@@ -121,6 +122,8 @@ if __name__ == "__main__":
 
             out_image_path = f"{i}_{config.conditioned_on}_{condition}.png" if config.conditional else f"{i}.png"
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
+    # Emptying the cache for GPU RAM.
+    torch.cuda.empty_cache()
     logging.info("Loading model...")
     model = GANModel(
         model_name=args.model_name,
@@ -130,5 +133,4 @@ if __name__ == "__main__":
     )
     logging.info("Loaded model. Starting training...")
     # Emptying the cache to avoid cuda out of memory issues
-    torch.cuda.empty_cache()
     model.train()
