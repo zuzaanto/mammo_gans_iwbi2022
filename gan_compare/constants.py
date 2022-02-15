@@ -1,7 +1,8 @@
 import logging
+from typing import Optional
 
 import torch.nn as nn
-
+from gan_compare.training.base_config import BaseConfig
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
 from gan_compare.training.networks.classification.classifier_128 import Net as Net128
