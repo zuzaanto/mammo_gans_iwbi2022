@@ -43,7 +43,7 @@ class BaseConfig:
     num_epochs: int = 60
 
     # Learning rate for optimizers
-    lr: float = 0.0002
+    lr: float = 0.0001
 
     ngpu: int = 1
 

@@ -1,4 +1,4 @@
-model_name: "cnn" # "swin_transformer" #"cnn"
+model_name: "dcgan" #"cnn" # "swin_transformer"
 pretrain_classifier: False
 are_Ds_alternating_to_update_G: False
 start_training_D2_after_epoch: 0
@@ -13,7 +13,7 @@ kernel_size: 6
 use_one_sided_label_smoothing: True
 conditioned_on: None
 conditional: False
-is_condition_binary: False
+is_condition_binary: True
 is_condition_categorical: False
 split_birads_fours: False
 is_trained_on_masses: True
@@ -21,7 +21,7 @@ is_trained_on_calcifications: False
 is_trained_on_other_roi_types: False
 is_training_data_augmented: True
 leakiness: 0.1
-lr: 0.0002
+lr: 0.0001
 added_noise_term: 0.5
 beta1: 0.5
 nz: 100
@@ -31,3 +31,4 @@ workers: 2
 ngpu: 1
 dataset_names:
   - bcdr
+

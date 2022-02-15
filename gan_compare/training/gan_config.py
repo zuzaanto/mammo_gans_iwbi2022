@@ -33,8 +33,8 @@ class GANConfig(BaseConfig):
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.7 #0.8  # 0.95
-    label_smoothing_end: float = 1.2 #1.1  # 1.0
+    label_smoothing_start: float = 0.8 #0.8  # 0.95
+    label_smoothing_end: float = 1.1 #1.1  # 1.0
 
     # Leakiness for LReLUs
     leakiness: float = 0.2
