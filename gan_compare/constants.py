@@ -17,7 +17,7 @@ DATASET_DICT = {
 DENSITIES = [1, 2, 3, 4]
 
 
-def get_classifier(config, num_classes:int = None) -> nn.Module:
+def get_classifier(config: BaseConfig, num_classes: Optional[int] = None) -> nn.Module:
     if num_classes is None:
         # FIXME During GAN training config.n_cond is the number of conditions and not the number of classes.
         # Workaround: Usage of value from num_classes attribute instead.
