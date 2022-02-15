@@ -57,7 +57,3 @@ class BaseConfig:
 
     # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = False
-
-    # name of the classifier (classification) or the second discriminator (GAN training)
-    # TODO: Perhaps it is better to define the model_name explicitely in the yaml files for reproducibility.
-    #model_name: str = "cnn"
