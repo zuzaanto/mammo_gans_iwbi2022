@@ -39,6 +39,11 @@ class GANConfig(BaseConfig):
     # Leakiness for LReLUs
     leakiness: float = 0.2
 
+    # Learning rate of the different optimizers
+    lr_g: float = 0.0001  # learning rate of generator
+    lr_d1: float = 0.0001  # learning rate of discriminator 1
+    lr_d2: float = 0.0001  # learning rate of a second discriminator
+
     # Number of channels in the training images. For color images this is 3
     nc: int = 1
 

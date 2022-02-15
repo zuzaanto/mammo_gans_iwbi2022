@@ -1,4 +1,4 @@
-model_name: "dcgan" #"cnn" # "swin_transformer"
+model_name: "cnn" #"dcgan" #"cnn" # "swin_transformer"
 pretrain_classifier: False
 are_Ds_alternating_to_update_G: False
 start_training_D2_after_epoch: 0
@@ -21,7 +21,9 @@ is_trained_on_calcifications: False
 is_trained_on_other_roi_types: False
 is_training_data_augmented: True
 leakiness: 0.1
-lr: 0.0001
+lr_g: 0.0001
+lr_d1: 0.0004
+lr_d2: 0.0001
 added_noise_term: 0.5
 beta1: 0.5
 nz: 100

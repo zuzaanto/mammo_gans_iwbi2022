@@ -43,7 +43,7 @@ class BaseConfig:
     num_epochs: int = 60
 
     # Learning rate for optimizers
-    lr: float = 0.0001
+    lr: float = 0.0001 # Used only in train_test_classifier.py. Note: there are lr_g, lr_d in gan_config.py
 
     ngpu: int = 1
 

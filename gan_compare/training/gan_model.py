@@ -475,13 +475,13 @@ class GANModel:
         # Setup Adam optimizers for both G and D
         self.optimizerD = optim.Adam(
             self.netD.parameters(),
-            lr=self.config.lr,
+            lr=self.config.lr_d1,
             betas=(self.config.beta1, 0.999),
             weight_decay=self.config.weight_decay,
         )
 
         self.optimizerG = optim.Adam(
-            self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
+            self.netG.parameters(), lr=self.config.lr_g, betas=(self.config.beta1, 0.999)
         )
 
         # initializing variables needed for visualization
@@ -509,7 +509,7 @@ class GANModel:
             # TODO: Check if the learning rate should differ between swin/transformers and cnn.
             self.optimizerD2 = optim.Adam(
                 self.netD2.parameters(),
-                lr=self.config.lr,
+                lr=self.config.lr_d2,
                 betas=(self.config.beta1, 0.999),
                 weight_decay=self.config.weight_decay,
             )
@@ -738,7 +738,7 @@ class GANModel:
                  num_samples: int = 10, birads: int = None) -> list:
 
         self.optimizerG = optim.Adam(
-            self.netG.parameters(), lr=self.config.lr, betas=(self.config.beta1, 0.999)
+            self.netG.parameters(), lr=self.config.lr_g, betas=(self.config.beta1, 0.999)
         )
         checkpoint = torch.load(model_checkpoint_path, self.device)
         self.netG.load_state_dict(checkpoint["generator"])
