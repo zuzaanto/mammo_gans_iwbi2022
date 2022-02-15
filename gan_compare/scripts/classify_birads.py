@@ -11,6 +11,7 @@ from gan_compare.training.io import load_yaml
 from dacite import from_dict
 from gan_compare.training.classifier_config import ClassifierConfig
 from torch.utils.data.dataset import ConcatDataset
+from torch.utils.data import WeightedRandomSampler
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
 from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve, calc_AUROC, calc_AUPRC
 import torch.optim as optim
@@ -125,9 +126,6 @@ if __name__ == "__main__":
                 config=config
             )
         )
-    train_dataset = ConcatDataset(train_dataset_list)
-    val_dataset = ConcatDataset(val_dataset_list)
-    test_dataset = ConcatDataset(test_dataset_list)
     if config.use_synthetic:
         
         # APPEND SYNTHETIC DATA
@@ -136,10 +134,9 @@ if __name__ == "__main__":
             conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
-            current_length=len(train_dataset),
             config=config,
         )
-        train_dataset = ConcatDataset([train_dataset, synth_train_images])
+        train_dataset_list.append(synth_train_images)
         logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
 
         # YOU MUST ADD THE HEALTHY PATCHES WHICH ARE MEANT TO BALANCE THE SYNTHETIC PATCHES TO THE TRAINING SET ABOVE
@@ -173,26 +170,50 @@ if __name__ == "__main__":
         # val_dataset = ConcatDataset([val_dataset, synth_val_images])
         # logging.info(f'Number of samples added to synthetic validation set: {len(synth_val_images)}')
 
+    train_dataset = ConcatDataset(train_dataset_list)
+    val_dataset = ConcatDataset(val_dataset_list)
+    test_dataset = ConcatDataset(test_dataset_list)
     
+    num_train_healthy = 0
+    num_train_non_healthy = 0
+    for d in train_dataset_list:
+        a, b = d.len_of_classes()
+        num_train_non_healthy += a
+        num_train_healthy += b
+    logging.info('Training set:')
+    logging.info(f'Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}')
+    logging.info(f'Share of healthy: {num_train_healthy/len(train_dataset)}')
 
+
+    # Compute the weights for the WeightedRandomSampler for the training set:
+    # Example: labels of training set: [true, true, false] => weight_true = 3/2; weight_false = 3/1
+    weight_non_healthy = len(train_dataset) / num_train_non_healthy
+    weight_healthy = len(train_dataset) / num_train_healthy
+    train_weights = []
+    for d in train_dataset_list:
+        train_weights.extend(d.arrange_weights(weight_non_healthy, weight_healthy))
+
+    train_sampler = WeightedRandomSampler(train_weights, len(train_dataset))
+
+    # We don't want any sample weights in validation and test sets, so we stick with shuffle=True below.
 
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
+        sampler=train_sampler
     )
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
+        shuffle=True
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
+        shuffle=True
     )
     
     if not Path(config.out_checkpoint_path).parent.exists():

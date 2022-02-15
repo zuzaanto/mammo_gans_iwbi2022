@@ -52,6 +52,21 @@ class BaseDataset(Dataset):
     def __getitem__(self, idx: int):
         raise NotImplementedError
 
+    def len_of_classes(self):
+        """Calculate the number of samples per class. Works only in the binary case.
+
+        Returns:
+            (int, int): (num samples of non-healthy, num samples of healthy)
+        """
+        cnt = 0
+        for d in self.metadata:
+            if type(d) is str: continue # then d is a synthetic sample (non-healthy)
+            if d['healthy']: cnt += 1
+        return len(self) - cnt, cnt
+    
+    def arrange_weights(self, weight_non_healthy, weight_healthy):
+        return [weight_healthy if type(d) is not str and d['healthy'] else weight_non_healthy for d in self.metadata]
+
     def retrieve_condition(self, metapoint):
         condition = -1 # None does not work
         if self.config.conditioned_on == "birads":
