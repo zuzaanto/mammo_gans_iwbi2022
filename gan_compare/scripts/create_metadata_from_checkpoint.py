@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 "laterality": "synth",
                 "view": "synth",
                 "lesion_id": i,
-                "bbox": [0, 0, config.imageimage_size_size, config.image_size],
+                "bbox": [0, 0, config.image_size, config.image_size],
                 "image_path": str(img_path.resolve()),
                 "xml_path": "",
                 "dataset": "synthetic",
