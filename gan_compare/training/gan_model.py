@@ -219,7 +219,7 @@ class GANModel:
         if is_G_updated:
             # Calculate gradients for G
             errG.backward(
-                retain_graph=retain_graph) # another call to this backward() will happen if we pretrain the classifier
+                retain_graph=retain_graph)  # another call to this backward() will happen if we pretrain the classifier
             # Update G
             if not retain_graph:
                 # if the graph is retained, there will be another generator update pass through the network.
@@ -369,7 +369,8 @@ class GANModel:
                 device=self.device,
                 requires_grad=requires_grad)
 
-    def handle_G_updates(self, iteration: int, fake_images, fake_conditions, epoch: int):
+    def handle_G_updates(self, iteration: int, fake_images, fake_conditions, epoch: int, b_size: int = None,
+                         is_D2_using_new_fakes: bool = True):
 
         # return variable init
         output_fake_2_D2 = None
@@ -445,8 +446,10 @@ class GANModel:
             )
 
             if self.config.pretrain_classifier:
-
                 self.netG.zero_grad()
+                if is_D2_using_new_fakes:
+                    # Generating new fake images as previous ones had been already incorporated in D's previous update
+                    fake_images, fake_conditions = self.generate_during_training(b_size=b_size)
                 output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
                     netD=self.netD2,
                     fake_images=fake_images,
@@ -600,13 +603,12 @@ class GANModel:
                         fake_conditions=fake_conditions,
                     )
 
-
                 # After updating the discriminator, we now update the generator
                 # Reset to zero as previous gradient should have already been used to update the generator network
                 self.netG.zero_grad()
 
                 # (optional) Generating new fake images as previous ones are already incorporated in D's gradient update
-                #fake_images, fake_conditions = self.generate_during_training(b_size=b_size)
+                # fake_images, fake_conditions = self.generate_during_training(b_size=b_size)
 
                 # Perform a forward backward training step for G with optimizer weight update including a second
                 # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
@@ -614,7 +616,9 @@ class GANModel:
                     iteration=i,
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
-                    epoch=epoch
+                    epoch=epoch,
+                    b_size= b_size,
+                    is_D2_using_new_fakes=True # TODO: Try this out and see if it works
                 )
 
                 # Calculate D's accuracy on the real data with real_label being = 1.
@@ -710,7 +714,8 @@ class GANModel:
                                                                            img_name=img_name)
                 iters += 1
 
-            visualization_utils.plot_losses(D_losses=D_losses, D2_losses=D2_losses, G_losses=G_losses, G2_losses=G2_losses)
+            visualization_utils.plot_losses(D_losses=D_losses, D2_losses=D2_losses, G_losses=G_losses,
+                                            G2_losses=G2_losses)
             if (epoch % 20 == 0 and epoch >= 5000):
                 # TODO: Handle storage of model on each x epochs via config variable
                 # Save on each 20th epoch starting at epoch 50.
@@ -732,7 +737,6 @@ class GANModel:
             fake_images = self.netG(noise)
 
         return fake_images, fake_conditions
-
 
     def generate(self, model_checkpoint_path: Path, fixed_noise=None, fixed_condition=None,
                  num_samples: int = 10, birads: int = None) -> list:
