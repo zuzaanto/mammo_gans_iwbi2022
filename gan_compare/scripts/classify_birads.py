@@ -81,9 +81,10 @@ if __name__ == "__main__":
     config.out_checkpoint_path += logfilename + '.pt'
 
     logging.info(str(asdict(config)))
+    logging.info(str(args))
     logging.info("Loading dataset...")  # When we have more datasets implemented, we can specify which one(s) to load in config.
 
-    init_seed(args.seed) # TODO: decide to take from args or from config
+    init_seed(args.seed)
     
 
     if config.use_synthetic: 

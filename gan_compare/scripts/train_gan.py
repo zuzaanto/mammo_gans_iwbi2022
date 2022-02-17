@@ -17,6 +17,8 @@ from gan_compare.dataset.cbis_ddsm_dataset import CBIS_DDSMDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
+from gan_compare.data_utils.utils import init_seed
+import logging
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,6 +52,12 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="File system location of metadata.json file.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Global random seed.",
+    )
     args = parser.parse_args()
     return args
 
@@ -66,7 +74,12 @@ if __name__ == "__main__":
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(GANConfig, config_dict)
-    print(asdict(config))
+
+    logging.info(str(asdict(config)))
+    logging.info(str(args))
+
+    init_seed(args.seed)
+
     dataset_list = []
     transform_to_use = None
     if config.is_training_data_augmented:
