@@ -22,7 +22,7 @@ from gan_compare.data_utils.utils import (
 )
 from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH, BCDR_ROOT_PATH, CBIS_DDSM_ROOT_PATH
 from gan_compare.dataset.constants import BCDR_SUBDIRECTORIES, BCDR_VIEW_DICT, BCDR_HEALTHY_SUBDIRECTORIES, CBIS_DDSM_CSV_DICT
-
+from gan_compare.data_utils.utils import init_seed
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
         "--healthy_size", type=int, default=128, help="Size of patches to generate from 1 healthy img."
     )
     parser.add_argument(
-        "--seed", type=int, default=2021, help="Seed the random generator. Can be used for example for generating different healthy patches."
+        "--seed", type=int, default=42, help="Seed the random generator. Can be used for example for generating different healthy patches."
     )
     parser.add_argument(
         "--allowed_calcifications_birads_values", 
@@ -242,6 +242,7 @@ def create_cbis_ddsm_metadata(
 
 if __name__ == "__main__":
     args = parse_args()
+    init_seed(args.seed)
     rng = np.random.default_rng(args.seed) # seed the random generator
     metadata = []
     if "inbreast" in args.dataset:

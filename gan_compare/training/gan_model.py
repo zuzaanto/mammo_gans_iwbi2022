@@ -40,12 +40,6 @@ class GANModel:
         self.config = config
         self.out_dataset_path = out_dataset_path
         self.dataloader = dataloader
-        self.manual_seed = (
-            999  # manualSeed = random.randint(1, 10000) # use if you want new results
-        )
-        logging.debug("Random Seed: ", self.manual_seed)
-        random.seed(self.manual_seed)
-        torch.manual_seed(self.manual_seed)
 
         # Decide which device we want to run on
         self.device = torch.device(

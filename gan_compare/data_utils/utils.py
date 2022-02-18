@@ -18,6 +18,7 @@ from gan_compare.paths import INBREAST_IMAGE_PATH
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 
 import logging
+import torch
 
 
 def load_inbreast_mask(
@@ -438,6 +439,11 @@ def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
             os.makedirs(out_path.parent)
         with open(str(out_path.resolve()), "w") as out_file:
             json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
+
+def init_seed(seed):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
             
 # TODO REFACTOR
 # deprecated
