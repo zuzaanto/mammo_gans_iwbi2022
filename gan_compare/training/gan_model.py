@@ -23,7 +23,8 @@ except:
 from typing import Union, Optional
 from gan_compare.training.visualization import VisualizationUtils
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.networks.dcgan.utils import weights_init
+from gan_compare.training.networks.generation.utils import weights_init, compute_ls_loss, compute_gradient_penalty, \
+    compute_wgangp_loss
 from gan_compare.training.io import save_yaml
 from gan_compare.dataset.constants import DENSITY_DICT
 from gan_compare.constants import get_classifier
@@ -90,7 +91,7 @@ class GANModel:
             logging.info(f"self.config.kernel_size: {self.config.kernel_size}")
             logging.info(f"self.config.image_size: {self.config.image_size}")
 
-            from gan_compare.training.networks.dcgan.discriminator import (
+            from gan_compare.training.networks.generation.dcgan.discriminator import (
                 Discriminator
             )
             self.netD = Discriminator(
@@ -106,7 +107,7 @@ class GANModel:
                 leakiness=self.config.leakiness,
             ).to(self.device)
 
-            from gan_compare.training.networks.dcgan.generator import (
+            from gan_compare.training.networks.generation.dcgan.generator import (
                 Generator
             )
             self.netG = Generator(
@@ -131,8 +132,8 @@ class GANModel:
                 self.config.conditional
             ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
 
-            from gan_compare.training.networks.lsgan.discriminator import Discriminator
-            from gan_compare.training.networks.lsgan.generator import Generator
+            from gan_compare.training.networks.generation.lsgan.discriminator import Discriminator
+            from gan_compare.training.networks.generation.lsgan.generator import Generator
 
             self.netG = Generator(
                 nz=self.config.nz,
@@ -286,7 +287,8 @@ class GANModel:
 
         return output, errD, D_input
 
-    def _compute_loss(self, output, label, epoch: int, are_outputs_logits: bool = False):
+    def _compute_loss(self, output, label, epoch: int, are_outputs_logits: bool = False, netD = None, real_images=None,
+                      fake_images=None, b_size: int = None):
         """ Setting the loss function. Computing and returning the loss. """
 
         # Avoiding to reset self.criterion on each loss calculation
@@ -295,10 +297,10 @@ class GANModel:
         if not hasattr(self, 'criterion') or self.criterion is None or is_output_type_changed:
             # Initialize standard criterion. Note: Could be moved to config.
             if are_outputs_logits:
-                print("BCEWithLogitsLoss")
+                logging.debug(f"epoch {epoch}: Now using BCEWithLogitsLoss")
                 self.criterion = nn.BCEWithLogitsLoss()
             else:
-                print("BCELoss")
+                logging.debug(f"epoch {epoch}: Now using BCELoss")
                 self.criterion = nn.BCELoss()
         if self.config.switch_loss_each_epoch:
             # Note this design decision: switch_loss_each_epoch:bool=True overwrites use_lsgan_loss:bool=False
@@ -315,15 +317,41 @@ class GANModel:
                 else:
                     raise Exception("Please revise ls loss before using it with logits as input.")
         else:
-            if self.model_name != "lsgan" and not self.config.use_lsgan_loss:
+            if self.model_name == "lsgan" or self.config.use_lsgan_loss:
+                # Least Square Loss - https://arxiv.org/abs/1611.04076
+                if not are_outputs_logits:
+                    return compute_ls_loss(output=output, label=label)
+                else:
+                    raise Exception(
+                        "ls-loss does not yet work with logits as input. Please extend before using this function")
+            elif self.model_name == "wgangp":
+                if not are_outputs_logits:
+                    assert (netD is not None and fake_images is not None and real_images is not None,
+                            f"Please make sure that none of the variables 'netD', 'fake_images', and 'real_images' is "
+                            f"None. Currently they are {netD}, {fake_images}, {real_images}.")
+                    gradient_penalty = compute_gradient_penalty(netD=netD,
+                                                                real_images=real_images,
+                                                                fake_images=fake_images,
+                                                                wgangp_lambda=self.config.wgangp_lambda,
+                                                                b_size=b_size,
+                                                                device=self.device,
+                                                                )
+                    d_fake_images = netD(fake_images)
+                    d_real_images = netD(real_images)
+                    return compute_wgangp_loss(d_fake_images=d_fake_images,
+                                               d_real_images=d_real_images,
+                                               gradient_penalty=gradient_penalty,
+                                               )
+                else:
+                    raise Exception(
+                        "wgangp-loss does not yet work with logits as input. Please extend before using this function")
+            elif self.model_name == "dcgan":
                 # Standard criterion defined above - e.g. Vanilla GAN's binary cross entropy (BCE) loss
                 return self.criterion(output, label)
             else:
-                # Least Square Loss - https://arxiv.org/abs/1611.04076
-                if not are_outputs_logits:
-                    return 0.5 * torch.mean((output - label) ** 2)
-                else:
-                    raise Exception("Please revise ls-loss before using it with logits as input.")
+                raise Exception(
+                    f"the model_name ('{self.model_name}') you provided via args is not valid. Currently only 'dcgan', "
+                    f"'lsgan', or 'wgangp' are supported. Please adjust.")
 
     def _get_labels(self, smoothing: bool = True):
         # if enabled, let's smooth the labels for "real" (--> real !=1)
@@ -479,12 +507,12 @@ class GANModel:
         self.optimizerD = optim.Adam(
             self.netD.parameters(),
             lr=self.config.lr_d1,
-            betas=(self.config.beta1, 0.999),
+            betas=(self.config.beta1, self.config.beta2),
             weight_decay=self.config.weight_decay,
         )
 
         self.optimizerG = optim.Adam(
-            self.netG.parameters(), lr=self.config.lr_g, betas=(self.config.beta1, 0.999)
+            self.netG.parameters(), lr=self.config.lr_g, betas=(self.config.beta1, self.config.beta2)
         )
 
         # initializing variables needed for visualization
@@ -513,7 +541,7 @@ class GANModel:
             self.optimizerD2 = optim.Adam(
                 self.netD2.parameters(),
                 lr=self.config.lr_d2,
-                betas=(self.config.beta1, 0.999),
+                betas=(self.config.beta1, self.config.beta2),
                 weight_decay=self.config.weight_decay,
             )
             running_loss_of_discriminator2 = 0.
@@ -617,8 +645,8 @@ class GANModel:
                     fake_images=fake_images,
                     fake_conditions=fake_conditions,
                     epoch=epoch,
-                    b_size= b_size,
-                    is_D2_using_new_fakes=True # TODO: Try this out and see if it works
+                    b_size=b_size,
+                    is_D2_using_new_fakes=True  # TODO: Try is_D2_using_new_fakes out and see if it works better
                 )
 
                 # Calculate D's accuracy on the real data with real_label being = 1.
@@ -716,11 +744,10 @@ class GANModel:
 
             visualization_utils.plot_losses(D_losses=D_losses, D2_losses=D2_losses, G_losses=G_losses,
                                             G2_losses=G2_losses)
-            if (epoch % 20 == 0 and epoch >= 5000):
+            if (epoch % 50 == 0 and epoch >= 500):
                 # TODO: Handle storage of model on each x epochs via config variable
-                # Save on each 20th epoch starting at epoch 50.
-                # self._save_model(epoch)
-                pass
+                # Save on each 50th epoch starting at epoch 500.
+                self._save_model(epoch)
         self._save_model()
 
     def generate_during_training(self, b_size, noise=None):
@@ -742,7 +769,7 @@ class GANModel:
                  num_samples: int = 10, birads: int = None) -> list:
 
         self.optimizerG = optim.Adam(
-            self.netG.parameters(), lr=self.config.lr_g, betas=(self.config.beta1, 0.999)
+            self.netG.parameters(), lr=self.config.lr_g, betas=(self.config.beta1, self.config.beta2)
         )
         checkpoint = torch.load(model_checkpoint_path, self.device)
         self.netG.load_state_dict(checkpoint["generator"])

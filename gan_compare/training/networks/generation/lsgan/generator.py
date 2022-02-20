@@ -1,10 +1,8 @@
 """
 Implementation taken from https://github.com/meliketoy/LSGAN.pytorch
 """
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from gan_compare.training.networks.base_generator import BaseGenerator
+from gan_compare.training.networks.generation.base_generator import BaseGenerator
 
 
 class Generator(BaseGenerator):

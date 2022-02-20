@@ -1,10 +1,8 @@
-import logging
-
 import torch
 import torch.nn as nn
 import torch.nn.parallel
 
-from gan_compare.training.networks.base_discriminator import BaseDiscriminator
+from gan_compare.training.networks.generation.base_discriminator import BaseDiscriminator
 
 
 class Discriminator(BaseDiscriminator):
@@ -91,7 +89,7 @@ class Discriminator(BaseDiscriminator):
                 # state size. (ndf) x 32 x 32
             )
         else:
-            raise ValueError(f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust.")
+            raise ValueError(f"Allowed image sizes are 224, 128 and 64. You provided {self.image_size}. Please adjust.")
 
         self.main = nn.Sequential(
             *self.first_layers.children(),

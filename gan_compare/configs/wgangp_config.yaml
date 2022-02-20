@@ -3,6 +3,8 @@ pretrain_classifier: False
 are_Ds_alternating_to_update_G: False
 start_training_D2_after_epoch: 0
 start_backprop_D2_into_G_after_epoch: 0
+beta1: 0.5
+beta2: 0.9 # This is different to DCGAN's 0.999
 ndf: 64
 ngf: 64
 batch_size: 16
@@ -33,4 +35,3 @@ workers: 2
 ngpu: 1
 dataset_names:
   - bcdr
-

@@ -33,8 +33,8 @@ class GANConfig(BaseConfig):
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.8 #0.8  # 0.95
-    label_smoothing_end: float = 1.1 #1.1  # 1.0
+    label_smoothing_start: float = 0.7 #0.8  # 0.95
+    label_smoothing_end: float = 1.2 #1.1  # 1.0
 
     # Leakiness for LReLUs
     leakiness: float = 0.2
@@ -60,6 +60,7 @@ class GANConfig(BaseConfig):
 
     # Beta1 hyperparam for Adam optimizers
     beta1: float = 0.5
+    beta2: float = 0.999
 
     # The number of iterations between: i) prints and ii) storage of results in tensorboard
     num_iterations_between_prints: int = 2000
@@ -122,7 +123,10 @@ class GANConfig(BaseConfig):
     translation_spread: float = 0.  # 0.25 # the higher, the more variance in translation. must be greater 0.
     max_translation_offset: float = 0.  # 0.33 # coefficient relative to the image size.
 
-    ########## End: Variables related to condition ###########
+
+    ########## Variables related to WGAN GP ###########
+    wgangp_lambda = 10
+    wgangp_n_critic_iters = 5
 
     def __post_init__(self):
         if self.conditional:

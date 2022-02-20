@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import logging
 
-from gan_compare.training.networks.base_generator import BaseGenerator
+from gan_compare.training.networks.generation.base_generator import BaseGenerator
 
 
 class Generator(BaseGenerator):
@@ -85,7 +84,7 @@ class Generator(BaseGenerator):
                 nn.ReLU(True),
             )
         else:
-            raise ValueError(f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust.")
+            raise ValueError(f"Allowed image sizes are 224, 128 and 64. You provided {self.image_size}. Please adjust.")
 
         self.main = nn.Sequential(
             *self.first_layers.children(),
