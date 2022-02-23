@@ -1,7 +1,8 @@
+import logging
+
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import logging
 
 from gan_compare.training.networks.base_generator import BaseGenerator
 
@@ -15,11 +16,11 @@ class Generator(BaseGenerator):
         ngpu: int,
         image_size: int,
         conditional: bool,
-        leakiness: float = 0.2,
+        leakiness: float,
         bias: bool = False,
         n_cond: int = 10,
         is_condition_categorical: bool = False,
-        num_embedding_dimensions: int = 50
+        num_embedding_dimensions: int = 50,
     ):
         super(Generator, self).__init__(
             nz=nz,
@@ -42,30 +43,79 @@ class Generator(BaseGenerator):
 
         # whether the is a conditional input into the GAN i.e. cGAN
         self.conditional: bool = conditional
+        if conditional:
+            # ingesting condition as additional channel into G (and D).
+            self.cond_channel = 1
+        else:
+            self.cond_channel = 0
 
         # The image size (supported params should be 128 or 64)
         self.image_size = image_size
 
-        if self.image_size == 128:
+        if self.image_size == 224:
             self.first_layers = nn.Sequential(
                 # input is Z, going into a convolution
-                nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 16, 4, 1, 0, bias=self.bias),
+                nn.ConvTranspose2d(
+                    self.nz * (1 + self.cond_channel),
+                    self.ngf * 32,
+                    4,
+                    1,
+                    0,
+                    bias=self.bias,
+                ),
+                nn.BatchNorm2d(self.ngf * 32),
+                nn.ReLU(True),
+                # state size. (ngf*32) x 4 x 4
+                nn.ConvTranspose2d(
+                    self.ngf * 32, self.ngf * 16, 4, 1, 0, bias=self.bias
+                ),
+                nn.BatchNorm2d(self.ngf * 16),
+                nn.ReLU(True),
+                # state size. (ngf*16) x 7 x 7
+                nn.ConvTranspose2d(
+                    self.ngf * 16, self.ngf * 8, 4, 2, 1, bias=self.bias
+                ),
+                nn.BatchNorm2d(self.ngf * 8),
+                nn.ReLU(True),
+            )
+        elif self.image_size == 128:
+            self.first_layers = nn.Sequential(
+                # input is Z, going into a convolution
+                nn.ConvTranspose2d(
+                    self.nz * (1 + self.cond_channel),
+                    self.ngf * 16,
+                    4,
+                    1,
+                    0,
+                    bias=self.bias,
+                ),
                 nn.BatchNorm2d(self.ngf * 16),
                 nn.ReLU(True),
                 # state size. (ngf*16) x 4 x 4
-                nn.ConvTranspose2d(self.ngf * 16, self.ngf * 8, 4, 2, 1, bias=self.bias),
+                nn.ConvTranspose2d(
+                    self.ngf * 16, self.ngf * 8, 4, 2, 1, bias=self.bias
+                ),
                 nn.BatchNorm2d(self.ngf * 8),
                 nn.ReLU(True),
             )
         elif self.image_size == 64:
             self.first_layers = nn.Sequential(
                 # input is Z, going into a convolution
-                nn.ConvTranspose2d(self.nz * self.nc, self.ngf * 8, 4, 1, 0, bias=self.bias),
+                nn.ConvTranspose2d(
+                    self.nz * (1 + self.cond_channel),
+                    self.ngf * 8,
+                    4,
+                    1,
+                    0,
+                    bias=self.bias,
+                ),
                 nn.BatchNorm2d(self.ngf * 8),
                 nn.ReLU(True),
             )
         else:
-            raise ValueError(f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust.")
+            raise ValueError(
+                f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust."
+            )
 
         self.main = nn.Sequential(
             *self.first_layers.children(),
@@ -84,8 +134,14 @@ class Generator(BaseGenerator):
             # state size. (ngf) x 64 x 64
             # Note that out_channels=1 instead of out_channels=self.nc.
             # This is due to conditional input channel of our grayscale images
-            nn.ConvTranspose2d(in_channels=self.ngf, out_channels=1, kernel_size=4, stride=2, padding=1,
-                               bias=self.bias),
+            nn.ConvTranspose2d(
+                in_channels=self.ngf,
+                out_channels=self.nc - self.cond_channel,
+                kernel_size=4,
+                stride=2,
+                padding=1,
+                bias=self.bias,
+            ),
             nn.Tanh()
             # state size. (nc) x 128 x 128
         )
@@ -100,8 +156,9 @@ class Generator(BaseGenerator):
                 ),
                 # target output dim of dense layer is batch_size x self.nz x 1 x 1
                 # input is dimension of the embedding layer output
-                nn.Linear(in_features=self.num_embedding_dimensions, out_features=self.nz),
-                # nn.BatchNorm1d(self.nz),
+                nn.Linear(
+                    in_features=self.num_embedding_dimensions, out_features=self.nz
+                ),
                 nn.LeakyReLU(self.leakiness, inplace=True),
             )
         else:
@@ -110,7 +167,8 @@ class Generator(BaseGenerator):
                 # input is dimension of the numbers of embedding
                 nn.Linear(in_features=1, out_features=self.nz),
                 # TODO Ablation: How does BatchNorm1d affect the conditional model performance?
-                nn.BatchNorm1d(self.nz),
+                # Outcommenting batchnorm here to avoid value errors (Expected more than 1 value per channel..) when batch_size is one.
+                # nn.BatchNorm1d(self.nz),
                 nn.LeakyReLU(self.leakiness, inplace=True),
             )
 
@@ -123,12 +181,13 @@ class Generator(BaseGenerator):
                 # labels should already be of type float, no change expected in .float() conversion (it is only a safety check)
 
                 # Just for testing:
-                conditions *= 0
-                conditions += 1
+                # conditions *= 0
+                # conditions += 1
 
                 conditions = conditions.view(conditions.size(0), -1).float()
-            logging.debug(f'Conditions in generator: {conditions}')
             embedded_conditions = self.embed_nn(conditions)
-            embedded_conditions_with_random_noise_dim = embedded_conditions.view(-1, self.nz, 1, 1)
+            embedded_conditions_with_random_noise_dim = embedded_conditions.view(
+                -1, self.nz, 1, 1
+            )
             x = torch.cat([x, embedded_conditions_with_random_noise_dim], 1)
         return self.main(x)

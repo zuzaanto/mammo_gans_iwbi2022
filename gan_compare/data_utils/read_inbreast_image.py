@@ -1,12 +1,14 @@
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
-from gan_compare.data_utils.utils import load_inbreast_mask
-import pydicom as dicom
-import pandas as pd
-import matplotlib.pyplot as plt
-import os
 import glob
+import os
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import pydicom as dicom
+
+from gan_compare.data_utils.utils import load_inbreast_mask
+from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
 
 if __name__ == "__main__":
     for image_path in glob.glob(INBREAST_IMAGE_PATH + "*.dcm"):

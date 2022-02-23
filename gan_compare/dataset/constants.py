@@ -18,7 +18,6 @@ DENSITY_DICT = {
     "2": 0.33,
     "3": 0.67,
     "4": 1.0,
-    "N": 0.5,  # TODO: Remove N here once fix from Zuzanna is available.
 }
 
 BCDR_SUBDIRECTORIES = {
@@ -44,5 +43,5 @@ CBIS_DDSM_CSV_DICT = {
     "train_mass": "mass_case_description_train_set.csv",
     "train_calc": "calc_case_description_train_set.csv",
     "test_mass": "mass_case_description_test_set.csv",
-    "test_calc": "calc_case_description_test_set.csv"
+    "test_calc": "calc_case_description_test_set.csv",
 }

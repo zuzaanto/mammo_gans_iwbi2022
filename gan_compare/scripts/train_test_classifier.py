@@ -1,28 +1,28 @@
 import argparse
-import numpy as np
+import json
+import logging
 import os
-from pathlib import Path
-from torch.utils.data import DataLoader
-
-from gan_compare.constants import DATASET_DICT, get_classifier
-
 from dataclasses import asdict
-from gan_compare.training.io import load_yaml
-from dacite import from_dict
-from gan_compare.training.classifier_config import ClassifierConfig
-from torch.utils.data.dataset import ConcatDataset
-from torch.utils.data import WeightedRandomSampler
-from gan_compare.dataset.synthetic_dataset import SyntheticDataset
-from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve, calc_AUROC, calc_AUPRC
+from pathlib import Path
+
+import cv2
+import numpy as np
+import torch
+import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
-import torch.nn as nn
-import torch
-import cv2
+from dacite import from_dict
+from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
-import logging
-from datetime import datetime
-from gan_compare.data_utils.utils import init_seed
+
+from gan_compare.constants import DATASET_DICT, get_classifier
+from gan_compare.data_utils.utils import init_seed, setup_logger
+from gan_compare.dataset.synthetic_dataset import SyntheticDataset
+from gan_compare.scripts.metrics import (calc_all_scores, calc_AUPRC,
+                                         calc_AUROC, output_ROC_curve)
+from gan_compare.training.classifier_config import ClassifierConfig
+from gan_compare.training.io import load_yaml
 
 
 def parse_args():
@@ -45,7 +45,9 @@ def parse_args():
         help="Only required if --only_get_metrics is set. Path to checkpoint to be loaded.",
     )
     parser.add_argument(
-        "--save_dataset", action="store_true", help="Whether to save image patches to images_classifier dir",
+        "--save_dataset",
+        action="store_true",
+        help="Whether to save image patches to images_classifier dir",
     )
     parser.add_argument(
         "--seed",
@@ -59,19 +61,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    # Set up logger such that it writes to stdout and file
-    # From https://stackoverflow.com/a/46098711/3692004
-    Path('logs').mkdir(exist_ok=True)
-    logfilename = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(Path('logs') / logfilename),
-            logging.StreamHandler()
-        ]
-    )
-
+    logfilename = setup_logger()
 
     args = parse_args()
 
@@ -79,17 +69,20 @@ if __name__ == "__main__":
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(ClassifierConfig, config_dict)
 
-    config.out_checkpoint_path += logfilename + '.pt'
+    config.out_checkpoint_path += f"{logfilename}.pt"
 
     logging.info(str(asdict(config)))
     logging.info(str(args))
-    logging.info("Loading dataset...")  # When we have more datasets implemented, we can specify which one(s) to load in config.
+    logging.info(
+        "Loading dataset..."
+    )  # When we have more datasets implemented, we can specify which one(s) to load in config.
 
-    init_seed(args.seed)
-    
+    init_seed(args.seed)  # setting the seed from the args
 
-    if config.use_synthetic: 
-        assert config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.'
+    if config.use_synthetic:
+        assert (
+            config.synthetic_data_dir is not None
+        ), "If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir."
     if config.no_transforms:
         train_transform = transforms.Compose(
             [
@@ -103,7 +96,7 @@ if __name__ == "__main__":
                 transforms.RandomHorizontalFlip(),
                 transforms.Normalize((0.5), (0.5)),
             ]
-        )    
+        )
     val_transform = transforms.Compose(
         [
             transforms.Normalize((0.5), (0.5)),
@@ -115,10 +108,10 @@ if __name__ == "__main__":
     for dataset_name in config.dataset_names:
         train_dataset_list.append(
             DATASET_DICT[dataset_name](
-            metadata_path=config.train_metadata_path,
-            conditional_birads=True,
-            transform=train_transform,
-            config=config
+                metadata_path=config.train_metadata_path,
+                conditional_birads=True,
+                transform=train_transform,
+                config=config,
             )
         )
         val_dataset_list.append(
@@ -126,7 +119,7 @@ if __name__ == "__main__":
                 metadata_path=config.validation_metadata_path,
                 conditional_birads=True,
                 transform=val_transform,
-                config=config
+                config=config,
             )
         )
         test_dataset_list.append(
@@ -134,11 +127,10 @@ if __name__ == "__main__":
                 metadata_path=config.test_metadata_path,
                 conditional_birads=True,
                 transform=val_transform,
-                config=config
+                config=config,
             )
         )
     if config.use_synthetic:
-        
         # APPEND SYNTHETIC DATA
 
         synth_train_images = SyntheticDataset(
@@ -148,7 +140,9 @@ if __name__ == "__main__":
             config=config,
         )
         train_dataset_list.append(synth_train_images)
-        logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
+        logging.info(
+            f"Number of synthetic patches added to training set: {len(synth_train_images)}"
+        )
 
         # YOU MUST ADD THE HEALTHY PATCHES WHICH ARE MEANT TO BALANCE THE SYNTHETIC PATCHES TO THE TRAINING SET ABOVE
         # TODO REFACTOR
@@ -167,7 +161,6 @@ if __name__ == "__main__":
         #     )
         # train_dataset = ConcatDataset([train_dataset, ConcatDataset(train_dataset_list)])
         # logging.info('Added healthy patches for balancing.')
-        
 
         # synth_val_images = SyntheticDataset(
         #     metadata_path=config.synthetic_metadata_path,
@@ -184,17 +177,16 @@ if __name__ == "__main__":
     train_dataset = ConcatDataset(train_dataset_list)
     val_dataset = ConcatDataset(val_dataset_list)
     test_dataset = ConcatDataset(test_dataset_list)
-    
+
     num_train_healthy = 0
     num_train_non_healthy = 0
     for d in train_dataset_list:
         a, b = d.len_of_classes()
         num_train_non_healthy += a
         num_train_healthy += b
-    logging.info('Training set:')
-    logging.info(f'Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}')
-    logging.info(f'Share of healthy: {num_train_healthy/len(train_dataset)}')
-
+    logging.info("Training set:")
+    logging.info(f"Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}")
+    logging.info(f"Share of healthy: {num_train_healthy / len(train_dataset)}")
 
     # Compute the weights for the WeightedRandomSampler for the training set:
     # Example: labels of training set: [true, true, false] => weight_true = 3/2; weight_false = 3/1
@@ -212,24 +204,23 @@ if __name__ == "__main__":
         train_dataset,
         batch_size=config.batch_size,
         num_workers=config.workers,
-        sampler=train_sampler
+        sampler=train_sampler,
     )
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
         num_workers=config.workers,
-        shuffle=True
+        shuffle=True,
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
         num_workers=config.workers,
-        shuffle=True
+        shuffle=True,
     )
-    
+
     if not Path(config.out_checkpoint_path).parent.exists():
         os.makedirs(Path(config.out_checkpoint_path).parent.resolve(), exist_ok=True)
-
 
     device = torch.device(
         "cuda" if (torch.cuda.is_available() and config.ngpu > 0) else "cpu"
@@ -237,52 +228,56 @@ if __name__ == "__main__":
 
     logging.info(f"Device: {device}")
 
-    net = get_classifier(name=config.model_name, num_classes=config.n_cond, img_size=config.image_size).to(device)
+    net = get_classifier(config).to(device)
 
     criterion = nn.CrossEntropyLoss()
 
-    
     if args.save_dataset:
         # This code section is only for saving patches as image files and further info about the patch if needed.
         # The program stops execution after this section and performs no training.
-        
+
         logging.info(f"Saving data samples...")
 
-        net.load_state_dict(torch.load('model_checkpoints/classifier 50 no synth/classifier.pt'))
+        # TODO: state_dict name should probably be in config yaml instead of hardcoded.
+        net.load_state_dict(
+            torch.load("model_checkpoints/classifier 50 no synth/classifier.pt")
+        )
         net.eval()
         save_data_path = Path("save_dataset")
 
-        with open(save_data_path / "validation.txt", 'w') as f:
-            f.write('index, y_prob\n')
+        with open(save_data_path / "validation.txt", "w") as f:
+            f.write("index, y_prob\n")
         cnt = 0
         metapoints = []
-        for data in tqdm(test_dataset): # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
+        for data in tqdm(
+            test_dataset
+        ):  # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
             sample, label, image, r, d = data
             outputs = net(sample[np.newaxis, ...])
-            
+
             # for y_prob_logit, label, image, r, d in zip(outputs.data, labels, images, rs, ds):
             y_prob_logit = outputs.data
             y_prob = torch.exp(y_prob_logit)
             metapoint = {
-                'label': label,
-                'roi_type': r,
-                'dataset': d,
-                'cnt': cnt,
-                'y_prob': y_prob.numpy().tolist()
+                "label": label,
+                "roi_type": r,
+                "dataset": d,
+                "cnt": cnt,
+                "y_prob": y_prob.numpy().tolist(),
             }
             metapoints.append(metapoint)
 
-                # with open(save_data_path / "validation.txt", "a") as f:
-                #     f.write(f'{cnt}, {y_prob}\n')
+            # with open(save_data_path / "validation.txt", "a") as f:
+            #     f.write(f'{cnt}, {y_prob}\n')
 
             label = "healthy" if int(label) == 1 else "with_lesions"
             out_image_dir = save_data_path / "validation" / str(label)
             out_image_dir.mkdir(parents=True, exist_ok=True)
-            out_image_path = out_image_dir / f"{cnt}.png" 
+            out_image_path = out_image_dir / f"{cnt}.png"
             cv2.imwrite(str(out_image_path), np.array(image))
 
             cnt += 1
-        with open(save_data_path / 'validation.json', 'w') as f:
+        with open(save_data_path / "validation.json", "w") as f:
             f.write(json.dumps(metapoints))
 
         logging.info(f"Saved data samples to {save_data_path.resolve()}")
@@ -291,25 +286,31 @@ if __name__ == "__main__":
     if not args.only_get_metrics:
 
         # PREPARE TRAINING
-
+        # TODO: Optimizer params (lr, momentum) should be moved to classifier_config.
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
         best_loss = 10000
         best_f1 = 0
         best_epoch = 0
         best_prc_auc = 0
-        for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
+
+        # START TRAINING LOOP
+        for epoch in tqdm(
+            range(config.num_epochs)
+        ):  # loop over the dataset multiple times
             running_loss = 0.0
             logging.info("Training...")
             for i, data in enumerate(tqdm(train_dataloader)):
                 # get the inputs; data is a list of [inputs, labels]
                 samples, labels, _, _ = data
 
-                if len(samples) <= 1: continue # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
+                if len(samples) <= 1:
+                    continue  # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 # forward + backward + optimize
                 outputs = net(samples.to(device))
+                logging.debug(f"outputs: {outputs}")
                 loss = criterion(outputs, labels.to(device))
                 loss.backward()
                 optimizer.step()
@@ -317,9 +318,11 @@ if __name__ == "__main__":
                 # print statistics
                 running_loss += loss.item()
                 if i % 2000 == 1999:  # print every 2000 mini-batches
-                    logging.info("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
+                    logging.info(
+                        "[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000)
+                    )
                     running_loss = 0.0
-                    
+
             # VALIDATE
 
             val_loss = []
@@ -336,7 +339,13 @@ if __name__ == "__main__":
                     y_true.append(labels)
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
-                _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch)
+                _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(
+                    torch.cat(y_true),
+                    torch.cat(y_prob_logit),
+                    val_loss,
+                    "Valid",
+                    epoch,
+                )
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
                 # if val_f1 > best_f1:
@@ -348,17 +357,22 @@ if __name__ == "__main__":
                     best_prc_auc = prc_auc
                     best_epoch = epoch
                     torch.save(net.state_dict(), config.out_checkpoint_path)
-                    logging.info(f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}")
-
+                    logging.info(
+                        f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}"
+                    )
 
         logging.info("Finished Training")
         logging.info(f"Saved best model state dict to {config.out_checkpoint_path}")
-        logging.info(f"Best model was achieved after {best_epoch} epochs, with val loss = {best_loss}")
+        logging.info(
+            f"Best model was achieved after {best_epoch} epochs, with val loss = {best_loss}"
+        )
 
     # TESTING
-        
+
     logging.info("Beginning test...")
-    model_path = args.in_checkpoint_path if args.only_get_metrics else config.out_checkpoint_path
+    model_path = (
+        args.in_checkpoint_path if args.only_get_metrics else config.out_checkpoint_path
+    )
     logging.info(f"Loading model from {model_path}")
     net.load_state_dict(torch.load(model_path))
     with torch.no_grad():
@@ -382,14 +396,36 @@ if __name__ == "__main__":
         y_prob_logit = torch.cat(y_prob_logit)
         calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
 
-        mass_indices = [i for i, item in enumerate(roi_types) if item == 'Mass' or item == 'healthy']
-        calc_AUROC(y_true[mass_indices], torch.exp(y_prob_logit)[mass_indices], "Test only Masses")
-        calc_AUPRC(y_true[mass_indices], torch.exp(y_prob_logit)[mass_indices], "Test only Masses")
+        mass_indices = [
+            i for i, item in enumerate(roi_types) if item == "Mass" or item == "healthy"
+        ]
+        calc_AUROC(
+            y_true[mass_indices],
+            torch.exp(y_prob_logit)[mass_indices],
+            "Test only Masses",
+        )
+        calc_AUPRC(
+            y_true[mass_indices],
+            torch.exp(y_prob_logit)[mass_indices],
+            "Test only Masses",
+        )
 
-        calcification_indices = [i for i, item in enumerate(roi_types) if item == 'Calcification' or item == 'healthy']
-        calc_AUROC(y_true[calcification_indices], torch.exp(y_prob_logit)[calcification_indices], "Test only Calcifications")
-        calc_AUPRC(y_true[calcification_indices], torch.exp(y_prob_logit)[calcification_indices], "Test only Calcifications")
+        calcification_indices = [
+            i
+            for i, item in enumerate(roi_types)
+            if item == "Calcification" or item == "healthy"
+        ]
+        calc_AUROC(
+            y_true[calcification_indices],
+            torch.exp(y_prob_logit)[calcification_indices],
+            "Test only Calcifications",
+        )
+        calc_AUPRC(
+            y_true[calcification_indices],
+            torch.exp(y_prob_logit)[calcification_indices],
+            "Test only Calcifications",
+        )
 
-        if config.classify_binary_healthy: output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
+        if config.classify_binary_healthy:
+            output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
     logging.info("Finished testing.")
-    

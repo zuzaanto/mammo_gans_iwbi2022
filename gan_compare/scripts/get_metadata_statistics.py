@@ -1,9 +1,10 @@
-import numpy as np
-import json
 import argparse
-from tqdm import tqdm
+import json
+
+import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -11,10 +12,17 @@ def parse_args() -> argparse.Namespace:
         "--metadata_path", required=True, help="Path to json file with metadata."
     )
     parser.add_argument(
-        "--attributes", 
-        type=str, 
-        default=["density", "birads", "laterality", "view", "biopsy_proven_status", "roi_type"], 
-        nargs="+", 
+        "--attributes",
+        type=str,
+        default=[
+            "density",
+            "birads",
+            "laterality",
+            "view",
+            "biopsy_proven_status",
+            "roi_type",
+        ],
+        nargs="+",
         help="Metadata attributes to compute histograms of.",
     )
     args = parser.parse_args()
@@ -30,7 +38,7 @@ if __name__ == "__main__":
     dataset_stats = {}
 
     for metapoint in tqdm(metadata):
-        dataset = metapoint['dataset']
+        dataset = metapoint["dataset"]
         if not dataset in dataset_stats.keys():
             dataset_stats[dataset] = {}
             for name in attributes:
@@ -44,9 +52,14 @@ if __name__ == "__main__":
                         dataset_stats[dataset][key].append(subvalue)
                 else:
                     dataset_stats[dataset][key].append(value)
-    
+
     for dataset, feature_samples in dataset_stats.items():
-        print(dataset.upper()+ ": "+ str(len(feature_samples[attributes[0]])) + " metapoints")
+        print(
+            dataset.upper()
+            + ": "
+            + str(len(feature_samples[attributes[0]]))
+            + " metapoints"
+        )
 
         fig = plt.figure(constrained_layout=True)
         fig.set_dpi(300)
@@ -60,10 +73,10 @@ if __name__ == "__main__":
         for (key, value), ax in zip(feature_samples.items(), ax_dict.values()):
             ax.set_title(key, fontsize=7)
             labels, counts = np.unique(value, return_counts=True)
-            ax.bar(labels, counts, align='center')
+            ax.bar(labels, counts, align="center")
             ax.set_xticks(labels)
-            ax.tick_params(axis='both', which='major', labelsize=7)
+            ax.tick_params(axis="both", which="major", labelsize=7)
             if key == "biopsy_proven_status":
-                ax.tick_params(axis='x', which='major', labelsize=4)
+                ax.tick_params(axis="x", which="major", labelsize=4)
 
         plt.show()

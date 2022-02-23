@@ -4,6 +4,7 @@ Implementation taken from https://github.com/meliketoy/LSGAN.pytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from gan_compare.training.networks.base_generator import BaseGenerator
 
 
@@ -14,7 +15,7 @@ class Generator(BaseGenerator):
         ngf: int,
         nc: int,
         ngpu: int,
-        leakiness: float = 0.2,
+        leakiness: float,
         bias: bool = False,
     ):
         super(Generator, self).__init__(

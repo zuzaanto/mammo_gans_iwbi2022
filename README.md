@@ -13,6 +13,7 @@ pip install -r requirements.txt
 ```
 Or, if you use pipenv, you can create an environment and install requirements from Pipfile using:
 ```
+pipenv shell
 pipenv install
 ```
 
@@ -92,7 +93,7 @@ python -m gan_compare.scripts.split_metadata \
 ```
 After that, you can train and evaluate the classifier as follows:
 ```
-python -m gan_compare.scripts.classify_birads \
+python -m gan_compare.scripts.train_test_classifier \
   --config_path CONFIG_PATH # Path to a yaml model config file
   --only_get_metrics # Whether to skip training and only output the metrics on the test set. If true, requires in_checkpoint_path
   --in_checkpoint_path IN_CHECKPOINT_PATH # Path to a model checkpoint file, which will be used for outputting the metrics on the test set
