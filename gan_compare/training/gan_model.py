@@ -664,7 +664,6 @@ class GANModel:
                     )
                     logging.debug(f"fake_conditions: {fake_conditions}")
                     logging.debug(f"b_size: {b_size}")
-                    logging.debug(f"noise.shape: {noise.shape}")
                     logging.debug(f"fake_conditions.shape: {fake_conditions.shape}")
                 else:
                     # Generate fake image batch with G (without condition)
