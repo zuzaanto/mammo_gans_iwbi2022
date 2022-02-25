@@ -1,4 +1,8 @@
 # Gans for mammography lesions generation
+
+![Build](https://github.com/zuzaanto/mammo_gans/actions/workflows/python-app.yml/badge.svg)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 This topic may change with time..
 
 ## Installation
