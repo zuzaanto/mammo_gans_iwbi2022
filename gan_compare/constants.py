@@ -6,12 +6,11 @@ import torch.nn as nn
 from gan_compare.dataset.bcdr_dataset import BCDRDataset
 from gan_compare.dataset.inbreast_dataset import InbreastDataset
 from gan_compare.training.base_config import BaseConfig
-from gan_compare.training.networks.classification.classifier_64 import \
-    Net as Net64
-from gan_compare.training.networks.classification.classifier_128 import \
-    Net as Net128
-from gan_compare.training.networks.classification.swin_transformer import \
-    SwinTransformer
+from gan_compare.training.networks.classification.classifier_64 import Net as Net64
+from gan_compare.training.networks.classification.classifier_128 import Net as Net128
+from gan_compare.training.networks.classification.swin_transformer import (
+    SwinTransformer,
+)
 
 DATASET_DICT = {
     "bcdr": BCDRDataset,

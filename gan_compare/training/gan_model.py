@@ -90,8 +90,7 @@ class GANModel:
             logging.info(f"self.config.kernel_size: {self.config.kernel_size}")
             logging.info(f"self.config.image_size: {self.config.image_size}")
 
-            from gan_compare.training.networks.dcgan.discriminator import \
-                Discriminator
+            from gan_compare.training.networks.dcgan.discriminator import Discriminator
 
             self.netD = Discriminator(
                 ndf=self.config.ndf,
@@ -130,8 +129,7 @@ class GANModel:
                 self.config.conditional
             ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
 
-            from gan_compare.training.networks.lsgan.discriminator import \
-                Discriminator
+            from gan_compare.training.networks.lsgan.discriminator import Discriminator
             from gan_compare.training.networks.lsgan.generator import Generator
 
             self.netG = Generator(

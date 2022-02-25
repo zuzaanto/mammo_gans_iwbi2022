@@ -7,8 +7,7 @@ from typing import Tuple
 import numpy as np
 from torch.utils.data import Dataset
 
-from gan_compare.dataset.constants import (BCDR_BIRADS_DICT, BIRADS_DICT,
-                                           DENSITY_DICT)
+from gan_compare.dataset.constants import BCDR_BIRADS_DICT, BIRADS_DICT, DENSITY_DICT
 
 # TODO add option for shuffling in data from synthetic metadata file
 

@@ -13,11 +13,14 @@ import pydicom as dicom
 from dacite import from_dict
 from tqdm import tqdm
 
-from gan_compare.data_utils.utils import (get_file_list, interval_mapping,
-                                          load_inbreast_mask, read_csv)
+from gan_compare.data_utils.utils import (
+    get_file_list,
+    interval_mapping,
+    load_inbreast_mask,
+    read_csv,
+)
 from gan_compare.dataset.constants import BIRADS_DICT
-from gan_compare.paths import (INBREAST_CSV_PATH, INBREAST_IMAGE_PATH,
-                               INBREAST_XML_PATH)
+from gan_compare.paths import INBREAST_CSV_PATH, INBREAST_IMAGE_PATH, INBREAST_XML_PATH
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml

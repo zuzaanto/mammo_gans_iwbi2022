@@ -9,8 +9,7 @@ import numpy as np
 import pydicom as dicom
 
 from gan_compare.data_utils.utils import load_inbreast_mask
-from gan_compare.dataset.constants import (BCDR_BIRADS_DICT, BIRADS_DICT,
-                                           DENSITY_DICT)
+from gan_compare.dataset.constants import BCDR_BIRADS_DICT, BIRADS_DICT, DENSITY_DICT
 
 
 def parse_args() -> argparse.Namespace:

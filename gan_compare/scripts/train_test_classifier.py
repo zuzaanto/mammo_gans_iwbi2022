@@ -19,8 +19,12 @@ from tqdm import tqdm
 from gan_compare.constants import DATASET_DICT, get_classifier
 from gan_compare.data_utils.utils import init_seed, setup_logger
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
-from gan_compare.scripts.metrics import (calc_all_scores, calc_AUPRC,
-                                         calc_AUROC, output_ROC_curve)
+from gan_compare.scripts.metrics import (
+    calc_all_scores,
+    calc_AUPRC,
+    calc_AUROC,
+    output_ROC_curve,
+)
 from gan_compare.training.classifier_config import ClassifierConfig
 from gan_compare.training.io import load_yaml
 
