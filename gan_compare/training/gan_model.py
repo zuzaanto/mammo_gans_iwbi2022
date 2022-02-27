@@ -80,10 +80,10 @@ class GANModel:
             out_path = self.output_model_dir / f"{epoch_number}.pt"
 
         d = {
-            "discriminator": self.netD.state_dict(),
+            #"discriminator": self.netD.state_dict(),
             "generator": self.netG.state_dict(),
-            "optim_discriminator": self.optimizerD.state_dict(),
-            "optim_generator": self.optimizerG.state_dict(),
+            #"optim_discriminator": self.optimizerD.state_dict(),
+            #"optim_generator": self.optimizerG.state_dict(),
         }
         if self.config.pretrain_classifier:
             d["discriminator2"] = self.netD2.state_dict()

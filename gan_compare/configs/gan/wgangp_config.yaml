@@ -31,7 +31,7 @@ added_noise_term: 0.5
 beta1: 0.5
 nz: 100
 weight_decay: 0
-num_epochs: 5000
+num_epochs: 20000
 workers: 2
 ngpu: 1
 dataset_names:
