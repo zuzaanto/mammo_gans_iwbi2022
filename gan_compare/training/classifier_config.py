@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
+from time import time
 from typing import List
+
 from gan_compare.constants import DATASET_DICT
 from gan_compare.training.base_config import BaseConfig
-from time import time
+
 
 @dataclass
 class ClassifierConfig(BaseConfig):
@@ -10,13 +12,13 @@ class ClassifierConfig(BaseConfig):
     train_metadata_path: str = None
     validation_metadata_path: str = None
     test_metadata_path: str = None
-    
+
     # Path to synthetic metadata used for data augmentation
     # synthetic_metadata_path: str # TODO REFACTOR
 
     # Different shuffle and sampling proportions
     train_shuffle_proportion: float = 0.5
-    validation_shuffle_proportion: float  = 0.5
+    validation_shuffle_proportion: float = 0.5
     training_sampling_proportion: float = 1.0
 
     # Directory with synthetic patches
@@ -40,11 +42,15 @@ class ClassifierConfig(BaseConfig):
     out_checkpoint_path = f"model_checkpoints/CLF_training_{time()}/"
 
     # Variables for utils.py -> get_measures_for_crop():
-    zoom_offset: float = 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-    zoom_spread: float = 0.33 # the higher, the more variance in zooming. must be greater 0.
-    ratio_spread: float = 0.05 # NOT IN USE ANYMORE. coefficient for how much to spread the ratio between height and width. the higher, the more spread.
-    translation_spread: float = 0.25 # the higher, the more variance in translation. must be greater 0.
-    max_translation_offset: float = 0.33 # coefficient relative to the image size.
+    zoom_offset: float = 0.2  # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+    zoom_spread: float = (
+        0.33  # the higher, the more variance in zooming. must be greater 0.
+    )
+    ratio_spread: float = 0.05  # NOT IN USE ANYMORE. coefficient for how much to spread the ratio between height and width. the higher, the more spread.
+    translation_spread: float = (
+        0.25  # the higher, the more variance in translation. must be greater 0.
+    )
+    max_translation_offset: float = 0.33  # coefficient relative to the image size.
 
     def __post_init__(self):
         if self.classify_binary_healthy:
@@ -53,11 +59,21 @@ class ClassifierConfig(BaseConfig):
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1
-        assert self.classes in ["is_healthy", "birads"],  "Classifier currently supports either healthy vs unhealthy, or birads classification" # TODO Add ACR classification
-        assert 1 >= self.train_shuffle_proportion >= 0, "Train shuffle proportion must be from <0,1> range"
-        assert 1 >= self.validation_shuffle_proportion >= 0, "Validation shuffle proportion must be from <0,1> range"
-        assert all(dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names)
+        assert self.classes in [
+            "is_healthy",
+            "birads",
+        ], "Classifier currently supports either healthy vs unhealthy, or birads classification"  # TODO Add ACR classification
+        assert (
+            1 >= self.train_shuffle_proportion >= 0
+        ), "Train shuffle proportion must be from <0,1> range"
+        assert (
+            1 >= self.validation_shuffle_proportion >= 0
+        ), "Validation shuffle proportion must be from <0,1> range"
+        assert all(
+            dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names
+        )
         if self.model_name == "swin_transformer":
-            self.image_size = 224  # swin transformer currently only supports 224x224 images
+            self.image_size = (
+                224  # swin transformer currently only supports 224x224 images
+            )
             self.nc = 3
-

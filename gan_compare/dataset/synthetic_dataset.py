@@ -1,3 +1,5 @@
+import os
+import random
 from operator import mod
 from os import stat
 from typing import Optional, Tuple
@@ -6,14 +8,11 @@ import cv2
 import numpy as np
 import pydicom as dicom
 import torch
-import random
 import torchvision
 
-from gan_compare.data_utils.utils import load_inbreast_mask, convert_to_uint8
+from gan_compare.data_utils.utils import convert_to_uint8, load_inbreast_mask
 from gan_compare.dataset.base_dataset import BaseDataset
 from gan_compare.dataset.constants import BIRADS_DICT
-
-import os
 
 
 class SyntheticDataset(BaseDataset):
@@ -29,8 +28,8 @@ class SyntheticDataset(BaseDataset):
         transform: any = None,
         shuffle_proportion: Optional[int] = None,
         current_length: Optional[int] = None,
-        config = None,
-        model_name: str = "cnn"
+        config=None,
+        model_name: str = "cnn",
     ):
         super().__init__(
             metadata_path=metadata_path,
@@ -59,7 +58,10 @@ class SyntheticDataset(BaseDataset):
         #     print(current_length)
         #     print(missing_metadata_count)
         #     print(len(self.metadata))
-        self.metadata = [os.path.join(config.synthetic_data_dir, filename) for filename in os.listdir(config.synthetic_data_dir)]
+        self.metadata = [
+            os.path.join(config.synthetic_data_dir, filename)
+            for filename in os.listdir(config.synthetic_data_dir)
+        ]
 
     @staticmethod
     def _calculate_expected_length(current_length: int, shuffle_proportion: int) -> int:
@@ -77,7 +79,7 @@ class SyntheticDataset(BaseDataset):
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         if self.config.model_name == "swin_transformer":
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-            
+
         # mask = np.zeros(image.shape)
         # mask = mask.astype("uint8")
 
@@ -95,7 +97,8 @@ class SyntheticDataset(BaseDataset):
         else:
             sample = torchvision.transforms.functional.to_tensor(image)
 
-        if self.transform: sample = self.transform(sample)
+        if self.transform:
+            sample = self.transform(sample)
 
         # label = self.determine_label(metapoint)
         label = 0

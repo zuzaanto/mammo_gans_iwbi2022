@@ -2,6 +2,7 @@
 Implementation taken from https://github.com/meliketoy/LSGAN.pytorch
 """
 import torch.nn as nn
+
 from gan_compare.training.networks.generation.base_generator import BaseGenerator
 
 

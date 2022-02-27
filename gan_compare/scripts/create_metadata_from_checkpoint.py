@@ -1,46 +1,58 @@
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH
-from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list, read_csv
-from gan_compare.training.io import load_yaml
-from gan_compare.dataset.constants import BIRADS_DICT
-from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.gan_model import GANModel
-from gan_compare.data_utils.utils import interval_mapping
-
-from typing import Tuple
-from dacite import from_dict
-from pathlib import Path
-from dataclasses import asdict
-import os.path
+import argparse
 import glob
+import json
+import os.path
+from dataclasses import asdict
+from pathlib import Path
+from typing import Tuple
+
 import cv2
 import numpy as np
 import pandas as pd
-import json
-import argparse
-from tqdm import tqdm
 import pydicom as dicom
+from dacite import from_dict
+from tqdm import tqdm
+
+from gan_compare.data_utils.utils import (
+    get_file_list,
+    interval_mapping,
+    load_inbreast_mask,
+    read_csv,
+)
+from gan_compare.dataset.constants import BIRADS_DICT
+from gan_compare.paths import INBREAST_CSV_PATH, INBREAST_IMAGE_PATH, INBREAST_XML_PATH
+from gan_compare.training.gan_config import GANConfig
+from gan_compare.training.gan_model import GANModel
+from gan_compare.training.io import load_yaml
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--output_path", type=str, required=True, help="Path to json file to store metadata in."
+        "--output_path",
+        type=str,
+        required=True,
+        help="Path to json file to store metadata in.",
     )
     parser.add_argument(
         "--checkpoint_path", type=str, required=True, help="Path to model's checkpoint."
     )
     parser.add_argument(
-        "--generated_data_dir", type=str, required=True, help="Directory to save generated images in."
+        "--generated_data_dir",
+        type=str,
+        required=True,
+        help="Directory to save generated images in.",
     )
     parser.add_argument(
-        "--num_samples_per_class", type=int, default=64, help="Number of samples to generate per each class."
+        "--num_samples_per_class",
+        type=int,
+        default=64,
+        help="Number of samples to generate per each class.",
     )
     parser.add_argument(
         "--model_config_path", type=str, default=None, help="Path to model config file."
-    )    
-    parser.add_argument(
-        "--model_name", type=str, default="dcgan", help="Model name."
     )
+    parser.add_argument("--gan_type", type=str, default="dcgan", help="Model name.")
     args = parser.parse_args()
     if args.model_config_path is None:
         args.model_config_path = Path(args.checkpoint_path).parent / "config.yaml"
@@ -53,14 +65,11 @@ if __name__ == "__main__":
     config = from_dict(GANConfig, config_dict)
     print(asdict(config))
     print("Loading model...")
-    model = GANModel(
-        model_name=args.model_name,
-        config=config,
-        dataloader=None
-    )
-    assert config.conditional is True, \
-        "Currently creation of synthetic metadata makes sense only for conditional models. Please load a conditional model."
-        
+    model = GANModel(gan_type=args.model_name, config=config, dataloader=None)
+    assert (
+        config.conditional is True
+    ), "Currently creation of synthetic metadata makes sense only for conditional models. Please load a conditional model."
+
     if config.split_birads_fours:
         birads = BIRADS_DICT.values()
     else:
@@ -68,8 +77,8 @@ if __name__ == "__main__":
     metadata = []
     for birads_val in tqdm(birads):
         img_list = model.generate(
-            args.checkpoint_path, 
-            fixed_noise=None, 
+            args.checkpoint_path,
+            fixed_noise=None,
             fixed_condition=birads_val,
             num_samples=args.num_samples_per_class,
         )
@@ -94,7 +103,7 @@ if __name__ == "__main__":
                 "dataset": "synthetic",
             }
             metadata.append(metapoint)
-            
+
     print(f"Saved generated images to {Path(args.generated_data_dir).resolve()}")
     outpath = Path(args.output_path)
     if not outpath.parent.exists():
@@ -102,4 +111,3 @@ if __name__ == "__main__":
     with open(args.output_path, "w") as outfile:
         json.dump(metadata, outfile, indent=4)
     print(f"Saved {len(metadata)} metapoints to {outpath.resolve()}")
-    

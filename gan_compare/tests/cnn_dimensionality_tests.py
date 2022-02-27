@@ -5,10 +5,9 @@ from torch import nn
 
 
 class UnitTests(unittest.TestCase):
-
     def test_torch_nn_Embedding(self):
         print("===================================================")
-        print('Start test_torch_nn_Embedding unit test..')
+        print("Start test_torch_nn_Embedding unit test..")
         # 4 = number of embeddings, 3 = number of dimensions (i.e. vectors per embedding)
         embedding = nn.Embedding(4, 3)
 
@@ -35,23 +34,28 @@ class UnitTests(unittest.TestCase):
             print(f"{embedding_result}")
 
         except IndexError:
-            error_message = 'This did not work (IndexError: index out of range in self) because torch nn.Embedding ' \
-                            'start to count the num_embeddings at index 0 --> [0,maximum+1] --> nn.Embedding(maximum+1,dim) '
+            error_message = (
+                "This did not work (IndexError: index out of range in self) because torch nn.Embedding "
+                "start to count the num_embeddings at index 0 --> [0,maximum+1] --> nn.Embedding(maximum+1,dim) "
+            )
             print(f"{error_message}")
 
     def test_torch_gpu_availability(self):
         print("===================================================")
-        print('Start test_torch_gpu_availability unit test..')
+        print("Start test_torch_gpu_availability unit test..")
         import torch.cuda as tcuda
+
         is_gpu_available: bool = tcuda.is_available()
         if is_gpu_available:
             num_gpus = torch.cuda.device_count()
             currently_used_gpu = torch.cuda.current_device()
-            names_of_gpus = ''
+            names_of_gpus = ""
             for idx in range(num_gpus):
-                names_of_gpus += torch.cuda.get_device_name(idx) + ' '
-            print(f'is_gpu_available (?): {is_gpu_available}, currently_used_gpu: {currently_used_gpu}, '
-                  f'names_of_gpus: {names_of_gpus}')
+                names_of_gpus += torch.cuda.get_device_name(idx) + " "
+            print(
+                f"is_gpu_available (?): {is_gpu_available}, currently_used_gpu: {currently_used_gpu}, "
+                f"names_of_gpus: {names_of_gpus}"
+            )
         self.assertTrue(is_gpu_available is not None)
 
     def test_output_shape_Con2d_layers_224(self):
@@ -64,57 +68,63 @@ class UnitTests(unittest.TestCase):
         print("discriminator:")
         print("Conv2d Layers")
         S = 2
-        P = 1 #2 #1
-        K = 4 #6  # 4
+        P = 1  # 2 #1
+        K = 4  # 6  # 4
         W = 224
         resulting_shape0 = ((W - K + 2 * P) / S) + 1
         print("resulting_shape0", str(resulting_shape0))
 
         S = 2
-        P = 3 #4  # 1
-        K = 4 #6  # 4
+        P = 3  # 4  # 1
+        K = 4  # 6  # 4
         W = resulting_shape0  # 128
         resulting_shape1 = ((W - K + 2 * P) / S) + 1
         print("resulting_shape1", str(resulting_shape1))
 
         S = 2
-        P = 4 #5  # 1
-        K = 4 #6  # 4
+        P = 4  # 5  # 1
+        K = 4  # 6  # 4
         W = resulting_shape1
         resulting_shape2 = ((W - K + 2 * P) / S) + 1
         print("resulting_shape2", str(resulting_shape2))
 
         S = 2
-        P = 1 #2  # 1
-        K = 4 #6  # 4
+        P = 1  # 2  # 1
+        K = 4  # 6  # 4
         W = resulting_shape2
         resulting_shape3 = ((W - K + 2 * P) / S) + 1
         print("resulting_shape3", str(resulting_shape3))
 
         S = 2
-        P = 1 #2  # 1
-        K = 4 #6  # 4
+        P = 1  # 2  # 1
+        K = 4  # 6  # 4
         W = resulting_shape3
         resulting_shape4 = ((W - K + 2 * P) / S) + 1
         print("resulting_shape4", str(resulting_shape4))
 
         S = 2
-        P = 1 #2  # 1
-        K = 4 #6  # 4
+        P = 1  # 2  # 1
+        K = 4  # 6  # 4
         W = resulting_shape4
         resulting_shape5 = ((W - K + 2 * P) / S) + 1
         print("resulting_shape5", str(resulting_shape5))
 
         S = 1
-        P = 1 #1  # 1
-        K = 4 #6  # 4
+        P = 1  # 1  # 1
+        K = 4  # 6  # 4
         W = resulting_shape5
         resulting_shape6 = ((W - K + 2 * P) / S) + 1
         print("resulting_shape6", str(resulting_shape6))
 
         # shape should be a natural number.
         self.assertTrue(
-            resulting_shape0 % 2 == 0 and resulting_shape1 % 2 == 0 and resulting_shape2 % 2 == 0 and resulting_shape3 % 2 == 0 and resulting_shape4 % 2 == 0 and resulting_shape5 % 2 == 0)
+            resulting_shape0 % 2 == 0
+            and resulting_shape1 % 2 == 0
+            and resulting_shape2 % 2 == 0
+            and resulting_shape3 % 2 == 0
+            and resulting_shape4 % 2 == 0
+            and resulting_shape5 % 2 == 0
+        )
 
     def test_output_shape_ConvTranspose2d_layers_224(self):
         print("===================================================")
@@ -250,7 +260,12 @@ class UnitTests(unittest.TestCase):
 
         # shape should be a natural number.
         self.assertTrue(
-            resulting_shape1 % 2 == 0 and resulting_shape2 % 2 == 0 and resulting_shape3 % 2 == 0 and resulting_shape4 % 2 == 0 and resulting_shape5 % 2 == 0)
+            resulting_shape1 % 2 == 0
+            and resulting_shape2 % 2 == 0
+            and resulting_shape3 % 2 == 0
+            and resulting_shape4 % 2 == 0
+            and resulting_shape5 % 2 == 0
+        )
 
     def test_output_shape_ConvTranspose2d_layers_128(self):
         print("===================================================")
@@ -324,10 +339,15 @@ class UnitTests(unittest.TestCase):
         print("resulting_shape6", str(resulting_shape6))
 
         # shape should be a natural number.
-        self.assertTrue(resulting_shape1.find(".") == -1 and resulting_shape2.find(".") == -1 and resulting_shape3.find(
-            ".") == -1 and resulting_shape4.find(".") == -1 and resulting_shape5.find(
-            ".") == -1 and resulting_shape6.find(".") == -1)
+        self.assertTrue(
+            resulting_shape1.find(".") == -1
+            and resulting_shape2.find(".") == -1
+            and resulting_shape3.find(".") == -1
+            and resulting_shape4.find(".") == -1
+            and resulting_shape5.find(".") == -1
+            and resulting_shape6.find(".") == -1
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

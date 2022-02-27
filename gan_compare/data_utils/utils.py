@@ -5,7 +5,7 @@ import logging
 import plistlib
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, Union, List
+from typing import List, Tuple, Union
 
 import cv2
 import numpy as np
@@ -20,9 +20,11 @@ from gan_compare.paths import INBREAST_IMAGE_PATH
 
 LOGFILENAME = None
 
+
 def load_inbreast_mask(
-        mask_file: io.BytesIO, imshape: Tuple[int, int] = (4084, 3328),
-        expected_roi_type: str = None
+    mask_file: io.BytesIO,
+    imshape: Tuple[int, int] = (4084, 3328),
+    expected_roi_type: str = None,
 ) -> np.ndarray:
     """
     This function loads a osirix xml region as a binary numpy array for INBREAST
@@ -50,10 +52,21 @@ def load_inbreast_mask(
 
         # Define the ROI types that we want marked as masses, map to lowercase
         roi_type_mass_definition_list = list(
-            map(lambda x: x.lower(), ['Mass', 'Spiculated Region', 'Espiculated Region', 'Spiculated region']))
+            map(
+                lambda x: x.lower(),
+                [
+                    "Mass",
+                    "Spiculated Region",
+                    "Espiculated Region",
+                    "Spiculated region",
+                ],
+            )
+        )
 
         # Define the ROI types that we want marked as calcifications, map to lowercase
-        roi_type_calc_definition_list = list(map(lambda x: x.lower(), ['Calcification', 'Calcifications', 'Cluster']))
+        roi_type_calc_definition_list = list(
+            map(lambda x: x.lower(), ["Calcification", "Calcifications", "Cluster"])
+        )
 
         points = roi["Point_px"]
         assert numPoints == len(points)
@@ -70,9 +83,7 @@ def load_inbreast_mask(
                     # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
         else:
             x, y = zip(*points)
-            col, row = np.array(x), np.array(
-                y
-            )
+            col, row = np.array(x), np.array(y)
             # x coord is the column coord in an image and y is the row
             poly_x, poly_y = polygon(row, col, shape=imshape)
             if roi_type.lower() in roi_type_mass_definition_list:
@@ -89,12 +100,18 @@ def load_inbreast_mask(
 
     # TODO I don't see the reason for creating dictionaries here, especially that they're not handled later. Ideas @Richard?
     # If a specific expected roi type was provided, only return those. Else, return all possible pre-defined roi types.
-    if expected_roi_type is None or expected_roi_type.lower() in roi_type_mass_definition_list:
-        mask_list.append({'mask': mask_masses, 'roi_type': 'Mass'})
-    if expected_roi_type is None or expected_roi_type.lower() in roi_type_calc_definition_list:
-        mask_list.append({'mask': mask_calcifications, 'roi_type': 'Calcification'})
-    if expected_roi_type is None or expected_roi_type == 'Other':
-        mask_list.append({'mask': mask_other, 'roi_type': 'Other'})
+    if (
+        expected_roi_type is None
+        or expected_roi_type.lower() in roi_type_mass_definition_list
+    ):
+        mask_list.append({"mask": mask_masses, "roi_type": "Mass"})
+    if (
+        expected_roi_type is None
+        or expected_roi_type.lower() in roi_type_calc_definition_list
+    ):
+        mask_list.append({"mask": mask_calcifications, "roi_type": "Calcification"})
+    if expected_roi_type is None or expected_roi_type == "Other":
+        mask_list.append({"mask": mask_other, "roi_type": "Other"})
 
     return mask_list
     # return mask
@@ -138,29 +155,28 @@ def is_malignant_estimation_basing_on_birads(birads: str) -> bool:
 
 
 def generate_inbreast_metapoints(
-        mask,
-        image_id,
-        patient_id,
-        csv_metadata,
-        image_path,
-        xml_filepath,
-        roi_type: str = "undefined",
-        start_index: int = 0,
-        only_masses: bool = False,
-        allowed_calcifications_birads_values=[]
+    mask,
+    image_id,
+    patient_id,
+    csv_metadata,
+    image_path,
+    xml_filepath,
+    roi_type: str = "undefined",
+    start_index: int = 0,
+    only_masses: bool = False,
+    allowed_calcifications_birads_values=[],
 ) -> Tuple[list, int]:
     # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
     mask = np.ascontiguousarray(mask, dtype=np.uint8)
-    contours, hierarchy = cv2.findContours(
-        mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     lesion_metapoints = []
     # For each contour, generate a metapoint object including the bounding box as rectangle
     for indx, c in enumerate(contours):
-        if (allowed_calcifications_birads_values is not None) and (csv_metadata[
-                                                                       "Bi-Rads"] not in allowed_calcifications_birads_values):  # don't add if it's not an allowed birads value
+        if (allowed_calcifications_birads_values is not None) and (
+            csv_metadata["Bi-Rads"] not in allowed_calcifications_birads_values
+        ):  # don't add if it's not an allowed birads value
             continue
-        elif only_masses and ('Mass' != str(roi_type)):  # don't add if it's not a mass
+        elif only_masses and ("Mass" != str(roi_type)):  # don't add if it's not a mass
             continue
         elif c.shape[0] < 2:
             continue
@@ -193,20 +209,20 @@ def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[in
     height, width = image.shape
     ys = int(rng.integers(0, height - size + 1))
     xs = int(rng.integers(0, width - size + 1))
-    image_crop = image[ys:ys + size, xs:xs + size]
+    image_crop = image[ys : ys + size, xs : xs + size]
     return image_crop, [ys, xs, size, size]
 
 
 def generate_healthy_inbreast_metapoints(
-        image_id,
-        patient_id,
-        csv_metadata,
-        image_path,
-        per_image_count: int,
-        size: int,
-        bg_pixels_max_ratio: float = 0.4,
-        start_index: int = 0,
-        rng=np.random.default_rng()
+    image_id,
+    patient_id,
+    csv_metadata,
+    image_path,
+    per_image_count: int,
+    size: int,
+    bg_pixels_max_ratio: float = 0.4,
+    start_index: int = 0,
+    rng=np.random.default_rng(),
 ) -> Tuple[list, int]:
     lesion_metapoints = []
     if int(csv_metadata["Bi-Rads"][:1]) == 1:
@@ -215,7 +231,9 @@ def generate_healthy_inbreast_metapoints(
             img_crop = np.zeros(shape=(size, size))
             thres = 10
             bin_img_crop = img_crop.copy()
-            while cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size:
+            while (
+                cv2.countNonZero(bin_img_crop) < (1 - bg_pixels_max_ratio) * size * size
+            ):
                 img_crop, bbox = _random_crop(img, size, rng)
                 _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
             if csv_metadata["ACR"].strip() == "":
@@ -242,8 +260,8 @@ def generate_healthy_inbreast_metapoints(
 
 
 def generate_bcdr_metapoints(
-        image_dir_path: Path,
-        row_df: pd.Series,
+    image_dir_path: Path,
+    row_df: pd.Series,
 ):
     laterality, view = get_bcdr_laterality_and_view(row_df)
     if row_df["image_filename"][0] == " ":
@@ -262,14 +280,21 @@ def generate_bcdr_metapoints(
         "birads": None,
         "laterality": laterality,
         "view": view,
-        "lesion_id": str(row_df["patient_id"]) + "_" + str(row_df["study_id"]) + "_" + str(row_df["lesion_id"]),
+        "lesion_id": str(row_df["patient_id"])
+        + "_"
+        + str(row_df["study_id"])
+        + "_"
+        + str(row_df["lesion_id"]),
         "bbox": get_bcdr_bbox(row_df["lw_x_points"], row_df["lw_y_points"]),
         "image_path": str((image_dir_path / row_df["image_filename"]).resolve()),
         "xml_path": None,
         "roi_type": get_bcdr_lesion_type(row_df),
         "biopsy_proven_status": row_df["classification"].strip(),
         "dataset": "bcdr",
-        "contour": [parse_str_to_list_of_ints(row_df["lw_x_points"]), parse_str_to_list_of_ints(row_df["lw_y_points"])],
+        "contour": [
+            parse_str_to_list_of_ints(row_df["lw_x_points"]),
+            parse_str_to_list_of_ints(row_df["lw_y_points"]),
+        ],
         # "contour": None,
         "healthy": False,
     }
@@ -277,13 +302,13 @@ def generate_bcdr_metapoints(
 
 
 def generate_healthy_bcdr_metapoints(
-        image_dir_path: Path,
-        row_df: pd.Series,
-        per_image_count: int,
-        size: int,
-        start_index: int,
-        bg_pixels_max_ratio: float = 0.4,
-        rng=np.random.default_rng()
+    image_dir_path: Path,
+    row_df: pd.Series,
+    per_image_count: int,
+    size: int,
+    start_index: int,
+    bg_pixels_max_ratio: float = 0.4,
+    rng=np.random.default_rng(),
 ):
     laterality, view = get_bcdr_laterality_and_view(row_df, healthy=True)
     if row_df["image_filename"][0] == " ":
@@ -327,7 +352,9 @@ def generate_healthy_bcdr_metapoints(
     return metapoints, start_index
 
 
-def get_bcdr_laterality_and_view(row_df: pd.Series, healthy: bool = False) -> Tuple[str]:
+def get_bcdr_laterality_and_view(
+    row_df: pd.Series, healthy: bool = False
+) -> Tuple[str]:
     if healthy:
         view_dict = BCDR_VIEW_DICT[row_df["image_type_id"] + 1]
     else:
@@ -337,18 +364,18 @@ def get_bcdr_laterality_and_view(row_df: pd.Series, healthy: bool = False) -> Tu
 
 def get_bcdr_lesion_type(case: pd.Series) -> List[str]:
     pathologies = []
-    if int(case['mammography_nodule']):
-        pathologies.append('nodule')
-    if int(case['mammography_calcification']):
-        pathologies.append('calcification')
-    if int(case['mammography_microcalcification']):
-        pathologies.append('microcalcification')
-    if int(case['mammography_axillary_adenopathy']):
-        pathologies.append('axillary_adenopathy')
-    if int(case['mammography_architectural_distortion']):
-        pathologies.append('architectural_distortion')
-    if int(case['mammography_stroma_distortion']):
-        pathologies.append('stroma_distortion')
+    if int(case["mammography_nodule"]):
+        pathologies.append("nodule")
+    if int(case["mammography_calcification"]):
+        pathologies.append("calcification")
+    if int(case["mammography_microcalcification"]):
+        pathologies.append("microcalcification")
+    if int(case["mammography_axillary_adenopathy"]):
+        pathologies.append("axillary_adenopathy")
+    if int(case["mammography_architectural_distortion"]):
+        pathologies.append("architectural_distortion")
+    if int(case["mammography_stroma_distortion"]):
+        pathologies.append("stroma_distortion")
     return pathologies
 
 
@@ -358,7 +385,9 @@ def parse_str_to_list_of_ints(points: str, separator: str = " ") -> List[int]:
 
 
 def get_bcdr_bbox(lw_x_points: List[int], lw_y_points: List[int]) -> List[int]:
-    lw_y_points, lw_x_points = parse_str_to_list_of_ints(lw_y_points), parse_str_to_list_of_ints(lw_x_points)
+    lw_y_points, lw_x_points = parse_str_to_list_of_ints(
+        lw_y_points
+    ), parse_str_to_list_of_ints(lw_x_points)
     tl_x, tl_y = min(lw_x_points), min(lw_y_points)
     width, height = max(lw_x_points) - tl_x, max(lw_y_points) - tl_y
     return [tl_x, tl_y, width, height]
@@ -377,7 +406,9 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
     return img_n
 
 
-def get_crops_around_mask(metapoint: dict, margin: int, min_size: int) -> Tuple[int, int, int, int]:
+def get_crops_around_mask(
+    metapoint: dict, margin: int, min_size: int
+) -> Tuple[int, int, int, int]:
     x, y, w, h = metapoint["bbox"]
     # pad the bbox
     x_p = max(0, x - margin // 2)
@@ -424,23 +455,21 @@ def collate_fn(batch):
 def setup_logger():
     # Set up logger such that it writes to stdout and file
     # From https://stackoverflow.com/a/46098711/3692004
-    Path('logs').mkdir(exist_ok=True)
+    Path("logs").mkdir(exist_ok=True)
     logfilename = get_logfilename()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
-            logging.FileHandler(Path('logs') / logfilename),
-            logging.StreamHandler()
-        ]
+            logging.FileHandler(Path("logs") / logfilename),
+            logging.StreamHandler(),
+        ],
     )
     return logfilename
+
 
 def get_logfilename(is_time_reset=False):
     global LOGFILENAME
     if LOGFILENAME is None or is_time_reset is True:
         LOGFILENAME = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
     return LOGFILENAME
-
-
-

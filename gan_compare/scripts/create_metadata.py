@@ -9,16 +9,24 @@ import pydicom as dicom
 from tqdm import tqdm
 
 from gan_compare.data_utils.utils import (
-    load_inbreast_mask,
-    get_file_list,
-    read_csv,
-    generate_inbreast_metapoints,
-    generate_healthy_inbreast_metapoints,
     generate_bcdr_metapoints,
     generate_healthy_bcdr_metapoints,
+    generate_healthy_inbreast_metapoints,
+    generate_inbreast_metapoints,
+    get_file_list,
+    load_inbreast_mask,
+    read_csv,
 )
-from gan_compare.dataset.constants import BCDR_SUBDIRECTORIES, BCDR_HEALTHY_SUBDIRECTORIES
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH, INBREAST_CSV_PATH, BCDR_ROOT_PATH
+from gan_compare.dataset.constants import (
+    BCDR_HEALTHY_SUBDIRECTORIES,
+    BCDR_SUBDIRECTORIES,
+)
+from gan_compare.paths import (
+    BCDR_ROOT_PATH,
+    INBREAST_CSV_PATH,
+    INBREAST_IMAGE_PATH,
+    INBREAST_XML_PATH,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,30 +44,45 @@ def parse_args() -> argparse.Namespace:
         help="Whether to generate healthy metapoints.",
     )
     parser.add_argument(
-        "--bcdr_subfolder", type=str, nargs="+", default=["d01", "d02"], help="Symbols of BCDR subdirectories to use."
+        "--bcdr_subfolder",
+        type=str,
+        nargs="+",
+        default=["d01", "d02"],
+        help="Symbols of BCDR subdirectories to use.",
     )
     parser.add_argument(
         "--output_path", required=True, help="Path to json file to store metadata in."
     )
     parser.add_argument(
-        "--per_image_count", type=int, default=5, help="Number of patches to generate from 1 healthy img."
+        "--per_image_count",
+        type=int,
+        default=5,
+        help="Number of patches to generate from 1 healthy img.",
     )
     parser.add_argument(
         # TODO. In the future, it we might need to extend this and separate into width and height (and depth)
-        "--healthy_size", type=int, default=128, help="Size of patches to generate from 1 healthy img."
+        "--healthy_size",
+        type=int,
+        default=128,
+        help="Size of patches to generate from 1 healthy img.",
     )
     parser.add_argument(
-        "--seed", type=int, default=2021, help="Seed the random generator. Can be used for example for generating different healthy patches."
+        "--seed",
+        type=int,
+        default=2021,
+        help="Seed the random generator. Can be used for example for generating different healthy patches.",
     )
     parser.add_argument(
-        "--allowed_calcifications_birads_values", 
-        type=str, 
-        default=None, # Usage example: ["4a","4b","4c","5","6"]
-        nargs="+", 
+        "--allowed_calcifications_birads_values",
+        type=str,
+        default=None,  # Usage example: ["4a","4b","4c","5","6"]
+        nargs="+",
         help="Name of the birads of interest ONLY FOR CALCIFICATIONS. Other lesions are not affected. If None, all birads values are kept.",
     )
     parser.add_argument(
-        "--only_masses", action="store_true", help="Whether to keep only masses. If False, all lesion types are kept.",
+        "--only_masses",
+        action="store_true",
+        help="Whether to keep only masses. If False, all lesion types are kept.",
     )
 
     args = parser.parse_args()
@@ -67,12 +90,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def create_inbreast_metadata(
-    healthy: bool = False, 
-    per_image_count: int = 5, 
+    healthy: bool = False,
+    per_image_count: int = 5,
     target_size: int = 128,
-    rng = np.random.default_rng(),
+    rng=np.random.default_rng(),
     only_masses: bool = False,
-    allowed_calcifications_birads_values = []
+    allowed_calcifications_birads_values=[],
 ) -> List[dict]:
     metadata = []
     inbreast_df = read_csv(INBREAST_CSV_PATH)
@@ -92,7 +115,7 @@ def create_inbreast_metadata(
                 size=target_size,
                 bg_pixels_max_ratio=0.4,
                 start_index=start_index,
-                rng=rng
+                rng=rng,
             )
             start_index = idx
             metadata.extend(metapoints)
@@ -104,20 +127,23 @@ def create_inbreast_metadata(
                     # returns list of dictionaries, e.g. [{mask:mask1, roi_type:type1}, {mask:mask2, roi_type:type2}]
                     mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape)
             else:
-                mask_list = [{'mask': np.zeros(ds.pixel_array.shape), 'roi_type': ""}]
-                print(f'No xml file found. Please review why. Path: {xml_filepath}')
+                mask_list = [{"mask": np.zeros(ds.pixel_array.shape), "roi_type": ""}]
+                print(f"No xml file found. Please review why. Path: {xml_filepath}")
                 xml_filepath = ""
 
             start_index: int = 0
             for mask_dict in mask_list:
                 lesion_metapoints, idx = generate_inbreast_metapoints(
-                    mask=mask_dict.get('mask'), image_id=image_id,
-                    patient_id=patient_id, csv_metadata=csv_metadata,
-                    image_path=image_path, xml_filepath=xml_filepath,
-                    roi_type=mask_dict.get('roi_type'),
+                    mask=mask_dict.get("mask"),
+                    image_id=image_id,
+                    patient_id=patient_id,
+                    csv_metadata=csv_metadata,
+                    image_path=image_path,
+                    xml_filepath=xml_filepath,
+                    roi_type=mask_dict.get("roi_type"),
                     start_index=start_index,
                     only_masses=only_masses,
-                    allowed_calcifications_birads_values=allowed_calcifications_birads_values
+                    allowed_calcifications_birads_values=allowed_calcifications_birads_values,
                 )
                 start_index = idx
                 # Add the metapoint objects of each contour to our metadata list
@@ -126,18 +152,25 @@ def create_inbreast_metadata(
 
 
 def create_bcdr_metadata(
-    subdirectories_list: List[str], 
+    subdirectories_list: List[str],
     healthy: bool = False,
-    per_image_count: int = 5, 
+    per_image_count: int = 5,
     target_size: int = 128,
-    rng = np.random.default_rng(),
-    only_masses: bool = False
+    rng=np.random.default_rng(),
+    only_masses: bool = False,
 ) -> List[dict]:
     metadata = []
     if healthy:
         start_index = 0
-        for subdirectory_symbol, subdirectory_name in BCDR_HEALTHY_SUBDIRECTORIES.items():
-            csv_path = BCDR_ROOT_PATH / subdirectory_name / f"bcdr_{subdirectory_symbol}_img.csv"
+        for (
+            subdirectory_symbol,
+            subdirectory_name,
+        ) in BCDR_HEALTHY_SUBDIRECTORIES.items():
+            csv_path = (
+                BCDR_ROOT_PATH
+                / subdirectory_name
+                / f"bcdr_{subdirectory_symbol}_img.csv"
+            )
             img_csv_df = pd.read_csv(csv_path)
             img_dir_path = BCDR_ROOT_PATH / subdirectory_name
             for _, row in tqdm(img_csv_df.iterrows()):
@@ -148,19 +181,28 @@ def create_bcdr_metadata(
                     size=target_size,
                     start_index=start_index,
                     bg_pixels_max_ratio=0.4,
-                    rng=rng
+                    rng=rng,
                 )
                 metadata.extend(metapoints)
     else:
         assert all(
-            subdir in BCDR_SUBDIRECTORIES.keys() for subdir in subdirectories_list), "Unknown subdirectory symbol"
+            subdir in BCDR_SUBDIRECTORIES.keys() for subdir in subdirectories_list
+        ), "Unknown subdirectory symbol"
         for subdirectory in subdirectories_list:
-            csv_outlines_path = BCDR_ROOT_PATH / BCDR_SUBDIRECTORIES[subdirectory] / f"bcdr_{subdirectory}_outlines.csv"
+            csv_outlines_path = (
+                BCDR_ROOT_PATH
+                / BCDR_SUBDIRECTORIES[subdirectory]
+                / f"bcdr_{subdirectory}_outlines.csv"
+            )
             outlines_df = pd.read_csv(csv_outlines_path)
             img_dir_path = BCDR_ROOT_PATH / BCDR_SUBDIRECTORIES[subdirectory]
             for _, row in outlines_df.iterrows():
-                lesion_metapoint = generate_bcdr_metapoints(image_dir_path=img_dir_path, row_df=row)
-                if only_masses and ('nodule' not in lesion_metapoint['roi_type']): # only keep nodules (i.e. masses)
+                lesion_metapoint = generate_bcdr_metapoints(
+                    image_dir_path=img_dir_path, row_df=row
+                )
+                if only_masses and (
+                    "nodule" not in lesion_metapoint["roi_type"]
+                ):  # only keep nodules (i.e. masses)
                     continue
                 else:
                     metadata.append(lesion_metapoint)
@@ -169,26 +211,30 @@ def create_bcdr_metadata(
 
 if __name__ == "__main__":
     args = parse_args()
-    rng = np.random.default_rng(args.seed) # seed the random generator
+    rng = np.random.default_rng(args.seed)  # seed the random generator
     metadata = []
     if "inbreast" in args.dataset:
-        metadata.extend(create_inbreast_metadata(
-            healthy=args.healthy,
-            per_image_count=args.per_image_count,
-            target_size=args.healthy_size,
-            rng=rng, 
-            only_masses=args.only_masses,
-            allowed_calcifications_birads_values=args.allowed_calcifications_birads_values
-        ))
+        metadata.extend(
+            create_inbreast_metadata(
+                healthy=args.healthy,
+                per_image_count=args.per_image_count,
+                target_size=args.healthy_size,
+                rng=rng,
+                only_masses=args.only_masses,
+                allowed_calcifications_birads_values=args.allowed_calcifications_birads_values,
+            )
+        )
     if "bcdr" in args.dataset:
-        metadata.extend(create_bcdr_metadata(
-            args.bcdr_subfolder,
-            healthy=args.healthy,
-            per_image_count=args.per_image_count,
-            target_size=args.healthy_size,
-            rng=rng,
-            only_masses=args.only_masses
-        ))
+        metadata.extend(
+            create_bcdr_metadata(
+                args.bcdr_subfolder,
+                healthy=args.healthy,
+                per_image_count=args.per_image_count,
+                target_size=args.healthy_size,
+                rng=rng,
+                only_masses=args.only_masses,
+            )
+        )
     # Output metadata as json file to specified location on disk
     outpath = Path(args.output_path)
     outpath.parent.mkdir(parents=True, exist_ok=True)

@@ -15,7 +15,7 @@ from gan_compare.training.io import load_yaml
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_name",
+        "--gan_type",
         type=str,
         required=True,
         help="Model name: supported: dcgan and lsgan",
@@ -55,9 +55,11 @@ def parse_args() -> argparse.Namespace:
         help="Directory to save the generated images in.",
     )
     parser.add_argument(
-        "--birads", type=int, default=None,
+        "--birads",
+        type=int,
+        default=None,
         help="Define the associated risk of malignancy (1-6) accroding to the Breast Imaging-Reporting and Data "
-             "System (BIRADS).",
+        "System (BIRADS).",
     )
     args = parser.parse_args()
     return args
@@ -66,43 +68,50 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     # Load model and config
-    assert (
-        Path(args.model_checkpoint_dir).is_dir()
-    ), f'The path to the model dir you provided does not point to a valid dir:{args.model_checkpoint_dir} '
-    yaml_path = next(Path(args.model_checkpoint_dir).rglob("*.yaml"))  # i.e. "config.yaml")
+    assert Path(
+        args.model_checkpoint_dir
+    ).is_dir(), f"The path to the model dir you provided does not point to a valid dir:{args.model_checkpoint_dir} "
+    yaml_path = next(
+        Path(args.model_checkpoint_dir).rglob("*.yaml")
+    )  # i.e. "config.yaml")
     config_dict = load_yaml(path=yaml_path)
     config = from_dict(GANConfig, config_dict)
     print(asdict(config))
     print("Loading model...")
     model = GANModel(
-        model_name=args.model_name,
+        gan_type=args.model_name,
         config=config,
         dataloader=None,
     )
 
     if config.conditional is False and args.birads is not None:
         print(
-            f'You want to generate ROIs with birads={args.birads}. Note that the GAN model you provided is not '
-            f'conditioned on BIRADS. Therefore, it will generate unconditional random samples.')
+            f"You want to generate ROIs with birads={args.birads}. Note that the GAN model you provided is not "
+            f"conditioned on BIRADS. Therefore, it will generate unconditional random samples."
+        )
         args.birads = None
     elif config.conditional is True and args.birads is not None:
-        print(f'Conditional samples will be generate for BIRADS = {args.birads}.')
+        print(f"Conditional samples will be generate for BIRADS = {args.birads}.")
 
     if args.model_checkpoint_path is None:
         try:
-            args.model_checkpoint_path = next(Path(args.model_checkpoint_dir).rglob("*model.pt"))  # i.e. "model.pt"
+            args.model_checkpoint_path = next(
+                Path(args.model_checkpoint_dir).rglob("*model.pt")
+            )  # i.e. "model.pt"
         except StopIteration:
             try:
                 # As there is no model.pt file, let's try to get the last item of the iterator instead, i.e. "300.pt"
-                *_, args.model_checkpoint_path = Path(args.model_checkpoint_dir).rglob("*.pt")
+                *_, args.model_checkpoint_path = Path(args.model_checkpoint_dir).rglob(
+                    "*.pt"
+                )
             except ValueError:
                 pass
 
     # Let's validate the path to the model
     assert (
-            args.model_checkpoint_path is not None and Path(args.model_checkpoint_path).is_file()
-    ), f'There seems to be no model file with extension .pt stored in the model_checkpoint_dir you provided: {args.model_checkpoint_dir}'
-
+        args.model_checkpoint_path is not None
+        and Path(args.model_checkpoint_path).is_file()
+    ), f"There seems to be no model file with extension .pt stored in the model_checkpoint_dir you provided: {args.model_checkpoint_dir}"
 
     # Save the images to model checkpoint folder
     if args.out_images_path is None and args.save_images:
@@ -110,13 +119,16 @@ if __name__ == "__main__":
     elif args.out_images_path is not None:
         args.out_images_path = Path(args.out_images_path)
 
+    print(f"Generated samples will be stored in: {args.out_images_path}.")
 
-    print(f'Generated samples will be stored in: {args.out_images_path}.')
-
-    print(f'Now using model retrieved from: {args.model_checkpoint_path} to generate {args.num_samples} samples..')
+    print(
+        f"Now using model retrieved from: {args.model_checkpoint_path} to generate {args.num_samples} samples.."
+    )
 
     img_list = model.generate(
-        model_checkpoint_path=args.model_checkpoint_path, num_samples=args.num_samples, fixed_condition=args.birads
+        model_checkpoint_path=args.model_checkpoint_path,
+        num_samples=args.num_samples,
+        fixed_condition=args.birads,
     )
 
     # Show the images in interactive UI
@@ -133,8 +145,8 @@ if __name__ == "__main__":
     if args.save_images:
         for i, img_ in enumerate(img_list):
             img_path = args.out_images_path / f"{args.model_name}_{i}_{time()}.png"
-            #print(min(img_))
-            #print(max(img_))
+            # print(min(img_))
+            # print(max(img_))
             img_ = interval_mapping(img_.transpose(1, 2, 0), 0.0, 1.0, 0, 255)
             img_ = img_.astype("uint8")
             cv2.imwrite(str(img_path.resolve()), img_)

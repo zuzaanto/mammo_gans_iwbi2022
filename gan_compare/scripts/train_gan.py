@@ -1,15 +1,15 @@
 from __future__ import print_function
 
-
 import argparse
+import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
-import logging
+
 import cv2
+import torch
 import torchvision.transforms as transforms
 from dacite import from_dict
-import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
@@ -21,13 +21,14 @@ from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_name",
+        "--gan_type",
         type=str,
         required=True,
-        help="Model name: supported: dcgan and lsgan",
+        help="GAN type: supported: dcgan and lsgan and wgangp",
     )
     parser.add_argument(
         "--config_path",
@@ -72,27 +73,31 @@ if __name__ == "__main__":
     dataset_list = []
     transform_to_use = None
     if config.is_training_data_augmented:
-        transform_to_use = transforms.Compose([
-            #transforms.Normalize((0.), (1.)), # between -1 and 1 https://github.com/soumith/ganhacks #1
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
-            # scale: min 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
-            # transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
-            # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
-            # which is not present in the original images.
-            # transforms.RandomAffine(),
-        ])
+        transform_to_use = transforms.Compose(
+            [
+                # transforms.Normalize((0.), (1.)), # between -1 and 1 https://github.com/soumith/ganhacks #1
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
+                # scale: min 0.75 of original image pixels should be in crop, radio: randomly between 3:4 and 4:5
+                # transforms.RandomResizedCrop(size=config.image_size, scale=(0.75, 1.0), ratio=(0.75, 1.3333333333333333)),
+                # RandomAffine is not used to avoid edges with filled pixel values to avoid that the generator learns this bias
+                # which is not present in the original images.
+                # transforms.RandomAffine(),
+            ]
+        )
     for dataset_name in config.dataset_names:
         dataset = DATASET_DICT[dataset_name](
             metadata_path=args.in_metadata_path,
             # https://pytorch.org/vision/stable/transforms.html
             transform=transform_to_use,
-            config=config
+            config=config,
         )
         dataset_list.append(dataset)
     dataset = ConcatDataset(dataset_list)
 
-    logging.info(f"Loaded dataset {dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}")
+    logging.info(
+        f"Loaded dataset {dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}"
+    )
 
     # drop_last is true to avoid batch_size of 1 that throws an Value Error in BatchNorm.
     # https://discuss.pytorch.org/t/error-expected-more-than-1-value-per-channel-when-training/26274/5
@@ -116,17 +121,25 @@ if __name__ == "__main__":
             if items is None:
                 continue
             try:
-                sample, condition, image, = items
+                (
+                    sample,
+                    condition,
+                    image,
+                ) = items
             except:
                 sample, condition, image, _ = items
 
-            out_image_path = f"{i}_{config.conditioned_on}_{condition}.png" if config.conditional else f"{i}.png"
+            out_image_path = (
+                f"{i}_{config.conditioned_on}_{condition}.png"
+                if config.conditional
+                else f"{i}.png"
+            )
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
     # Emptying the cache for GPU RAM.
     torch.cuda.empty_cache()
     logging.info("Loading model...")
     model = GANModel(
-        model_name=args.model_name,
+        gan_type=args.gan_type,
         config=config,
         dataloader=dataloader,
         out_dataset_path=args.out_dataset_path,

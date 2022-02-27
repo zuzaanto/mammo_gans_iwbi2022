@@ -1,9 +1,9 @@
 import argparse
+import json
 import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
-import json
 
 import cv2
 import numpy as np
@@ -17,9 +17,14 @@ from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
 from gan_compare.constants import DATASET_DICT, get_classifier
-from gan_compare.data_utils.utils import setup_logger, get_logfilename
+from gan_compare.data_utils.utils import get_logfilename, setup_logger
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
-from gan_compare.scripts.metrics import calc_all_scores, output_ROC_curve, calc_AUROC, calc_AUPRC
+from gan_compare.scripts.metrics import (
+    calc_all_scores,
+    calc_AUPRC,
+    calc_AUROC,
+    output_ROC_curve,
+)
 from gan_compare.training.classifier_config import ClassifierConfig
 from gan_compare.training.io import load_yaml
 
@@ -44,7 +49,9 @@ def parse_args():
         help="Only required if --only_get_metrics is set. Path to checkpoint to be loaded.",
     )
     parser.add_argument(
-        "--save_dataset", action="store_true", help="Whether to save image patches to images_classifier dir",
+        "--save_dataset",
+        action="store_true",
+        help="Whether to save image patches to images_classifier dir",
     )
 
     args = parser.parse_args()
@@ -65,10 +72,13 @@ if __name__ == "__main__":
 
     logging.info(str(asdict(config)))
     logging.info(
-        "Loading dataset...")  # When we have more datasets implemented, we can specify which one(s) to load in config.
+        "Loading dataset..."
+    )  # When we have more datasets implemented, we can specify which one(s) to load in config.
 
     if config.use_synthetic:
-        assert config.synthetic_data_dir is not None, 'If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir.'
+        assert (
+            config.synthetic_data_dir is not None
+        ), "If you want to use synthetic data, you must provide a diretory with the patches in config.synthetic_data_dir."
     if config.no_transforms:
         train_transform = transforms.Compose(
             [
@@ -98,7 +108,7 @@ if __name__ == "__main__":
                 metadata_path=config.train_metadata_path,
                 conditional_birads=True,
                 transform=train_transform,
-                config=config
+                config=config,
             )
         )
         val_dataset_list.append(
@@ -106,7 +116,7 @@ if __name__ == "__main__":
                 metadata_path=config.validation_metadata_path,
                 conditional_birads=True,
                 transform=val_transform,
-                config=config
+                config=config,
             )
         )
         test_dataset_list.append(
@@ -114,7 +124,7 @@ if __name__ == "__main__":
                 metadata_path=config.test_metadata_path,
                 conditional_birads=True,
                 transform=val_transform,
-                config=config
+                config=config,
             )
         )
     train_dataset = ConcatDataset(train_dataset_list)
@@ -131,7 +141,9 @@ if __name__ == "__main__":
             config=config,
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
-        logging.info(f'Number of synthetic patches added to training set: {len(synth_train_images)}')
+        logging.info(
+            f"Number of synthetic patches added to training set: {len(synth_train_images)}"
+        )
 
         # YOU MUST ADD THE HEALTHY PATCHES WHICH ARE MEANT TO BALANCE THE SYNTHETIC PATCHES TO THE TRAINING SET ABOVE
         # TODO REFACTOR
@@ -202,16 +214,19 @@ if __name__ == "__main__":
         logging.info(f"Saving data samples...")
 
         # TODO: state_dict name should probably be in config yaml instead of hardcoded.
-        net.load_state_dict(torch.load('model_checkpoints/classifier 50 no synth/classifier.pt'))
+        net.load_state_dict(
+            torch.load("model_checkpoints/classifier 50 no synth/classifier.pt")
+        )
         net.eval()
         save_data_path = Path("save_dataset")
 
-        with open(save_data_path / "validation.txt", 'w') as f:
-            f.write('index, y_prob\n')
+        with open(save_data_path / "validation.txt", "w") as f:
+            f.write("index, y_prob\n")
         cnt = 0
         metapoints = []
         for data in tqdm(
-                test_dataset):  # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
+            test_dataset
+        ):  # this has built-in shuffling; if not shuffled, only lesioned patches will be output first
             sample, label, image, r, d = data
             outputs = net(sample[np.newaxis, ...])
 
@@ -219,11 +234,11 @@ if __name__ == "__main__":
             y_prob_logit = outputs.data
             y_prob = torch.exp(y_prob_logit)
             metapoint = {
-                'label': label,
-                'roi_type': r,
-                'dataset': d,
-                'cnt': cnt,
-                'y_prob': y_prob.numpy().tolist()
+                "label": label,
+                "roi_type": r,
+                "dataset": d,
+                "cnt": cnt,
+                "y_prob": y_prob.numpy().tolist(),
             }
             metapoints.append(metapoint)
 
@@ -237,7 +252,7 @@ if __name__ == "__main__":
             cv2.imwrite(str(out_image_path), np.array(image))
 
             cnt += 1
-        with open(save_data_path / 'validation.json', 'w') as f:
+        with open(save_data_path / "validation.json", "w") as f:
             f.write(json.dumps(metapoints))
 
         logging.info(f"Saved data samples to {save_data_path.resolve()}")
@@ -254,15 +269,17 @@ if __name__ == "__main__":
         best_prc_auc = 0
 
         # START TRAINING LOOP
-        for epoch in tqdm(range(config.num_epochs)):  # loop over the dataset multiple times
+        for epoch in tqdm(
+            range(config.num_epochs)
+        ):  # loop over the dataset multiple times
             running_loss = 0.0
             logging.info("Training...")
             for i, data in enumerate(tqdm(train_dataloader)):
                 # get the inputs; data is a list of [inputs, labels]
                 samples, labels, _, _ = data
 
-                if len(
-                        samples) <= 1: continue  # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
+                if len(samples) <= 1:
+                    continue  # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -276,7 +293,9 @@ if __name__ == "__main__":
                 # print statistics
                 running_loss += loss.item()
                 if i % 2000 == 1999:  # print every 2000 mini-batches
-                    logging.info("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
+                    logging.info(
+                        "[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000)
+                    )
                     running_loss = 0.0
 
             # VALIDATE
@@ -295,8 +314,9 @@ if __name__ == "__main__":
                     y_true.append(labels)
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
-                _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(torch.cat(y_true), torch.cat(y_prob_logit),
-                                                                      val_loss, "Valid", epoch)
+                _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(
+                    torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch
+                )
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
                 # if val_f1 > best_f1:
@@ -308,16 +328,22 @@ if __name__ == "__main__":
                     best_prc_auc = prc_auc
                     best_epoch = epoch
                     torch.save(net.state_dict(), config.out_checkpoint_path)
-                    logging.info(f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}")
+                    logging.info(
+                        f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}"
+                    )
 
         logging.info("Finished Training")
         logging.info(f"Saved best model state dict to {config.out_checkpoint_path}")
-        logging.info(f"Best model was achieved after {best_epoch} epochs, with val loss = {best_loss}")
+        logging.info(
+            f"Best model was achieved after {best_epoch} epochs, with val loss = {best_loss}"
+        )
 
     # TESTING
 
     logging.info("Beginning test...")
-    model_path = args.in_checkpoint_path if args.only_get_metrics else config.out_checkpoint_path
+    model_path = (
+        args.in_checkpoint_path if args.only_get_metrics else config.out_checkpoint_path
+    )
     logging.info(f"Loading model from {model_path}")
     net.load_state_dict(torch.load(model_path))
     with torch.no_grad():
@@ -341,15 +367,36 @@ if __name__ == "__main__":
         y_prob_logit = torch.cat(y_prob_logit)
         calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
 
-        mass_indices = [i for i, item in enumerate(roi_types) if item == 'Mass' or item == 'healthy']
-        calc_AUROC(y_true[mass_indices], torch.exp(y_prob_logit)[mass_indices], "Test only Masses")
-        calc_AUPRC(y_true[mass_indices], torch.exp(y_prob_logit)[mass_indices], "Test only Masses")
+        mass_indices = [
+            i for i, item in enumerate(roi_types) if item == "Mass" or item == "healthy"
+        ]
+        calc_AUROC(
+            y_true[mass_indices],
+            torch.exp(y_prob_logit)[mass_indices],
+            "Test only Masses",
+        )
+        calc_AUPRC(
+            y_true[mass_indices],
+            torch.exp(y_prob_logit)[mass_indices],
+            "Test only Masses",
+        )
 
-        calcification_indices = [i for i, item in enumerate(roi_types) if item == 'Calcification' or item == 'healthy']
-        calc_AUROC(y_true[calcification_indices], torch.exp(y_prob_logit)[calcification_indices],
-                   "Test only Calcifications")
-        calc_AUPRC(y_true[calcification_indices], torch.exp(y_prob_logit)[calcification_indices],
-                   "Test only Calcifications")
+        calcification_indices = [
+            i
+            for i, item in enumerate(roi_types)
+            if item == "Calcification" or item == "healthy"
+        ]
+        calc_AUROC(
+            y_true[calcification_indices],
+            torch.exp(y_prob_logit)[calcification_indices],
+            "Test only Calcifications",
+        )
+        calc_AUPRC(
+            y_true[calcification_indices],
+            torch.exp(y_prob_logit)[calcification_indices],
+            "Test only Calcifications",
+        )
 
-        if config.classify_binary_healthy: output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
+        if config.classify_binary_healthy:
+            output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
     logging.info("Finished testing.")

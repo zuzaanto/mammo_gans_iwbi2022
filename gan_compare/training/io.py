@@ -1,7 +1,8 @@
-import yaml
-from typing import Union
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from typing import Union
+
+import yaml
 
 
 def load_yaml(path: Union[str, Path]):

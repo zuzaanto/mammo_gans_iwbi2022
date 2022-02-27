@@ -1,13 +1,13 @@
+import logging
 from dataclasses import dataclass
 from time import time
-import logging
 
 from gan_compare.training.base_config import BaseConfig
 
 
 @dataclass
 class GANConfig(BaseConfig):
-    # This model_name default should be overwritten by and further specified in -> the yaml file.
+    # This gan_type default should be overwritten by and further specified in -> the yaml file.
     model_name: str = "dcgan"
 
     # l2 regularization in discriminator value taken from here:
@@ -33,8 +33,8 @@ class GANConfig(BaseConfig):
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.7 #0.8  # 0.95
-    label_smoothing_end: float = 1.2 #1.1  # 1.0
+    label_smoothing_start: float = 0.7  # 0.8  # 0.95
+    label_smoothing_end: float = 1.2  # 1.1  # 1.0
 
     # Leakiness for LReLUs
     leakiness: float = 0.2
@@ -117,16 +117,21 @@ class GANConfig(BaseConfig):
     num_embedding_dimensions: int = 50
 
     # Variables for utils.py -> get_measures_for_crop():
-    zoom_offset: float = 0.  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-    zoom_spread: float = 0.  # 0.33 # the higher, the more variance in zooming. must be greater 0.
-    ratio_spread: float = 0.  # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
-    translation_spread: float = 0.  # 0.25 # the higher, the more variance in translation. must be greater 0.
-    max_translation_offset: float = 0.  # 0.33 # coefficient relative to the image size.
-
+    zoom_offset: float = 0.0  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+    zoom_spread: float = (
+        0.0  # 0.33 # the higher, the more variance in zooming. must be greater 0.
+    )
+    ratio_spread: float = 0.0  # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
+    translation_spread: float = (
+        0.0  # 0.25 # the higher, the more variance in translation. must be greater 0.
+    )
+    max_translation_offset: float = (
+        0.0  # 0.33 # coefficient relative to the image size.
+    )
 
     ########## Variables related to WGAN GP ###########
     wgangp_lambda = 10
-    wgangp_n_critic_iters = 5
+    d_iters_per_g_update = 1  # Upade critic n times for each g update.
 
     def __post_init__(self):
         if self.conditional:
@@ -146,9 +151,14 @@ class GANConfig(BaseConfig):
                     self.condition_min = 2
                     self.condition_max = 6
             self.n_cond = self.condition_max + 1
-        assert all(dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names)
+        assert all(
+            dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names
+        )
         if self.model_name == "swin_transformer":
-            self.image_size = 224  # swin transformer currently only supports 224x224 images
+            self.image_size = (
+                224  # swin transformer currently only supports 224x224 images
+            )
             self.nc = 3
             logging.info(
-                f"Changed image shape to {self.image_size}x{self.image_size}x{self.nc}, as is needed for the selected model ({self.model_name})")
+                f"Changed image shape to {self.image_size}x{self.image_size}x{self.nc}, as is needed for the selected model ({self.model_name})"
+            )

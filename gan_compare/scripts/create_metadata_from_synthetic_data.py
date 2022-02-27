@@ -7,10 +7,16 @@ from pathlib import Path
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--output_path", type=str, required=True, help="Path to json file to store metadata in."
+        "--output_path",
+        type=str,
+        required=True,
+        help="Path to json file to store metadata in.",
     )
     parser.add_argument(
-        "--input_path", type=str, required=True, help="Path to (synthetic) images for which to generate metadata."
+        "--input_path",
+        type=str,
+        required=True,
+        help="Path to (synthetic) images for which to generate metadata.",
     )
     parser.add_argument(
         "--image_size",

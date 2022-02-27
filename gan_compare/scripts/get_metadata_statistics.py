@@ -1,18 +1,19 @@
-from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
-from gan_compare.data_utils.utils import load_inbreast_mask, get_file_list
-
-from typing import Tuple
-from pathlib import Path
-import os.path
+import argparse
 import glob
+import json
+import os.path
+import statistics
+from pathlib import Path
+from typing import Tuple
+
 import cv2
 import numpy as np
-import json
-import argparse
-from tqdm import tqdm
 import pydicom as dicom
 from matplotlib import pyplot as plt
-import statistics
+from tqdm import tqdm
+
+from gan_compare.data_utils.utils import get_file_list, load_inbreast_mask
+from gan_compare.paths import INBREAST_IMAGE_PATH, INBREAST_XML_PATH
 
 
 def parse_args() -> argparse.Namespace:

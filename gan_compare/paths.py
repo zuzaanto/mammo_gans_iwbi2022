@@ -1,8 +1,7 @@
 from pathlib import Path
 
-
-#INBREAST_ROOT_PATH = Path("/mnt/ml-team/homes/zuzanna.szafranowska/mammo_gans/datasets/InBreast/")
-#BCDR_ROOT_PATH = Path("/mnt/ml-team/homes/zuzanna.szafranowska/mammo_gans/datasets/BCDR_dataset/")
+# INBREAST_ROOT_PATH = Path("/mnt/ml-team/homes/zuzanna.szafranowska/mammo_gans/datasets/InBreast/")
+# BCDR_ROOT_PATH = Path("/mnt/ml-team/homes/zuzanna.szafranowska/mammo_gans/datasets/BCDR_dataset/")
 # INBREAST_ROOT_PATH = Path("/Users/zuzanna/Desktop/eucanimage/datasets/InBreast")
 # BCDR_ROOT_PATH = Path("/Users/zuzanna/Desktop/eucanimage/datasets/BCDR_dataset/")
 
