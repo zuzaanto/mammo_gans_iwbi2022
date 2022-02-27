@@ -5,6 +5,7 @@ start_training_D2_after_epoch: 0
 start_backprop_D2_into_G_after_epoch: 0
 beta1: 0.5
 beta2: 0.9 # This is different to DCGAN's 0.999
+d_iters_per_g_update: 5 # Upade critic n times for each g update
 ndf: 64
 ngf: 64
 batch_size: 16
