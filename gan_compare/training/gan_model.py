@@ -81,9 +81,9 @@ class GANModel:
             out_path = self.output_model_dir / f"{epoch_number}.pt"
 
         d = {
-            #"discriminator": self.netD.state_dict(),
+            # "discriminator": self.netD.state_dict(),
             "generator": self.netG.state_dict(),
-            #"optim_discriminator": self.optimizerD.state_dict(),
+            # "optim_discriminator": self.optimizerD.state_dict(),
             "optim_generator": self.optimizerG.state_dict(),
         }
         if self.config.pretrain_classifier:
@@ -285,7 +285,13 @@ class GANModel:
                 # We wait until the last one before running the optimizerG.step()
                 self.optimizerG.step()
 
-        return output, D_G_z2, errG
+        # delete GPU memory allocating variables.
+        del labels
+        del fake_images
+        del fake_conditions
+        del netD
+
+        return output.detach(), D_G_z2, errG.detach()
 
     def _netD_update(
         self,
@@ -297,7 +303,6 @@ class GANModel:
         are_outputs_logits: bool = False,
         real_conditions=None,
         fake_conditions=None,
-        b_size: int = None,
     ):
         """Update Discriminator network on real AND fake data."""
 
@@ -351,6 +356,11 @@ class GANModel:
         # Update D
         optimizerD.step()
 
+        # delete GPU memory allocating variables.
+        #del fake_images
+        #del real_images
+        #del netD
+
         return (
             output_real,
             errD_real,
@@ -393,6 +403,12 @@ class GANModel:
             are_outputs_logits=are_outputs_logits,
             get_loss_for="D",
         )
+
+        # delete GPU memory allocating variables.
+        del labels
+        del netD
+        del images
+        del conditions
 
         # Calculate gradients for D in backward pass of real data batch
         errD.backward()
@@ -465,6 +481,12 @@ class GANModel:
                             d_fake_images = output
                         else:
                             d_fake_images = netD(fake_images)
+
+                        # delete GPU memory allocating variables.
+                        #del output
+                        #del fake_images
+                        #del netD
+
                         return -d_fake_images.mean()  # G loss
                     elif get_loss_for == "D":
                         assert (
@@ -475,7 +497,7 @@ class GANModel:
                         gradient_penalty = compute_gradient_penalty(
                             netD=netD,
                             real_images=real_images,
-                            fake_images=fake_images.detach(),
+                            fake_images=fake_images,
                             wgangp_lambda=self.config.wgangp_lambda,
                             device=self.device,
                         )
@@ -486,10 +508,19 @@ class GANModel:
                             - d_real_images.mean()
                             + gradient_penalty
                         )  # D loss
+
+                        # delete GPU memory allocating variables.
+                        d_fake_images = d_fake_images.mean().item()
+                        d_real_images = d_real_images.mean().item()
+                        #del output
+                        #del fake_images
+                        #del real_images
+                        #del netD
+
                         return (
                             errD,
-                            d_fake_images.mean().item(),
-                            d_real_images.mean().item(),
+                            d_fake_images,
+                            d_real_images,
                             gradient_penalty,
                         )
                 else:
@@ -672,6 +703,11 @@ class GANModel:
                     are_outputs_logits=are_outputs_logits,
                     is_G_updated=is_D2_backpropagated,
                 )
+
+        # delete GPU memory allocating variables.
+        del fake_conditions
+        del fake_images
+
         return output_fake_2_D1, D_G_z2, errG, output_fake_2_D2, D2_G_z, errG_2
 
     def train(self):
@@ -780,6 +816,7 @@ class GANModel:
                 # Free up any used memory on each batch iteration
                 gc.collect()
                 torch.cuda.empty_cache()
+                logging.debug(torch.cuda.memory_summary(device=None, abbreviated=False))
 
                 # Unpack data (=image batch) alongside condition (e.g. birads number). Conditions are all -1 if unconditioned.
                 try:
@@ -791,11 +828,11 @@ class GANModel:
                 except:
                     data, conditions, _, _ = data
 
+                # Compute the actual batch size (not from config!) as last batch might be smaller than.
+                b_size = data.size(0)
+
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
                 real_images = data.to(self.device)
-
-                # Compute the actual batch size (not from config!) as last batch might be smaller than.
-                b_size = real_images.size(0)
 
                 real_conditions = None
                 fake_conditions = None
@@ -810,7 +847,6 @@ class GANModel:
                     fake_images, _ = self.generate_during_training(b_size=b_size)
 
                 # We start by updating the discriminator
-
                 # Reset the gradient of the discriminator of previous training iterations
                 self.netD.zero_grad()
 
@@ -860,12 +896,15 @@ class GANModel:
                         fake_conditions=fake_conditions,
                     )
 
+                errG = None
+                errG_D2 = None
                 # After updating the discriminator, we now update the generator
                 if not d_iteration == self.config.d_iters_per_g_update:
                     # We update D n times per G update. n = self.config.d_iters_per_g_update
                     d_iteration = d_iteration + 1
 
                 else:
+
                     # Reset d_iteration to zero.
                     d_iteration = 0
 
@@ -892,6 +931,7 @@ class GANModel:
                         b_size=b_size,
                         is_D2_using_new_fakes=True,  # TODO: Try is_D2_using_new_fakes out and see if it works better
                     )
+
                     # Save G Losses for plotting later
                     G_losses.append(errG.item())
                     # Update the running loss of G which is used in visualization
@@ -949,7 +989,7 @@ class GANModel:
                 if i % self.config.num_iterations_between_prints == 0:
                     if self.gan_type == "wgangp":
                         logging.info(
-                            "[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z1)): %.4f \tD(G(z2)) %.4f\tGradient Penalty: %.4f"
+                            "[%d/%d][%d/%d] \t Loss_D: %.4f \t Loss_G: %.4f \t D(x): %.4f \t D(G(z1)): %.4f \t D(G(z2)) %.4f \t Gradient Penalty: %.4f"
                             % (
                                 epoch,
                                 self.config.num_epochs - 1,
@@ -960,7 +1000,7 @@ class GANModel:
                                 D_x,
                                 D_G_z1,
                                 D_G_z2,
-                                gradient_penaltys,
+                                gradient_penalty,
                             )
                         )
                     else:
@@ -1026,6 +1066,8 @@ class GANModel:
                         running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
                         running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
                     )
+
+
                     # Reset the running losses and accuracies
                     running_loss_of_generator = 0.0
                     running_loss_of_discriminator = 0.0
@@ -1056,6 +1098,23 @@ class GANModel:
                         img_name=img_name,
                     )
                 iters += 1
+
+                # Delete torch variables that could be allocating GPU space
+                del fake_images
+                del real_images
+                del errD
+                del errG
+                del errD_fake
+                del errD_real
+                if self.config.pretrain_classifier:
+                    del errD2
+                    del errD2_fake
+                    del errD2_real
+                    del errG_D2
+                if self.config.conditional:
+                    del fake_conditions
+                    del real_conditions
+
 
             visualization_utils.plot_losses(
                 D_losses=D_losses,
@@ -1125,6 +1184,8 @@ class GANModel:
         return img_list
 
     def visualize(self, fixed_noise=None, fixed_condition=None):
+        """visualize model aarchitecture in tensorboard"""
+
         with torch.no_grad():
             # we need the number of training iterations per epoch (depending on size of batch and training dataset)
             num_iterations_per_epoch = len(self.dataloader)

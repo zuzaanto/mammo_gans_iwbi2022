@@ -48,7 +48,9 @@ def compute_gradient_penalty(
     gradients = gradients.view(gradients.size(0), -1)
 
     # Compute the final gradient penalty where _lambda is the gradient penalty coefficient
-    gradient_penalty = wgangp_lambda * (((gradients.norm(2, dim=1) - 1) ** 2).mean().item())
+    gradient_penalty = wgangp_lambda * (
+        ((gradients.norm(2, dim=1) - 1) ** 2).mean().item()
+    )
 
     # Deleting the variables that may use up space on CUDA device.
     del gradients
