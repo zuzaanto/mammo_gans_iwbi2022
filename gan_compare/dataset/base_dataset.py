@@ -2,14 +2,15 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
+from dacite import from_dict
 from torch.utils.data import Dataset
 
 from gan_compare.dataset.constants import BCDR_BIRADS_DICT, BIRADS_DICT, DENSITY_DICT
-
-# TODO add option for shuffling in data from synthetic metadata file
+from gan_compare.dataset.metapoint import Metapoint
+from gan_compare.training.base_config import BaseConfig
 
 
 class BaseDataset(Dataset):
@@ -17,26 +18,25 @@ class BaseDataset(Dataset):
 
     def __init__(
         self,
-        metadata_path: str = None,
+        config: BaseConfig,
+        metadata_path: str,
         crop: bool = True,
         min_size: int = 128,
         margin: int = 60,
         conditional_birads: bool = False,
         # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         transform: any = None,
-        config: dict = None,
-        sampling_ratio: float = 1.0,  # TODO: This variable may be moved inside config
-        seed: int = 42,  # TODO: This variable may be moved inside config
-        calcifications_only: bool = False,  # TODO: This variable may be moved inside config
-        masses_only: bool = False,  # TODO: This variable may be moved inside config
+        sampling_ratio: float = 1.0,
     ):
         assert (
             metadata_path is not None and Path(metadata_path).is_file()
         ), f"Metadata not found in {metadata_path}"
         self.metadata = []
         with open(metadata_path, "r") as metadata_file:
-            self.metadata_unfiltered = json.load(metadata_file)
-
+            self.metadata_unfiltered = [
+                from_dict(Metapoint, metapoint)
+                for metapoint in json.load(metadata_file)
+            ]
         logging.info(
             f"Number of train metadata before sampling: {len(self.metadata_unfiltered)}"
         )
@@ -66,7 +66,6 @@ class BaseDataset(Dataset):
 
     def len_of_classes(self):
         """Calculate the number of samples per class. Works only in the binary case.
-
         Returns:
             (int, int): (num samples of non-healthy, num samples of healthy)
         """
@@ -74,97 +73,77 @@ class BaseDataset(Dataset):
         for d in self.metadata:
             if type(d) is str:
                 continue  # then d is a synthetic sample (non-healthy)
-            if d["healthy"]:
+            if d.healthy:
                 cnt += 1
         return len(self) - cnt, cnt
 
     def arrange_weights(self, weight_non_healthy, weight_healthy):
         return [
-            weight_healthy
-            if type(d) is not str and d["healthy"]
-            else weight_non_healthy
+            weight_healthy if type(d) is not str and d.healthy else weight_non_healthy
             for d in self.metadata
         ]
 
-    def retrieve_condition(self, metapoint):
-        condition = -1  # None does not work
+    def retrieve_condition(self, metapoint: Metapoint) -> Union[int, float]:
+        condition = -1
         if self.config.conditioned_on == "birads":
-            try:
-                if self.config.is_condition_binary:
-                    condition = metapoint["birads"][0]
-                    if int(condition) <= 3:
-                        return 0
-                    return 1
-                elif self.config.split_birads_fours:
-                    condition = int(BIRADS_DICT[metapoint["birads"]])
-                else:
-                    # avoid 4c, 4b, 4a and just truncate them to 4
-                    condition = int(metapoint["birads"][0])
-            except Exception as e:
-                logging.debug(
-                    f"Type Error while trying to extract birads. This could be due to birads field being None in "
-                    f"BCDR dataset: {e}. Using biopsy_proven_status field instead as fallback."
-                )
-                if self.config.is_condition_binary:
-                    # TODO: Validate if this business logic is desired in experiment,
-                    # TODO: e.g. biopsy proven 'Benign' is mapped to BIRADS 3 and Malignant to BIRADS 6
-                    condition = BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]]
-                    if int(condition) <= 3:
-                        return 0
-                    return 1
-                elif self.config.split_birads_fours:
-                    condition = int(
-                        BIRADS_DICT[
-                            str(BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]])
-                        ]
-                    )
-                else:
-                    condition = int(BCDR_BIRADS_DICT[metapoint["biopsy_proven_status"]])
+            if self.config.is_condition_binary:
+                condition = metapoint.birads[0]
+                if 0 < int(condition) <= 3:
+                    return 0
+                elif int(condition) == 0:
+                    return metapoint.biopsy_proven_status == "malignant"
+                return 1
+            elif self.config.split_birads_fours:
+                condition = int(BIRADS_DICT[metapoint.birads])
+            else:
+                # avoid 4c, 4b, 4a and just truncate them to 4
+                condition = int(metapoint.birads[0])
+            if condition == 0:
+                condition = int(BCDR_BIRADS_DICT[metapoint.biopsy_proven_status])
+                if self.config.split_birads_fours:
+                    condition = int(BIRADS_DICT[str(condition)])
+
             # We could also have evaluation of is_condition_categorical here if we want continuous birads not
             # to be either 0 or 1 (0 or 1 is already provided by setting the self.is_condition_binary to true)
         elif self.config.conditioned_on == "density":
             if self.config.is_condition_binary:
-                condition = metapoint["density"]
-                if condition is None:
-                    logging.warning(
-                        f"The condition ('density') was None for metapoint: {metapoint}. Now, as per default, setting "
-                        f"condition=0 for this sample. Note that this could negatively impact your model training. "
-                        f"Please revise. "
-                    )
-                    return 0
-                elif condition == "N" or int(float(condition)) <= 2:
+                condition = metapoint.density
+                if condition <= 2:
                     return 0
                 return 1
             elif self.is_condition_categorical:
-                condition = int(float(metapoint["density"]))  # 1-4
+                condition = int(float(metapoint.density))  # 1-4
             else:  # return a value between 0 and 1 using the DENSITY_DICT.
                 # number out of [-1,1] multiplied by noise term parameter. Round for 2 digits
                 noise = round(random.uniform(-1, 1) * self.config.added_noise_term, 2)
                 # get the density from the dict and add noise to capture potential variations.
-                condition: float = DENSITY_DICT[metapoint["density"]]
+                condition: float = DENSITY_DICT[metapoint.density]
                 # normalising condition between 0 and 1.
                 condition = max(min(condition + noise, 1.0), 0.0)
         return condition
 
-    def determine_label(self, metapoint):
+    def determine_label(self, metapoint: Metapoint) -> int:
         if self.config.classify_binary_healthy:
-            return int(
-                metapoint.get("healthy", False)
-            )  # label = 1 iff metapoint is healthy
+            return int(metapoint.healthy)  # label = 1 iff metapoint is healthy
         elif self.conditional_birads:
             if self.config.is_condition_binary:
-                condition = metapoint["birads"][0]
-                if int(condition) <= 3:
+                condition = metapoint.birads[0]
+                if 0 < int(condition) <= 3:
                     return 0
+                elif int(condition) == 0:
+                    return metapoint.biopsy_proven_status == "malignant"
                 else:
                     return 1
-            elif self.config.split_birads_fours:
-                condition = BIRADS_DICT[metapoint["birads"]]
+            if int(metapoint.birads[0]) == 0:
+                condition = BCDR_BIRADS_DICT[metapoint.biopsy_proven_status]
+            else:
+                condition = metapoint.birads
+
+            if self.config.split_birads_fours:
+                condition = BIRADS_DICT[condition]
                 return int(condition)
             else:
-                condition = metapoint["birads"][
-                    0
-                ]  # avoid 4c, 4b, 4a and just truncate them to 4
+                condition = condition[0]  # avoid 4c, 4b, 4a and just truncate them to 4
                 return int(condition)
         else:
             return -1  # None does not work
@@ -175,7 +154,7 @@ class BaseDataset(Dataset):
         margin: int,
         min_size: int,
         image_shape: Tuple[int, int],
-        config,
+        config: BaseConfig,
     ) -> Tuple[int, int, int, int]:
         x, y, w, h = bbox
 

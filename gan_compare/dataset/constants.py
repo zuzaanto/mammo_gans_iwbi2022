@@ -1,4 +1,5 @@
 BIRADS_DICT = {
+    "1": 0,
     "2": 1,
     "3": 2,
     "4a": 3,
@@ -9,15 +10,15 @@ BIRADS_DICT = {
 }
 
 BCDR_BIRADS_DICT = {
-    "Benign": 3,
-    "Malign": 6,
+    "benign": 3,
+    "malignant": 6,
 }
 
 DENSITY_DICT = {
-    "1": 0.0,
-    "2": 0.33,
-    "3": 0.67,
-    "4": 1.0,
+    1: 0.0,
+    2: 0.33,
+    3: 0.67,
+    4: 1.0,
 }
 
 BCDR_SUBDIRECTORIES = {
@@ -38,6 +39,11 @@ BCDR_VIEW_DICT = {
     3: {"laterality": "R", "view": "MLO"},
     4: {"laterality": "L", "view": "MLO"},
 }
+
+ROI_TYPES = ["calcification", "mass", "other", "healthy"]
+LATERALITIES = ["R", "L"]
+VIEWS = ["CC", "MLO"]
+BIOPSY_STATUS = ["benign", "malignant", "unknown", "benign_without_callback"]
 
 CBIS_DDSM_CSV_DICT = {
     "train_mass": "mass_case_description_train_set.csv",

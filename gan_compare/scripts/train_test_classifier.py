@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -16,8 +17,9 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
-from gan_compare.constants import DATASET_DICT, get_classifier
+from gan_compare.constants import get_classifier
 from gan_compare.data_utils.utils import init_seed, setup_logger
+from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
 from gan_compare.scripts.metrics import (
     calc_all_scores,
@@ -66,14 +68,15 @@ def parse_args():
 
 if __name__ == "__main__":
     logfilename = setup_logger()
-
     args = parse_args()
 
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(ClassifierConfig, config_dict)
-
-    config.out_checkpoint_path += f"{logfilename}.pt"
+    if not config.out_checkpoint_path.endswith(".pt"):
+        config.out_checkpoint_path += (
+            f'{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}/classifier.pt'
+        )
 
     logging.info(str(asdict(config)))
     logging.info(str(args))
@@ -106,88 +109,41 @@ if __name__ == "__main__":
             transforms.Normalize((0.5), (0.5)),
         ]
     )
-    train_dataset_list = []
-    val_dataset_list = []
-    test_dataset_list = []
-    for dataset_name in config.dataset_names:
-        train_dataset_list.append(
-            DATASET_DICT[dataset_name](
-                metadata_path=config.train_metadata_path,
-                conditional_birads=True,
-                transform=train_transform,
-                config=config,
-            )
-        )
-        val_dataset_list.append(
-            DATASET_DICT[dataset_name](
-                metadata_path=config.validation_metadata_path,
-                conditional_birads=True,
-                transform=val_transform,
-                config=config,
-            )
-        )
-        test_dataset_list.append(
-            DATASET_DICT[dataset_name](
-                metadata_path=config.test_metadata_path,
-                conditional_birads=True,
-                transform=val_transform,
-                config=config,
-            )
-        )
+    train_dataset = MammographyDataset(
+        metadata_path=config.metadata_path,
+        split_path=config.split_path,
+        subset="train",
+        config=config,
+    )
+    val_dataset = MammographyDataset(
+        metadata_path=config.metadata_path,
+        split_path=config.split_path,
+        subset="val",
+        config=config,
+    )
+    test_dataset = MammographyDataset(
+        metadata_path=config.metadata_path,
+        split_path=config.split_path,
+        subset="test",
+        config=config,
+    )
+    train_dataset_no_synth = train_dataset
     if config.use_synthetic:
+
         # APPEND SYNTHETIC DATA
 
         synth_train_images = SyntheticDataset(
-            conditional_birads=True,
             transform=train_transform,
             shuffle_proportion=config.train_shuffle_proportion,
             config=config,
         )
-        train_dataset_list.append(synth_train_images)
+        train_dataset = ConcatDataset([train_dataset, synth_train_images])
         logging.info(
             f"Number of synthetic patches added to training set: {len(synth_train_images)}"
         )
 
-        # YOU MUST ADD THE HEALTHY PATCHES WHICH ARE MEANT TO BALANCE THE SYNTHETIC PATCHES TO THE TRAINING SET ABOVE
-        # TODO REFACTOR
-        # # append healthy patches for balancing the synthetic patches (which are all lesioned)
-        # train_dataset_list = []
-        # for dataset_name in config.dataset_names:
-        #     train_dataset_list.append(
-        #         DATASET_DICT[dataset_name](
-        #         metadata_path=config.synthetic_metadata_path,
-        #         conditional_birads=True,
-        #         transform=train_transform,
-        #         config=config
-        #         # synthetic_metadata_path=config.synthetic_metadata_path,
-        #         # synthetic_shuffle_proportion=config.train_shuffle_proportion,
-        #         )
-        #     )
-        # train_dataset = ConcatDataset([train_dataset, ConcatDataset(train_dataset_list)])
-        # logging.info('Added healthy patches for balancing.')
+    num_train_non_healthy, num_train_healthy = train_dataset_no_synth.len_of_classes()
 
-        # synth_val_images = SyntheticDataset(
-        #     metadata_path=config.synthetic_metadata_path,
-        #     conditional_birads=True,
-        #     transform=val_transform,
-        #     shuffle_proportion=config.train_shuffle_proportion,
-        #     current_length=len(val_dataset),
-        #     config=config,
-        #     indices=None
-        # )
-        # val_dataset = ConcatDataset([val_dataset, synth_val_images])
-        # logging.info(f'Number of samples added to synthetic validation set: {len(synth_val_images)}')
-
-    train_dataset = ConcatDataset(train_dataset_list)
-    val_dataset = ConcatDataset(val_dataset_list)
-    test_dataset = ConcatDataset(test_dataset_list)
-
-    num_train_healthy = 0
-    num_train_non_healthy = 0
-    for d in train_dataset_list:
-        a, b = d.len_of_classes()
-        num_train_non_healthy += a
-        num_train_healthy += b
     logging.info("Training set:")
     logging.info(f"Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}")
     logging.info(f"Share of healthy: {num_train_healthy / len(train_dataset)}")
@@ -197,13 +153,13 @@ if __name__ == "__main__":
     weight_non_healthy = len(train_dataset) / num_train_non_healthy
     weight_healthy = len(train_dataset) / num_train_healthy
     train_weights = []
-    for d in train_dataset_list:
-        train_weights.extend(d.arrange_weights(weight_non_healthy, weight_healthy))
+    train_weights.extend(
+        train_dataset_no_synth.arrange_weights(weight_non_healthy, weight_healthy)
+    )
 
     train_sampler = WeightedRandomSampler(train_weights, len(train_dataset))
 
     # We don't want any sample weights in validation and test sets, so we stick with shuffle=True below.
-
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
@@ -247,6 +203,7 @@ if __name__ == "__main__":
             torch.load("model_checkpoints/classifier 50 no synth/classifier.pt")
         )
         net.eval()
+        # TODO refactor (make optional & parametrize) or remove saving dataset
         save_data_path = Path("save_dataset")
 
         with open(save_data_path / "validation.txt", "w") as f:
@@ -377,59 +334,64 @@ if __name__ == "__main__":
     model_path = (
         args.in_checkpoint_path if args.only_get_metrics else config.out_checkpoint_path
     )
-    logging.info(f"Loading model from {model_path}")
-    net.load_state_dict(torch.load(model_path))
-    with torch.no_grad():
-        y_true = []
-        y_prob_logit = []
-        test_loss = []
-        roi_types = []
-        net.eval()
-        logging.info("Testing...")
-        for i, data in enumerate(tqdm(test_dataloader)):
-            samples, labels, _, roi_type_arr = data
-            # logging.info(images.size())
-            outputs = net(samples.to(device))
-            test_loss.append(criterion(outputs.cpu(), labels))
-            y_true.append(labels)
-            y_prob_logit.append(outputs.data.cpu())
+    if os.path.exists(model_path):
+        logging.info(f"Loading model from {model_path}")
+        net.load_state_dict(torch.load(model_path))
+        with torch.no_grad():
+            y_true = []
+            y_prob_logit = []
+            test_loss = []
+            roi_types = []
+            net.eval()
+            logging.info("Testing...")
+            for i, data in enumerate(tqdm(test_dataloader)):
+                samples, labels, _, roi_type_arr = data
+                # logging.info(images.size())
+                outputs = net(samples.to(device))
+                test_loss.append(criterion(outputs.cpu(), labels))
+                y_true.append(labels)
+                y_prob_logit.append(outputs.data.cpu())
 
-            roi_types.extend(roi_type_arr)
-        test_loss = np.mean(test_loss)
-        y_true = torch.cat(y_true)
-        y_prob_logit = torch.cat(y_prob_logit)
-        calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
+                roi_types.extend(roi_type_arr)
+            test_loss = np.mean(test_loss)
+            y_true = torch.cat(y_true)
+            y_prob_logit = torch.cat(y_prob_logit)
+            calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
 
-        mass_indices = [
-            i for i, item in enumerate(roi_types) if item == "Mass" or item == "healthy"
-        ]
-        calc_AUROC(
-            y_true[mass_indices],
-            torch.exp(y_prob_logit)[mass_indices],
-            "Test only Masses",
-        )
-        calc_AUPRC(
-            y_true[mass_indices],
-            torch.exp(y_prob_logit)[mass_indices],
-            "Test only Masses",
-        )
+            mass_indices = [
+                i
+                for i, item in enumerate(roi_types)
+                if item == "mass" or item == "healthy"
+            ]
+            calc_AUROC(
+                y_true[mass_indices],
+                torch.exp(y_prob_logit)[mass_indices],
+                "Test only Masses",
+            )
+            calc_AUPRC(
+                y_true[mass_indices],
+                torch.exp(y_prob_logit)[mass_indices],
+                "Test only Masses",
+            )
 
-        calcification_indices = [
-            i
-            for i, item in enumerate(roi_types)
-            if item == "Calcification" or item == "healthy"
-        ]
-        calc_AUROC(
-            y_true[calcification_indices],
-            torch.exp(y_prob_logit)[calcification_indices],
-            "Test only Calcifications",
-        )
-        calc_AUPRC(
-            y_true[calcification_indices],
-            torch.exp(y_prob_logit)[calcification_indices],
-            "Test only Calcifications",
-        )
+            calcification_indices = [
+                i
+                for i, item in enumerate(roi_types)
+                if item == "calcification" or item == "healthy"
+            ]
+            calc_AUROC(
+                y_true[calcification_indices],
+                torch.exp(y_prob_logit)[calcification_indices],
+                "Test only Calcifications",
+            )
+            calc_AUPRC(
+                y_true[calcification_indices],
+                torch.exp(y_prob_logit)[calcification_indices],
+                "Test only Calcifications",
+            )
 
-        if config.classify_binary_healthy:
-            output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
-    logging.info("Finished testing.")
+            if config.classify_binary_healthy:
+                output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
+        logging.info("Finished testing.")
+    else:
+        logging.info("No checkpoint found. Testing omitted.")

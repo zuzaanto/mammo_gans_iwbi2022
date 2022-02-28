@@ -11,13 +11,10 @@ import torch
 import torchvision.transforms as transforms
 from dacite import from_dict
 from torch.utils.data import DataLoader
-from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
 from gan_compare.data_utils.utils import collate_fn, init_seed, setup_logger
-from gan_compare.dataset.bcdr_dataset import BCDRDataset
-from gan_compare.dataset.cbis_ddsm_dataset import CBIS_DDSMDataset
-from gan_compare.dataset.inbreast_dataset import InbreastDataset
+from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
@@ -64,12 +61,6 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-DATASET_DICT = {
-    "bcdr": BCDRDataset,
-    "inbreast": InbreastDataset,
-    "cbis-ddsm": CBIS_DDSMDataset,
-}
-
 if __name__ == "__main__":
     setup_logger()
 
@@ -98,15 +89,9 @@ if __name__ == "__main__":
                 # transforms.RandomAffine(),
             ]
         )
-    for dataset_name in config.dataset_names:
-        dataset = DATASET_DICT[dataset_name](
-            metadata_path=args.in_metadata_path,
-            # https://pytorch.org/vision/stable/transforms.html
-            transform=transform_to_use,
-            config=config,
-        )
-        dataset_list.append(dataset)
-    dataset = ConcatDataset(dataset_list)
+    dataset = MammographyDataset(
+        metadata_path=args.in_metadata_path, transform=transform_to_use, config=config
+    )
 
     logging.info(
         f"Loaded dataset {dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}"

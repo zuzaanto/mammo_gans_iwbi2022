@@ -35,25 +35,25 @@ def test_generate_cbis_ddsm_metapoints():
     image_id = "1234qwe"
     image_path = Path("/path/image.dcm")
     patient_id = "1287fdSA"
-    roi_type = "Mass"
+    roi_type = "mass"
     csv_metadata = {}
     csv_metadata["breast density"] = 3
     csv_metadata["assessment"] = 2
     csv_metadata["left or right breast"] = "R"
     csv_metadata["image view"] = "MLO"
-    csv_metadata["pathology"] = "malign"
+    csv_metadata["pathology"] = "malignant"
     mask_path = Path("/path/mask.dcm")
     allowed_calcifications = [1, 2, 3]
 
-    result = generate_cbis_ddsm_metapoints(
-        mask,
-        image_id,
-        patient_id,
-        csv_metadata,
-        image_path,
-        roi_type,
+    result, _ = generate_cbis_ddsm_metapoints(
+        patch_id=0,
+        mask=mask,
+        image_id=image_id,
+        patient_id=patient_id,
+        csv_metadata=csv_metadata,
+        image_path=image_path,
+        roi_type=roi_type,
         mask_path=mask_path,
-        allowed_calcifications_birads_values=allowed_calcifications,
     )
 
     assert len(result) == 1

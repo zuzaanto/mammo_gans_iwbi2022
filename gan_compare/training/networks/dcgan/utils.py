@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.parallel
 
 
 def weights_init(m):

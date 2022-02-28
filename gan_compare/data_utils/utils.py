@@ -2,7 +2,6 @@ import glob
 import io
 import json
 import logging
-import os
 import plistlib
 import random
 from datetime import datetime
@@ -18,9 +17,45 @@ from deprecation import deprecated
 from skimage.draw import polygon
 
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
-from gan_compare.paths import INBREAST_IMAGE_PATH
+from gan_compare.dataset.metapoint import Metapoint
+from gan_compare.paths import BCDR_ROOT_PATH, INBREAST_IMAGE_PATH, INBREAST_ROOT_PATH
 
 LOGFILENAME = None
+
+
+def init_seed(seed):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+
+
+def collate_fn(batch):
+    # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
+    batch = list(filter(lambda x: x is not None, batch))
+    return torch.utils.data.dataloader.default_collate(batch)
+
+
+def setup_logger():
+    # Set up logger such that it writes to stdout and file
+    # From https://stackoverflow.com/a/46098711/3692004
+    Path("logs").mkdir(exist_ok=True)
+    logfilename = get_logfilename()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(Path("logs") / logfilename),
+            logging.StreamHandler(),
+        ],
+    )
+    return logfilename
+
+
+def get_logfilename(is_time_reset=False):
+    global LOGFILENAME
+    if LOGFILENAME is None or is_time_reset is True:
+        LOGFILENAME = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
+    return LOGFILENAME
 
 
 def load_inbreast_mask(
@@ -162,49 +197,38 @@ def generate_inbreast_metapoints(
     patient_id,
     csv_metadata,
     image_path,
-    xml_filepath,
-    roi_type: str = "undefined",
-    start_index: int = 0,
-    only_masses: bool = False,
-    allowed_calcifications_birads_values=[],
-) -> Tuple[list, int]:
+    patch_id: int,
+    roi_type: str = "other",
+) -> Tuple[List[Metapoint], int]:
     # transform mask to a contiguous np array to allow its usage in C/Cython. mask.flags['C_CONTIGUOUS'] == True?
     mask = np.ascontiguousarray(mask, dtype=np.uint8)
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     lesion_metapoints = []
     # For each contour, generate a metapoint object including the bounding box as rectangle
     for indx, c in enumerate(contours):
-        if (allowed_calcifications_birads_values is not None) and (
-            csv_metadata["Bi-Rads"] not in allowed_calcifications_birads_values
-        ):  # don't add if it's not an allowed birads value
-            continue
-        elif only_masses and ("Mass" != str(roi_type)):  # don't add if it's not a mass
-            continue
-        elif c.shape[0] < 2:
+        if c.shape[0] < 2:
             continue
         else:
-            # TODO this should be replaced with a Metapoint class object!
-            metapoint = {
-                "image_id": image_id,
-                "patient_id": patient_id,
-                "density": int(csv_metadata["ACR"]),
-                "birads": csv_metadata["Bi-Rads"],
-                "laterality": csv_metadata["Laterality"],
-                "view": csv_metadata["View"],
-                "lesion_id": csv_metadata["View"] + "_" + str(start_index),
-                "bbox": cv2.boundingRect(c),
-                "image_path": str(image_path.resolve()),
-                "xml_path": str(xml_filepath.resolve()),
-                "roi_type": str(roi_type),
-                "biopsy_proven_status": None,
-                "dataset": "inbreast",
-                "healthy": False,
+            metapoint = Metapoint(
+                patch_id=patch_id,
+                image_id=image_id,
+                patient_id=patient_id,
+                density=int(csv_metadata["ACR"]),
+                birads=csv_metadata["Bi-Rads"],
+                laterality=csv_metadata["Laterality"],
+                view=csv_metadata["View"],
+                lesion_id=csv_metadata["View"] + "_" + str(patch_id),
+                bbox=cv2.boundingRect(c),
+                image_path=str(image_path.relative_to(INBREAST_ROOT_PATH)),
+                roi_type=[str(roi_type).lower()],
+                biopsy_proven_status=None,
+                dataset="inbreast",
                 # "contour": c.tolist(),
-            }
-            start_index += 1
+            )
+            patch_id += 1
             # logging.info(f' patent = {patient_id}, start_index = {start_index}')
             lesion_metapoints.append(metapoint)
-    return lesion_metapoints, start_index
+    return lesion_metapoints, patch_id
 
 
 def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[int]]:
@@ -216,6 +240,7 @@ def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[in
 
 
 def generate_healthy_inbreast_metapoints(
+    patch_id: int,
     image_id,
     patient_id,
     csv_metadata,
@@ -225,7 +250,7 @@ def generate_healthy_inbreast_metapoints(
     bg_pixels_max_ratio: float = 0.4,
     start_index: int = 0,
     rng=np.random.default_rng(),
-) -> Tuple[list, int]:
+) -> Tuple[List[Metapoint], int]:
     lesion_metapoints = []
     if int(csv_metadata["Bi-Rads"][:1]) == 1:
         for _ in range(per_image_count):
@@ -240,82 +265,82 @@ def generate_healthy_inbreast_metapoints(
                 _, bin_img_crop = cv2.threshold(img_crop, thres, 255, cv2.THRESH_BINARY)
             if csv_metadata["ACR"].strip() == "":
                 continue
-            metapoint = {
-                "healthy": True,
-                "image_id": image_id,
-                "patient_id": patient_id,
-                "density": int(csv_metadata["ACR"].strip()),
-                "birads": csv_metadata["Bi-Rads"],
-                "laterality": csv_metadata["Laterality"],
-                "view": csv_metadata["View"],
-                "lesion_id": csv_metadata["View"] + "_" + str(start_index),
-                "bbox": bbox,
-                "image_path": str(image_path.resolve()),
-                "xml_path": None,
-                "roi_type": "healthy",
-                "biopsy_proven_status": None,
-                "dataset": "inbreast",
-            }
-            start_index += 1
+            metapoint = Metapoint(
+                patch_id=patch_id,
+                image_id=image_id,
+                patient_id=patient_id,
+                density=int(csv_metadata["ACR"].strip()),
+                birads=csv_metadata["Bi-Rads"],
+                laterality=csv_metadata["Laterality"],
+                view=csv_metadata["View"],
+                lesion_id=csv_metadata["View"] + "_" + str(start_index),
+                bbox=bbox,
+                image_path=str(image_path.relative_to(INBREAST_ROOT_PATH)),
+                roi_type=["healthy"],
+                biopsy_proven_status=None,
+                dataset="inbreast",
+            )
+            patch_id += 1
             lesion_metapoints.append(metapoint)
-    return lesion_metapoints, start_index
+    return lesion_metapoints, patch_id
 
 
-def generate_bcdr_metapoints(
+def generate_bcdr_metapoint(
+    patch_id: int,
     image_dir_path: Path,
     row_df: pd.Series,
-):
+) -> Metapoint:
     laterality, view = get_bcdr_laterality_and_view(row_df)
     if row_df["image_filename"][0] == " ":
         row_df["image_filename"] = row_df["image_filename"][1:]
     if type(row_df["density"]) == str:
         if row_df["density"].strip().startswith("N"):
-            density = None
+            density = -1
         else:
             density = int(row_df["density"].strip())
     else:
         density = row_df["density"]
-    metapoint = {
-        "image_id": row_df["study_id"],
-        "patient_id": row_df["patient_id"],
-        "density": density,
-        "birads": None,
-        "laterality": laterality,
-        "view": view,
-        "lesion_id": str(row_df["patient_id"])
+    metapoint = Metapoint(
+        patch_id=patch_id,
+        image_id=row_df["study_id"],
+        patient_id=row_df["patient_id"],
+        density=density,
+        laterality=laterality,
+        view=view,
+        lesion_id=str(row_df["patient_id"])
         + "_"
         + str(row_df["study_id"])
         + "_"
         + str(row_df["lesion_id"]),
-        "bbox": get_bcdr_bbox(row_df["lw_x_points"], row_df["lw_y_points"]),
-        "image_path": str((image_dir_path / row_df["image_filename"]).resolve()),
-        "xml_path": None,
-        "roi_type": get_bcdr_lesion_type(row_df),
-        "biopsy_proven_status": row_df["classification"].strip(),
-        "dataset": "bcdr",
-        "contour": [
+        bbox=get_bcdr_bbox(row_df["lw_x_points"], row_df["lw_y_points"]),
+        image_path=str(
+            (image_dir_path / row_df["image_filename"]).relative_to(BCDR_ROOT_PATH)
+        ),
+        roi_type=get_bcdr_lesion_type(row_df),
+        biopsy_proven_status=row_df["classification"].strip(),
+        dataset="bcdr",
+        contour=[
             parse_str_to_list_of_ints(row_df["lw_x_points"]),
             parse_str_to_list_of_ints(row_df["lw_y_points"]),
         ],
-        # "contour": None,
-        "healthy": False,
-    }
+    )
     return metapoint
 
 
 def generate_healthy_bcdr_metapoints(
+    patch_id: int,
     image_dir_path: Path,
     row_df: pd.Series,
     per_image_count: int,
     size: int,
-    start_index: int,
     bg_pixels_max_ratio: float = 0.4,
-    rng=np.random.default_rng(),
-):
+    rng: np.random.Generator = np.random.default_rng(),
+) -> List[Metapoint]:
     laterality, view = get_bcdr_laterality_and_view(row_df, healthy=True)
     if row_df["image_filename"][0] == " ":
         row_df["image_filename"] = row_df["image_filename"][1:]
     image_path = str((image_dir_path / row_df["image_filename"]).resolve())
+
     metapoints = []
     for _ in range(per_image_count):
         img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
@@ -328,30 +353,24 @@ def generate_healthy_bcdr_metapoints(
         if cv2.countNonZero(bin_img_crop) < 128 * 12:
             logging.info(str(cv2.countNonZero(bin_img_crop)))
 
-        metapoint = {
-            "healthy": True,
-            "image_id": row_df["study_id"],
-            "patient_id": row_df["patient_id"],
-            "density": int(row_df["density"]),
-            "birads": None,
-            "laterality": laterality,
-            "view": view,
-            "lesion_id": f"{row_df['study_id']}_{start_index}",
-            "bbox": bbox,
-            "image_path": image_path,
-            "xml_path": None,
-            "roi_type": "healthy",
-            "biopsy_proven_status": None,
-            "dataset": "bcdr",
-            "contour": None,
-        }
+        metapoint = Metapoint(
+            patch_id=patch_id,
+            image_id=row_df["study_id"],
+            patient_id=row_df["patient_id"],
+            density=int(row_df["density"]),
+            laterality=laterality,
+            view=view,
+            lesion_id=f"{row_df['study_id']}_{patch_id}",
+            bbox=bbox,
+            image_path=str(
+                (image_dir_path / row_df["image_filename"]).relative_to(BCDR_ROOT_PATH)
+            ),
+            roi_type=["healthy"],
+            dataset="bcdr",
+        )
+        patch_id += 1
         metapoints.append(metapoint)
-        start_index += 1
-
-        # os.makedirs('save_dataset/mymeta', exist_ok=True)
-        # cv2.imwrite(f'save_dataset/mymeta/{start_index}.png', np.array(img_crop))
-
-    return metapoints, start_index
+    return metapoints, patch_id
 
 
 def get_bcdr_laterality_and_view(
@@ -367,17 +386,17 @@ def get_bcdr_laterality_and_view(
 def get_bcdr_lesion_type(case: pd.Series) -> List[str]:
     pathologies = []
     if int(case["mammography_nodule"]):
-        pathologies.append("nodule")
+        pathologies.append("mass")
     if int(case["mammography_calcification"]):
         pathologies.append("calcification")
     if int(case["mammography_microcalcification"]):
-        pathologies.append("microcalcification")
+        pathologies.append("calcification")
     if int(case["mammography_axillary_adenopathy"]):
-        pathologies.append("axillary_adenopathy")
+        pathologies.append("other")
     if int(case["mammography_architectural_distortion"]):
-        pathologies.append("architectural_distortion")
+        pathologies.append("other")
     if int(case["mammography_stroma_distortion"]):
-        pathologies.append("stroma_distortion")
+        pathologies.append("other")
     return pathologies
 
 
@@ -396,17 +415,15 @@ def get_bcdr_bbox(lw_x_points: List[int], lw_y_points: List[int]) -> List[int]:
 
 
 def generate_cbis_ddsm_metapoints(
+    patch_id: int,
     mask: np.ndarray,
     image_id: str,
     patient_id: str,
     csv_metadata: pd.Series,
     image_path: Path,
     roi_type: str = "undefined",
-    start_index: int = 0,
-    only_masses: bool = False,
-    allowed_calcifications_birads_values: list = [],
     mask_path: Path = None,
-) -> list:
+) -> List[Metapoint]:
     """
     Generate CBIS-DDSM metapoints based on extracted contours and metadata
     """
@@ -429,35 +446,28 @@ def generate_cbis_ddsm_metapoints(
     lesion_metapoints = []
     # For each contour, generate a metapoint object including the bounding box as rectangle
     for indx, c in enumerate(contours):
-        if (allowed_calcifications_birads_values is not None) and (
-            csv_metadata["assessment"] not in allowed_calcifications_birads_values
-        ):  # don't add if it's not an allowed birads value
-            continue
-        elif only_masses and ("Mass" != roi_type):  # don't add if it's not a mass
-            continue
-        elif c.shape[0] < 2:
+        if c.shape[0] < 2:
             continue
         else:
-            # TODO this should be replaced with a Metapoint class object!
-            metapoint = {
-                "image_id": image_id,
-                "patient_id": patient_id,
-                "density": int(csv_metadata["breast density"]),
-                "birads": csv_metadata["assessment"],
-                "laterality": csv_metadata["left or right breast"],
-                "view": csv_metadata["image view"],
-                "lesion_id": csv_metadata["image view"] + "_" + str(start_index),
-                "bbox": cv2.boundingRect(c),
-                "image_path": str(image_path.resolve()),
-                "mask_path": str(mask_path.resolve()),
-                "xml_path": None,
-                "roi_type": roi_type,
-                "biopsy_proven_status": csv_metadata["pathology"],
-                "dataset": "cbis-ddsm",
-            }
-            start_index += 1
+            metapoint = Metapoint(
+                patch_id=patch_id,
+                image_id=image_id,
+                patient_id=patient_id,
+                density=int(csv_metadata["breast density"]),
+                birads=csv_metadata["assessment"],
+                laterality=csv_metadata["left or right breast"],
+                view=csv_metadata["image view"],
+                lesion_id=csv_metadata["image view"] + "_" + str(patch_id),
+                bbox=cv2.boundingRect(c),
+                image_path=str(image_path.resolve()),
+                mask_path=str(mask_path.resolve()),
+                roi_type=roi_type,
+                biopsy_proven_status=csv_metadata["pathology"],
+                dataset="cbis-ddsm",
+            )
+            patch_id += 1
             lesion_metapoints.append(metapoint)
-    return lesion_metapoints
+    return lesion_metapoints, patch_id
 
 
 def convert_to_uint8(image: np.ndarray) -> np.ndarray:
@@ -476,55 +486,23 @@ def convert_to_uint8(image: np.ndarray) -> np.ndarray:
 def save_metadata_to_file(metadata_df: pd.DataFrame, out_path: Path) -> None:
     if len(metadata_df) > 0:
         if not out_path.parent.exists():
-            os.makedirs(out_path.parent)
+            out_path.parent.mkdir(exist_ok=True, parents=True)
         with open(str(out_path.resolve()), "w") as out_file:
             json.dump(list(metadata_df.T.to_dict().values()), out_file, indent=4)
 
 
-def init_seed(seed):
-    torch.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(seed)
-
-
-# TODO REFACTOR
-# deprecated
-# def shuffle_in_synthetic_metadata(metadata: List[dict], synthetic_metadata_path: str, synthetic_shuffle_proportion: float) -> List[dict]:
-#     assert Path(synthetic_metadata_path).is_file(), "Incorrect synthetic metadata path"
-#     with open(synthetic_metadata_path, "r") as synth_metadata_file:
-#         synthetic_metadata = json.load(synth_metadata_file)
-#     num_of_metapoints = len(metadata)
-#     num_of_synth_metapoints = round(len(metadata) * synthetic_shuffle_proportion)
-#     if num_of_synth_metapoints > len(synthetic_metadata):
-#         num_of_synth_metapoints = len(synthetic_metadata)
-#         num_of_metapoints = round((1 - synthetic_shuffle_proportion) / synthetic_shuffle_proportion * num_of_synth_metapoints)
-#     return random.sample(metadata, num_of_metapoints) + random.sample(synthetic_metadata, num_of_synth_metapoints)
-
-
-def collate_fn(batch):
-    # from https://github.com/pytorch/pytorch/issues/1137#issuecomment-618286571
-    batch = list(filter(lambda x: x is not None, batch))
-    return torch.utils.data.dataloader.default_collate(batch)
-
-
-def setup_logger():
-    # Set up logger such that it writes to stdout and file
-    # From https://stackoverflow.com/a/46098711/3692004
-    Path("logs").mkdir(exist_ok=True)
-    logfilename = get_logfilename()
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(Path("logs") / logfilename),
-            logging.StreamHandler(),
-        ],
-    )
-    return logfilename
-
-
-def get_logfilename(is_time_reset=False):
-    global LOGFILENAME
-    if LOGFILENAME is None or is_time_reset is True:
-        LOGFILENAME = f'log_{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}.txt'
-    return LOGFILENAME
+def save_split_to_file(
+    train_patient_ids: List[str],
+    val_patient_ids: List[str],
+    test_patient_ids: List[str],
+    out_path: Path,
+) -> None:
+    if not out_path.parent.exists():
+        out_path.parent.mkdir(exist_ok=True, parents=True)
+    patient_ids_dict = {
+        "train": train_patient_ids,
+        "val": val_patient_ids,
+        "test": test_patient_ids,
+    }
+    with open(str(out_path.resolve()), "w") as out_file:
+        json.dump(patient_ids_dict, out_file, indent=4)

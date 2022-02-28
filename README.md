@@ -93,7 +93,7 @@ python -m gan_compare.scripts.split_metadata \
 --metadata_path METADATA_PATH \ # Path to json file with metadata.
 [--train_proportion TRAIN_PROPORTION] \ # Proportion of train subset.
 [--val_proportion VAL_PROPORTION] \ # Proportion of val subset.
---output_dir OUTPUT_DIR # Directory to save 3 new metadata files.
+--output_path OUTPUT_PATH # Path to save the json split file in.
 ```
 After that, you can train and evaluate the classifier as follows:
 ```

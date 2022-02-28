@@ -1,27 +1,15 @@
-from dataclasses import dataclass, field
-from time import time
-from typing import List
+from dataclasses import dataclass
 
-from gan_compare.constants import DATASET_DICT
 from gan_compare.training.base_config import BaseConfig
 
 
 @dataclass
 class ClassifierConfig(BaseConfig):
     # Paths to train and validation metadata
-    train_metadata_path: str = None
-    validation_metadata_path: str = None
-    test_metadata_path: str = None
+    split_path: str = None
 
-    # Path to synthetic metadata used for data augmentation
-    # synthetic_metadata_path: str # TODO REFACTOR
-
-    # Different shuffle and sampling proportions
-    train_shuffle_proportion: float = 0.5
-    validation_shuffle_proportion: float = 0.5
-    training_sampling_proportion: float = 1.0
-
-    training_sampling_proportion: float = 1.0
+    train_shuffle_proportion: float = 0.4
+    validation_shuffle_proportion: float = 0
 
     # Directory with synthetic patches
     synthetic_data_dir: str = None
@@ -37,16 +25,16 @@ class ClassifierConfig(BaseConfig):
     # Dropout rate
     dropout_rate: float = 0.3
 
-    classes: str = "is_healthy"
+    out_checkpoint_path: str = ""
 
-    # out_checkpoint_path is where the files and information produced for this model will be stored
-    # Using time() to avoid overwriting existing model_checkpoints
-    out_checkpoint_path = f"model_checkpoints/CLF_training_{time()}/"
+    classes: str = "is_healthy"
 
     # Learning rate for optimizer
     lr: float = 0.0001  # Note: The CLF equivalent of the learning rates lr_g, lr_d1, lr_d2 in gan_config.py for GAN training.
 
     def __post_init__(self):
+        super().__post_init__()
+        self.out_checkpoint_path = f"{self.output_model_dir}/best_classifier.pt"
         if self.classify_binary_healthy:
             self.n_cond = 2
         elif self.split_birads_fours:
@@ -57,15 +45,13 @@ class ClassifierConfig(BaseConfig):
             "is_healthy",
             "birads",
         ], "Classifier currently supports either healthy vs unhealthy, or birads classification"  # TODO Add ACR classification
+
         assert (
             1 >= self.train_shuffle_proportion >= 0
         ), "Train shuffle proportion must be from <0,1> range"
         assert (
             1 >= self.validation_shuffle_proportion >= 0
         ), "Validation shuffle proportion must be from <0,1> range"
-        assert all(
-            dataset_name in DATASET_DICT.keys() for dataset_name in self.dataset_names
-        )
         if self.model_name == "swin_transformer":
             self.image_size = (
                 224  # swin transformer currently only supports 224x224 images

@@ -123,6 +123,7 @@ class GANConfig(BaseConfig):
     ########## End: Variables related to condition ###########
 
     def __post_init__(self):
+        super().__post_init__()
         if self.conditional:
             self.nc = self.nc + 1
             if self.is_condition_binary:
@@ -140,7 +141,3 @@ class GANConfig(BaseConfig):
                     self.condition_min = 2
                     self.condition_max = 6
             self.n_cond = self.condition_max + 1
-        assert all(
-            dataset_name in ["bcdr", "inbreast", "cbis-ddsm"]
-            for dataset_name in self.dataset_names
-        )

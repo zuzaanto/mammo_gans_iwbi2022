@@ -38,14 +38,14 @@ if __name__ == "__main__":
     dataset_stats = {}
 
     for metapoint in tqdm(metadata):
-        dataset = metapoint["dataset"]
-        if not dataset in dataset_stats.keys():
+        dataset = metapoint.dataset
+        if dataset not in dataset_stats.keys():
             dataset_stats[dataset] = {}
             for name in attributes:
                 dataset_stats[dataset][name] = []
         for key, value in metapoint.items():
             if key in dataset_stats[dataset].keys():
-                if value == None:
+                if value is None:
                     value = "None"
                 if type(value) == list:
                     for subvalue in value:
