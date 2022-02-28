@@ -135,7 +135,7 @@ if __name__ == "__main__":
                 else f"{i}.png"
             )
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
-    # Emptying the cache for GPU RAM.
+    # Emptying the cache to avoid cuda out of memory issues
     torch.cuda.empty_cache()
     logging.info("Loading model...")
     model = GANModel(
@@ -145,5 +145,5 @@ if __name__ == "__main__":
         out_dataset_path=args.out_dataset_path,
     )
     logging.info("Loaded model. Starting training...")
-    # Emptying the cache to avoid cuda out of memory issues
+    # Start model training.
     model.train()

@@ -5,6 +5,7 @@ import os
 import random
 from pathlib import Path
 
+import gc
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -83,14 +84,17 @@ class GANModel:
             #"discriminator": self.netD.state_dict(),
             "generator": self.netG.state_dict(),
             #"optim_discriminator": self.optimizerD.state_dict(),
-            #"optim_generator": self.optimizerG.state_dict(),
+            "optim_generator": self.optimizerG.state_dict(),
         }
         if self.config.pretrain_classifier:
             d["discriminator2"] = self.netD2.state_dict()
+        # Saving the model in out_path
         torch.save(d, out_path)
         logging.info(
             f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}"
         )
+        # emptying the cache to avoid "CUDA out of memory"
+        torch.cuda.empty_cache()
 
     def _create_network(self):
         """Importing and initializing the desired GAN architecture, weights and configuration."""
@@ -471,7 +475,7 @@ class GANModel:
                         gradient_penalty = compute_gradient_penalty(
                             netD=netD,
                             real_images=real_images,
-                            fake_images=fake_images,
+                            fake_images=fake_images.detach(),
                             wgangp_lambda=self.config.wgangp_lambda,
                             device=self.device,
                         )
@@ -484,8 +488,8 @@ class GANModel:
                         )  # D loss
                         return (
                             errD,
-                            d_fake_images.mean(),
-                            d_real_images.mean(),
+                            d_fake_images.mean().item(),
+                            d_real_images.mean().item(),
                             gradient_penalty,
                         )
                 else:
@@ -773,6 +777,9 @@ class GANModel:
 
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
+                # Free up any used memory on each batch iteration
+                gc.collect()
+                torch.cuda.empty_cache()
 
                 # Unpack data (=image batch) alongside condition (e.g. birads number). Conditions are all -1 if unconditioned.
                 try:
@@ -841,7 +848,7 @@ class GANModel:
                         errD2_fake,
                         D2_G_z1,
                         errD2,
-                        gradient_penalty,
+                        gradient_penalty_D2,
                     ) = self._netD_update(
                         netD=self.netD2,
                         optimizerD=self.optimizerD2,
@@ -953,7 +960,7 @@ class GANModel:
                                 D_x,
                                 D_G_z1,
                                 D_G_z2,
-                                gradient_penalty,
+                                gradient_penaltys,
                             )
                         )
                     else:
