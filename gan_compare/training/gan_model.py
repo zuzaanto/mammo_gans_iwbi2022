@@ -286,12 +286,13 @@ class GANModel:
                 self.optimizerG.step()
 
         # delete GPU memory allocating variables.
-        del labels
-        del fake_images
-        del fake_conditions
-        del netD
+        #del labels
+        #del fake_images
+        #del fake_conditions
+        #del netD
 
-        return output.detach(), D_G_z2, errG.detach()
+        #return output.detach(), D_G_z2, errG.detach()
+        return output, D_G_z2, errG
 
     def _netD_update(
         self,
@@ -405,10 +406,10 @@ class GANModel:
         )
 
         # delete GPU memory allocating variables.
-        del labels
-        del netD
-        del images
-        del conditions
+        #del labels
+        #del netD
+        #del images
+        #del conditions
 
         # Calculate gradients for D in backward pass of real data batch
         errD.backward()
@@ -705,8 +706,8 @@ class GANModel:
                 )
 
         # delete GPU memory allocating variables.
-        del fake_conditions
-        del fake_images
+        #del fake_conditions
+        #del fake_images
 
         return output_fake_2_D1, D_G_z2, errG, output_fake_2_D2, D2_G_z, errG_2
 
@@ -1100,20 +1101,20 @@ class GANModel:
                 iters += 1
 
                 # Delete torch variables that could be allocating GPU space
-                del fake_images
-                del real_images
-                del errD
-                del errG
-                del errD_fake
-                del errD_real
-                if self.config.pretrain_classifier:
-                    del errD2
-                    del errD2_fake
-                    del errD2_real
-                    del errG_D2
-                if self.config.conditional:
-                    del fake_conditions
-                    del real_conditions
+                #del fake_images
+                #del real_images
+                #del errD
+                #del errG
+                #del errD_fake
+                #del errD_real
+                #if self.config.pretrain_classifier:
+                #    del errD2
+                #    del errD2_fake
+                #    del errD2_real
+                #    del errG_D2
+                #if self.config.conditional:
+                #    del fake_conditions
+                #    del real_conditions
 
 
             visualization_utils.plot_losses(
