@@ -3,6 +3,7 @@ from dataclasses import asdict
 from pathlib import Path
 from time import time
 
+import torch
 import cv2
 from dacite import from_dict
 
@@ -55,11 +56,24 @@ def parse_args() -> argparse.Namespace:
         help="Directory to save the generated images in.",
     )
     parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help="The type of device on which images should be generated, e.g. cuda or cpu",
+    )
+    parser.add_argument(
         "--birads",
         type=int,
         default=None,
         help="Define the associated risk of malignancy (1-6) accroding to the Breast Imaging-Reporting and Data "
         "System (BIRADS).",
+    )
+
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="The seed used for random number generation i.e. random noise vector input into generator",
     )
     args = parser.parse_args()
     return args
@@ -92,6 +106,9 @@ if __name__ == "__main__":
         args.birads = None
     elif config.conditional is True and args.birads is not None:
         print(f"Conditional samples will be generate for BIRADS = {args.birads}.")
+
+    if args.device is None:
+        args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if args.model_checkpoint_path is None:
         try:
@@ -129,6 +146,8 @@ if __name__ == "__main__":
         model_checkpoint_path=args.model_checkpoint_path,
         num_samples=args.num_samples,
         fixed_condition=args.birads,
+        device = args.device,
+        seed=args.seed,
     )
 
     # Show the images in interactive UI

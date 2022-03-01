@@ -1150,24 +1150,33 @@ class GANModel:
         fixed_noise=None,
         fixed_condition=None,
         num_samples: int = 10,
+        seed: int = 42,
         birads: int = None,
+        device: str = "cpu"
     ) -> list:
+
+        random.seed(seed)
+        torch.manual_seed(seed)
 
         self.optimizerG = optim.Adam(
             self.netG.parameters(),
             lr=self.config.lr_g,
             betas=(self.config.beta1, self.config.beta2),
         )
-        checkpoint = torch.load(model_checkpoint_path, self.device)
+        map_location = 'cpu' if device == 'cpu' else "cuda:0"
+        self.netG.to(device)
+        self.netG.cpu() if device == 'cpu' else self.netG.cuda()
+
+        checkpoint = torch.load(model_checkpoint_path, map_location=map_location)
         self.netG.load_state_dict(checkpoint["generator"])
-        self.optimizerG.load_state_dict(checkpoint["optim_generator"])
+        #self.optimizerG.load_state_dict(checkpoint["optim_generator"])
         self.netG.eval()
 
         img_list = []
         # for ind in tqdm(range(num_samples)):
         if fixed_noise is None:
             fixed_noise = torch.randn(
-                num_samples, self.config.nz, 1, 1, device=self.device
+                num_samples, self.config.nz, 1, 1, device=device
             )
         if self.config.conditional:
             if fixed_condition is None:
