@@ -12,9 +12,7 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-def compute_gradient_penalty(
-    netD, real_images, fake_images, wgangp_lambda, device: str = "cpu"
-):
+def compute_gradient_penalty(netD, real_images, fake_images, wgangp_lambda, device: str = "cpu"):
     """gradient penalty computation according to paper https://arxiv.org/pdf/1704.00028.pdf
 
     Adapted from https://github.com/caogang/wgan-gp/blob/ae47a185ed2e938c39cf3eb2f06b32dc1b6a2064/gan_cifar10.py#L74

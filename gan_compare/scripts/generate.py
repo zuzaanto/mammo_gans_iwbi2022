@@ -79,7 +79,7 @@ if __name__ == "__main__":
     print(asdict(config))
     print("Loading model...")
     model = GANModel(
-        gan_type=args.model_name,
+        gan_type=args.gan_type,
         config=config,
         dataloader=None,
     )
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     if args.save_images:
         for i, img_ in enumerate(img_list):
-            img_path = args.out_images_path / f"{args.model_name}_{i}_{time()}.png"
+            img_path = args.out_images_path / f"{args.gan_type}_{i}_{time()}.png"
             # print(min(img_))
             # print(max(img_))
             img_ = interval_mapping(img_.transpose(1, 2, 0), 0.0, 1.0, 0, 255)
