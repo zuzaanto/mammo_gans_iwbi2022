@@ -1,4 +1,4 @@
-model_name: "swin"
+model_name: "swin_transformer"
 batch_size: 12
 num_epochs: 100
 data:
@@ -26,7 +26,7 @@ data:
       - calcification
       - other
       - healthy
-metadata_path: metadata/all_metadata.json
+metadata_path: setup/all_metadata.json
 classify_binary_healthy: True
 split_path: setup/train_test_val_split.json
 train_shuffle_proportion: 0.5

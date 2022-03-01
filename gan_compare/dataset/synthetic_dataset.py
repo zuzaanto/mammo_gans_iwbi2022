@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Optional
 
 import cv2
@@ -22,12 +23,16 @@ class SyntheticDataset(BaseDataset):
             os.path.join(config.synthetic_data_dir, filename)
             for filename in os.listdir(config.synthetic_data_dir)
         ]
+        self.config = config
         self.model_name = self.config.model_name
         self.transform = transform
 
     @staticmethod
     def _calculate_expected_length(current_length: int, shuffle_proportion: int) -> int:
         return int(shuffle_proportion / (1 - shuffle_proportion) * current_length)
+
+    def __len__(self):
+        return len(self.paths)
 
     def __getitem__(self, idx: int, to_save: bool = False):
         if torch.is_tensor(idx):

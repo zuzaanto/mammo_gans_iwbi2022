@@ -72,6 +72,9 @@ if __name__ == "__main__":
     used_patients = []
     for dataset in DATASET_LIST:  # Split is done separately for each dataset
         dataset_metadata_df = all_metadata_df[all_metadata_df.dataset == dataset]
+        if len(dataset_metadata_df) == 0:
+            print(f"Skipping {dataset} metadata as its empty")
+            continue
         metadata_df_masses = dataset_metadata_df[
             dataset_metadata_df.roi_type.apply(lambda x: "mass" in x)
         ]
@@ -88,9 +91,6 @@ if __name__ == "__main__":
             metadata_df_healthy,
             metadata_df_other_lesions,
         ]:  # split healthy, masses and other separately to enforce balance
-            if len(metadata_df) == 0:
-                print(f"Skipping {dataset} metadata as its empty")
-                continue
             for density in DENSITY_DICT.keys():
                 metadata_per_density = metadata_df[metadata_df.density == density]
                 patients = metadata_per_density.patient_id.unique()
@@ -129,7 +129,18 @@ if __name__ == "__main__":
                 ]
                 used_patients.extend(test_patients)
                 test_patients_list.extend(test_patients)
-
+        masses_train = metadata_df_masses[
+            metadata_df_masses.patient_id.apply(lambda x: x in train_patients_list)
+        ]
+        print(f"Masses in {dataset} train: {len(masses_train.index)}")
+        masses_val = metadata_df_masses[
+            metadata_df_masses.patient_id.apply(lambda x: x in val_patients_list)
+        ]
+        print(f"Masses in {dataset} val: {len(masses_val.index)}")
+        masses_test = metadata_df_masses[
+            metadata_df_masses.patient_id.apply(lambda x: x in test_patients_list)
+        ]
+        print(f"Masses in {dataset} test: {len(masses_test.index)}")
     # Some metapoints may not contain density label - we don't want them in any of the splits
     assert (
         len(train_patients_list) + len(val_patients_list) + len(test_patients_list)
@@ -138,6 +149,7 @@ if __name__ == "__main__":
     print(
         f"Split patients into {len(train_patients_list)}, {len(val_patients_list)} and {len(test_patients_list)} samples."
     )
+
     print("Saving..")
     save_split_to_file(
         train_patient_ids=train_patients_list,

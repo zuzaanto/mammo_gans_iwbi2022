@@ -114,6 +114,7 @@ if __name__ == "__main__":
         split_path=config.split_path,
         subset="train",
         config=config,
+        sampling_ratio=config.train_sampling_ratio,
     )
     val_dataset = MammographyDataset(
         metadata_path=config.metadata_path,
@@ -134,7 +135,6 @@ if __name__ == "__main__":
 
         synth_train_images = SyntheticDataset(
             transform=train_transform,
-            shuffle_proportion=config.train_shuffle_proportion,
             config=config,
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
