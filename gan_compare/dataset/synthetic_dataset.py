@@ -62,4 +62,4 @@ class SyntheticDataset(BaseDataset):
         # TODO make more intelligent labels once we have more complex GANs
         label = 0
 
-        return sample, label, image, ""
+        return sample, label, image, "", -1

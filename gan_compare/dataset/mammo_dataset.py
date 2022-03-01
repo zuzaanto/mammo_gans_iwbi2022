@@ -123,4 +123,4 @@ class MammographyDataset(BaseDataset):
             if self.config.conditional
             else self.determine_label(metapoint)
         )
-        return sample, label, image, metapoint.roi_type[0]
+        return sample, label, image, metapoint.roi_type[0], metapoint.patch_id
