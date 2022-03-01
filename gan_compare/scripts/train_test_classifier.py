@@ -8,6 +8,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -29,8 +30,6 @@ from gan_compare.scripts.metrics import (
 )
 from gan_compare.training.classifier_config import ClassifierConfig
 from gan_compare.training.io import load_yaml
-
-import pandas as pd
 
 
 def parse_args():
@@ -361,15 +360,24 @@ if __name__ == "__main__":
             y_true = torch.cat(y_true)
             y_prob_logit = torch.cat(y_prob_logit)
 
-            if config.output_classification_result in {'json', 'csv'}:
+            if config.output_classification_result in {"json", "csv"}:
                 df_meta = pd.read_json(config.metadata_path)
-                df_results = pd.DataFrame({'patch_id': id_arr, f'y_prob': np.array(torch.exp(y_prob_logit)[:,-1])})
-                df_results['patch_id'] = df_results['patch_id'].astype('int64')
-                df_meta = pd.merge(df_meta, df_results, how='inner', on='patch_id')
-                if config.output_classification_result == 'json':
-                    df_meta.to_json(f'{config.metadata_path}_{logfilename}.json', orient='records')
+                df_results = pd.DataFrame(
+                    {
+                        "patch_id": id_arr,
+                        f"y_prob": np.array(torch.exp(y_prob_logit)[:, -1]),
+                    }
+                )
+                df_results["patch_id"] = df_results["patch_id"].astype("int64")
+                df_meta = pd.merge(df_meta, df_results, how="inner", on="patch_id")
+                if config.output_classification_result == "json":
+                    df_meta.to_json(
+                        f"{config.metadata_path}_{logfilename}.json", orient="records"
+                    )
                 else:
-                    df_meta.to_csv(f'{config.metadata_path}_{logfilename}.csv', index=False)
+                    df_meta.to_csv(
+                        f"{config.metadata_path}_{logfilename}.csv", index=False
+                    )
 
             calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
 

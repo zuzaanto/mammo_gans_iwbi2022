@@ -33,7 +33,7 @@ class ClassifierConfig(BaseConfig):
     lr: float = 0.0001  # Note: The CLF equivalent of the learning rates lr_g, lr_d1, lr_d2 in gan_config.py for GAN training.
 
     # Which format to use when outputting the classification results on the test set, either json, csv, or None
-    output_classification_result: str = 'json'
+    output_classification_result: str = "json"
 
     def __post_init__(self):
         super().__post_init__()
