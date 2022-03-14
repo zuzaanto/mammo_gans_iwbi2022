@@ -23,12 +23,18 @@ num_epochs_before_gan_storage: 500
 num_epochs_between_gan_storage: 50
 
 ########### Training Dataset ###########
-is_trained_on_masses: True
-is_trained_on_calcifications: False
-is_trained_on_other_roi_types: False
+metadata_path: setup/all_metadata.json
+data:
+  train:
+    dataset_names:
+      - inbreast
+      - bcdr
+      - cbis-ddsm
+    roi_types:
+      - mass
+      - calcification
+      - other
 is_training_data_augmented: True
-dataset_names:
-  - bcdr
 
 ########### Preprocessing ###########
 zoom_offset:  0.  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in

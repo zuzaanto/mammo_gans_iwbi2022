@@ -45,15 +45,17 @@ class MammographyDataset(BaseDataset):
 
         if self.config.classify_binary_healthy:
             assert split_path is not None, "Missing split path!"
-        split_dict = load_json(split_path)
-        self.patient_ids = split_dict[subset]
-        self.metadata.extend(
-            [
-                metapoint
-                for metapoint in self.metadata_unfiltered
-                if metapoint.patient_id in self.patient_ids
-            ]
-        )
+            split_dict = load_json(split_path)
+            self.patient_ids = split_dict[subset]
+            self.metadata.extend(
+                [
+                    metapoint
+                    for metapoint in self.metadata_unfiltered
+                    if metapoint.patient_id in self.patient_ids
+                ]
+            )
+        else:
+            self.metadata.extend(self.metadata_unfiltered)
         # filter datasets of interest
         self.metadata = [
             metapoint

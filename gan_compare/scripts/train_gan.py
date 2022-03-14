@@ -46,12 +46,6 @@ def parse_args() -> argparse.Namespace:
         help="Directory to save the dataset samples in.",
     )
     parser.add_argument(
-        "--in_metadata_path",
-        type=str,
-        required=True,
-        help="File system location of metadata.json file.",
-    )
-    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -61,10 +55,9 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-if __name__ == "__main__":
+def train_gan(args):
     setup_logger()
 
-    args = parse_args()
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(GANConfig, config_dict)
@@ -90,7 +83,7 @@ if __name__ == "__main__":
             ]
         )
     dataset = MammographyDataset(
-        metadata_path=args.in_metadata_path, transform=transform_to_use, config=config
+        metadata_path=config.metadata_path, transform=transform_to_use, config=config
     )
 
     logging.info(
@@ -145,3 +138,9 @@ if __name__ == "__main__":
     logging.info("Loaded model. Starting training...")
     # Emptying the cache to avoid cuda out of memory issues
     model.train()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    train_gan(args)
