@@ -14,11 +14,11 @@ import pandas as pd
 import pydicom as dicom
 import torch
 from deprecation import deprecated
-from skimage.draw import polygon
-
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 from gan_compare.dataset.metapoint import Metapoint
-from gan_compare.paths import BCDR_ROOT_PATH, INBREAST_IMAGE_PATH, INBREAST_ROOT_PATH
+from gan_compare.paths import (BCDR_ROOT_PATH, INBREAST_IMAGE_PATH,
+                               INBREAST_ROOT_PATH)
+from skimage.draw import polygon
 
 LOGFILENAME = None
 
@@ -236,7 +236,7 @@ def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[in
     ys = int(rng.integers(0, height - size + 1))
     xs = int(rng.integers(0, width - size + 1))
     image_crop = image[ys : ys + size, xs : xs + size]
-    return image_crop, [ys, xs, size, size]
+    return image_crop, [xs, ys, size, size]
 
 
 def generate_healthy_inbreast_metapoints(
