@@ -69,12 +69,19 @@ class BaseDataset(Dataset):
         Returns:
             (int, int): (num samples of non-healthy, num samples of healthy)
         """
+        assert (
+            self.config.binary_classification
+        ), "Function len_of_classes() works only in the binary classification case."
         cnt = 0
         for d in self.metadata:
-            if type(d) is str:
-                continue  # then d is a synthetic sample (non-healthy)
-            if d.healthy:
-                cnt += 1
+            if self.config.classes == "is_healthy":
+                if type(d) is str:
+                    continue  # then d is a synthetic sample (non-healthy)
+                if d.healthy:
+                    cnt += 1
+            elif self.config.classes == "is_benign":
+                if d.benign:
+                    cnt += 1
         return len(self) - cnt, cnt
 
     def arrange_weights(self, weight_non_healthy, weight_healthy):

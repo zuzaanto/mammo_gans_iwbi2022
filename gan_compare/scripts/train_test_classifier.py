@@ -142,19 +142,19 @@ if __name__ == "__main__":
             f"Number of synthetic patches added to training set: {len(synth_train_images)}"
         )
 
-    num_train_non_healthy, num_train_healthy = train_dataset_no_synth.len_of_classes()
+    num_train_negative, num_train_positive = train_dataset_no_synth.len_of_classes()
 
     logging.info("Training set:")
-    logging.info(f"Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}")
-    logging.info(f"Share of healthy: {num_train_healthy / len(train_dataset)}")
+    logging.info(f"Negative: {num_train_negative}, Positive: {num_train_positive}")
+    logging.info(f"Share of positives: {num_train_positive / len(train_dataset)}")
 
     # Compute the weights for the WeightedRandomSampler for the training set:
     # Example: labels of training set: [true, true, false] => weight_true = 3/2; weight_false = 3/1
-    weight_non_healthy = len(train_dataset) / num_train_non_healthy
-    weight_healthy = len(train_dataset) / num_train_healthy
+    weight_negative = len(train_dataset) / num_train_negative
+    weight_positive = len(train_dataset) / num_train_positive
     train_weights = []
     train_weights.extend(
-        train_dataset_no_synth.arrange_weights(weight_non_healthy, weight_healthy)
+        train_dataset_no_synth.arrange_weights(weight_negative, weight_positive)
     )
 
     train_sampler = WeightedRandomSampler(train_weights, len(train_dataset))
