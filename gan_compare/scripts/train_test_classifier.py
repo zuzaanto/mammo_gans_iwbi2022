@@ -390,7 +390,7 @@ if __name__ == "__main__":
                 "Test only Calcifications",
             )
 
-            if config.classify_binary_healthy:
+            if config.binary_classification:
                 output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
         logging.info("Finished testing.")
     else:

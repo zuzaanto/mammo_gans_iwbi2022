@@ -123,8 +123,11 @@ class BaseDataset(Dataset):
         return condition
 
     def determine_label(self, metapoint: Metapoint) -> int:
-        if self.config.classify_binary_healthy:
+        if self.config.classes == "is_healthy":
             return int(metapoint.healthy)  # label = 1 iff metapoint is healthy
+        elif self.config.classes == "is_benign":
+            if metapoint.benign == -1: raise Exception(f"metapoint.biopsy_proven_status of patch {metapoint.patch_id} should be benign/malignant, but is: {metapoint.biopsy_proven_status}")
+            else: return int(metapoint.benign)  # label = 1 iff metapoint is benign
         elif self.conditional_birads:
             if self.config.is_condition_binary:
                 condition = metapoint.birads[0]

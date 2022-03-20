@@ -43,7 +43,7 @@ class MammographyDataset(BaseDataset):
             sampling_ratio=sampling_ratio,
         )
 
-        if self.config.classify_binary_healthy:
+        if self.config.binary_classification:
             assert split_path is not None, "Missing split path!"
             split_dict = load_json(split_path)
             self.patient_ids = split_dict[subset]
