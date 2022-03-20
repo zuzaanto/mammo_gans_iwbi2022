@@ -27,6 +27,7 @@ class BaseDataset(Dataset):
         # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         transform: any = None,
         sampling_ratio: float = 1.0,
+        subset: str = "train"
     ):
         assert (
             metadata_path is not None and Path(metadata_path).is_file()
@@ -38,7 +39,7 @@ class BaseDataset(Dataset):
                 for metapoint in json.load(metadata_file)
             ]
         logging.info(
-            f"Number of train metadata before sampling: {len(self.metadata_unfiltered)}"
+            f"Number of {subset} metadata before sampling: {len(self.metadata_unfiltered)}"
         )
         random.seed(config.seed)
         self.metadata_unfiltered = random.sample(
@@ -46,7 +47,7 @@ class BaseDataset(Dataset):
             int(sampling_ratio * len(self.metadata_unfiltered)),
         )
         logging.info(
-            f"Number of train metadata after sampling: {len(self.metadata_unfiltered)}"
+            f"Number of {subset} metadata after sampling: {len(self.metadata_unfiltered)}"
         )
 
         self.crop = crop

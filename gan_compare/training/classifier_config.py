@@ -11,7 +11,7 @@ class ClassifierConfig(BaseConfig):
     train_shuffle_proportion: float = 0.4
     validation_shuffle_proportion: float = 0
 
-    train_sampling_ratio: float = 0.5
+    train_sampling_ratio: float = 1.
 
     # Directory with synthetic patches
     synthetic_data_dir: str = None

@@ -41,6 +41,7 @@ class MammographyDataset(BaseDataset):
             transform=transform,
             config=config,
             sampling_ratio=sampling_ratio,
+            subset=subset
         )
 
         if self.config.binary_classification:
