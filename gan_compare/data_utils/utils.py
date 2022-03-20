@@ -236,7 +236,7 @@ def _random_crop(image: np.ndarray, size: int, rng) -> Tuple[np.ndarray, List[in
     ys = int(rng.integers(0, height - size + 1))
     xs = int(rng.integers(0, width - size + 1))
     image_crop = image[ys : ys + size, xs : xs + size]
-    return image_crop, [ys, xs, size, size]
+    return image_crop, [xs, ys, size, size]
 
 
 def generate_healthy_inbreast_metapoints(
