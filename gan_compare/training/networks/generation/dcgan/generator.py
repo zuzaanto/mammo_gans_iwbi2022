@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 
-from gan_compare.training.networks.generation.base_generator import BaseGenerator
+from gan_compare.training.networks.generation.base_generator import \
+    BaseGenerator
 
 
 class Generator(BaseGenerator):

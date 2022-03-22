@@ -5,7 +5,6 @@ import os
 import random
 from pathlib import Path
 
-import gc
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -28,10 +27,7 @@ from gan_compare.dataset.constants import DENSITY_DICT
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.io import save_yaml
 from gan_compare.training.networks.generation.utils import (
-    compute_gradient_penalty,
-    compute_ls_loss,
-    weights_init,
-)
+    compute_gradient_penalty, compute_ls_loss, weights_init)
 from gan_compare.training.visualization import VisualizationUtils
 
 
@@ -39,7 +35,6 @@ class GANModel:
     def __init__(
         self,
         gan_type: str,
-        # TODO: Change naming convention. This should be "gan_type". config.gan_type already in use -> This could cause confusion.
         config: GANConfig,
         dataloader: DataLoader,
         out_dataset_path: Union[str, Path] = "visualisation/inbreast_dataset/",
@@ -48,12 +43,6 @@ class GANModel:
         self.config = config
         self.out_dataset_path = out_dataset_path
         self.dataloader = dataloader
-        self.manual_seed = (
-            999  # manualSeed = random.randint(1, 10000) # use if you want new results
-        )
-        logging.debug("Random Seed: ", self.manual_seed)
-        random.seed(self.manual_seed)
-        torch.manual_seed(self.manual_seed)
 
         # Decide which device we want to run on
         self.device = torch.device(
@@ -88,6 +77,7 @@ class GANModel:
         }
         if self.config.pretrain_classifier:
             d["discriminator2"] = self.netD2.state_dict()
+            d["optim_discriminator2"] = self.optimizerD2.state_dict()
         # Saving the model in out_path
         torch.save(d, out_path)
         logging.info(
@@ -110,12 +100,10 @@ class GANModel:
             logging.info(f"self.config.kernel_size: {self.config.kernel_size}")
             logging.info(f"self.config.image_size: {self.config.image_size}")
 
-            from gan_compare.training.networks.generation.dcgan.discriminator import (
-                Discriminator,
-            )
-            from gan_compare.training.networks.generation.dcgan.generator import (
-                Generator,
-            )
+            from gan_compare.training.networks.generation.dcgan.discriminator import \
+                Discriminator
+            from gan_compare.training.networks.generation.dcgan.generator import \
+                Generator
         elif self.gan_type == "wgangp":
             assert (
                 self.config.conditional == False
@@ -123,12 +111,10 @@ class GANModel:
             assert (
                 self.config.pretrain_classifier == False
             ), "WGAN-GP does not support classifier pretaining yet. This still needs to be implemented. Change pretrain_classifier to False before proceeding."
-            from gan_compare.training.networks.generation.wgangp.discriminator import (
-                Discriminator,
-            )
-            from gan_compare.training.networks.generation.wgangp.generator import (
-                Generator,
-            )
+            from gan_compare.training.networks.generation.wgangp.discriminator import \
+                Discriminator
+            from gan_compare.training.networks.generation.wgangp.generator import \
+                Generator
 
         if self.gan_type == "lsgan":
             # only 64x64 image resolution will be supported
@@ -139,12 +125,10 @@ class GANModel:
                 self.config.conditional == False
             ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
 
-            from gan_compare.training.networks.generation.lsgan.discriminator import (
-                Discriminator,
-            )
-            from gan_compare.training.networks.generation.lsgan.generator import (
-                Generator,
-            )
+            from gan_compare.training.networks.generation.lsgan.discriminator import \
+                Discriminator
+            from gan_compare.training.networks.generation.lsgan.generator import \
+                Generator
 
             self.netG = Generator(
                 nz=self.config.nz,
@@ -285,13 +269,6 @@ class GANModel:
                 # We wait until the last one before running the optimizerG.step()
                 self.optimizerG.step()
 
-        # delete GPU memory allocating variables.
-        #del labels
-        #del fake_images
-        #del fake_conditions
-        #del netD
-
-        #return output.detach(), D_G_z2, errG.detach()
         return output, D_G_z2, errG
 
     def _netD_update(
@@ -358,9 +335,9 @@ class GANModel:
         optimizerD.step()
 
         # delete GPU memory allocating variables.
-        #del fake_images
-        #del real_images
-        #del netD
+        # del fake_images
+        # del real_images
+        # del netD
 
         return (
             output_real,
@@ -404,12 +381,6 @@ class GANModel:
             are_outputs_logits=are_outputs_logits,
             get_loss_for="D",
         )
-
-        # delete GPU memory allocating variables.
-        #del labels
-        #del netD
-        #del images
-        #del conditions
 
         # Calculate gradients for D in backward pass of real data batch
         errD.backward()
@@ -484,9 +455,9 @@ class GANModel:
                             d_fake_images = netD(fake_images)
 
                         # delete GPU memory allocating variables.
-                        #del output
-                        #del fake_images
-                        #del netD
+                        # del output
+                        # del fake_images
+                        # del netD
 
                         return -d_fake_images.mean()  # G loss
                     elif get_loss_for == "D":
@@ -513,10 +484,10 @@ class GANModel:
                         # delete GPU memory allocating variables.
                         d_fake_images = d_fake_images.mean().item()
                         d_real_images = d_real_images.mean().item()
-                        #del output
-                        #del fake_images
-                        #del real_images
-                        #del netD
+                        # del output
+                        # del fake_images
+                        # del real_images
+                        # del netD
 
                         return (
                             errD,
@@ -704,11 +675,6 @@ class GANModel:
                     are_outputs_logits=are_outputs_logits,
                     is_G_updated=is_D2_backpropagated,
                 )
-
-        # delete GPU memory allocating variables.
-        #del fake_conditions
-        #del fake_images
-
         return output_fake_2_D1, D_G_z2, errG, output_fake_2_D2, D2_G_z, errG_2
 
     def train(self):
@@ -815,11 +781,13 @@ class GANModel:
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
                 # Incomment to free up any used memory on each batch iteration
-                #gc.collect()
-                #torch.cuda.empty_cache()
-                #logging.debug(torch.cuda.memory_summary(device=None, abbreviated=False))
+                # import gc
+                # gc.collect()
+                # torch.cuda.empty_cache()
+                # logging.debug(torch.cuda.memory_summary(device=None, abbreviated=False))
 
                 # Unpack data (=image batch) alongside condition (e.g. birads number). Conditions are all -1 if unconditioned.
+
                 try:
                     (
                         data,
@@ -896,7 +864,6 @@ class GANModel:
                         real_conditions=real_conditions,
                         fake_conditions=fake_conditions,
                     )
-
                 errG = None
                 errG_D2 = None
                 # After updating the discriminator, we now update the generator
@@ -966,6 +933,7 @@ class GANModel:
                 # Save D Losses for plotting later
                 D_losses.append(errD.item())
                 # Update the running loss which is used in visualization
+
                 running_loss_of_discriminator += errD.item()
 
                 if self.config.pretrain_classifier:
@@ -1067,8 +1035,6 @@ class GANModel:
                         running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
                         running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
                     )
-
-
                     # Reset the running losses and accuracies
                     running_loss_of_generator = 0.0
                     running_loss_of_discriminator = 0.0
@@ -1099,33 +1065,17 @@ class GANModel:
                         img_name=img_name,
                     )
                 iters += 1
-
-                # Delete torch variables that could be allocating GPU space
-                #del fake_images
-                #del real_images
-                #del errD
-                #del errG
-                #del errD_fake
-                #del errD_real
-                #if self.config.pretrain_classifier:
-                #    del errD2
-                #    del errD2_fake
-                #    del errD2_real
-                #    del errG_D2
-                #if self.config.conditional:
-                #    del fake_conditions
-                #    del real_conditions
-
-
             visualization_utils.plot_losses(
                 D_losses=D_losses,
                 D2_losses=D2_losses,
                 G_losses=G_losses,
                 G2_losses=G2_losses,
             )
-            if epoch % 50 == 0 and epoch >= 200:
-                # TODO: Handle storage of model on each x epochs via config variable
-                # Save on each 50th epoch starting at epoch 200.
+            if (
+                epoch % self.config.num_epochs_between_gan_storage == 0
+                and epoch >= self.config.num_epochs_before_gan_storage
+            ):
+                # Save on each {self.config.num_epochs_between_gan_storage}'th epoch starting at epoch {self.config.num_epochs_before_gan_storage}.
                 self._save_model(epoch)
         self._save_model()
 
@@ -1152,7 +1102,7 @@ class GANModel:
         num_samples: int = 10,
         seed: int = 42,
         birads: int = None,
-        device: str = "cpu"
+        device: str = "cpu",
     ) -> list:
 
         random.seed(seed)
@@ -1163,21 +1113,19 @@ class GANModel:
             lr=self.config.lr_g,
             betas=(self.config.beta1, self.config.beta2),
         )
-        map_location = 'cpu' if device == 'cpu' else "cuda:0"
+        map_location = "cpu" if device == "cpu" else "cuda:0"
         self.netG.to(device)
-        self.netG.cpu() if device == 'cpu' else self.netG.cuda()
+        self.netG.cpu() if device == "cpu" else self.netG.cuda()
 
         checkpoint = torch.load(model_checkpoint_path, map_location=map_location)
         self.netG.load_state_dict(checkpoint["generator"])
-        #self.optimizerG.load_state_dict(checkpoint["optim_generator"])
+        # self.optimizerG.load_state_dict(checkpoint["optim_generator"])
         self.netG.eval()
 
         img_list = []
         # for ind in tqdm(range(num_samples)):
         if fixed_noise is None:
-            fixed_noise = torch.randn(
-                num_samples, self.config.nz, 1, 1, device=device
-            )
+            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=device)
         if self.config.conditional:
             if fixed_condition is None:
                 fixed_condition = self._get_random_conditions(batch_size=num_samples)

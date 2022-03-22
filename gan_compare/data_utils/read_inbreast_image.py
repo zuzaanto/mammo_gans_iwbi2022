@@ -4,7 +4,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import pydicom as dicom
 
 from gan_compare.data_utils.utils import load_inbreast_mask

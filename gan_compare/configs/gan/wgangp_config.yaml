@@ -1,11 +1,15 @@
-model_name: None #"cnn" # "swin_transformer"
-pretrain_classifier: False
-are_Ds_alternating_to_update_G: False
-start_training_D2_after_epoch: 0
-start_backprop_D2_into_G_after_epoch: 0
+
+########### Network Hyperparams ###########
+leakiness: 0.1
+lr_g: 0.0001
+lr_d1: 0.0001
+lr_d2: 0.0001
 beta1: 0.5
 beta2: 0.9 # This is different to DCGAN's 0.999
 d_iters_per_g_update: 5 # Update critic n times for each g update
+nz: 100
+weight_decay: 0
+num_epochs: 20000
 ndf: 64
 ngf: 64
 batch_size: 16
@@ -14,24 +18,47 @@ use_lsgan_loss: False
 switch_loss_each_epoch: False
 kernel_size: 6
 use_one_sided_label_smoothing: True
+
+########### Hardware & I/O ###########
+workers: 2
+ngpu: 1
+num_epochs_before_gan_storage: 500
+num_epochs_between_gan_storage: 50
+
+########### Training Dataset ###########
+metadata_path: setup/all_metadata.json
+data:
+  train:
+    dataset_names:
+      - inbreast
+      - bcdr
+      - cbis-ddsm
+    roi_types:
+      - mass
+      - calcification
+      - other
+is_training_data_augmented: True
+
+########### Preprocessing ###########
+zoom_offset:  0.  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
+zoom_spread: 0.  # 0.33 # the higher, the more variance in zooming. must be greater 0.
+ratio_spread:  0.  # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
+translation_spread: 0.  # 0.25 # the higher, the more variance in translation. must be greater 0.
+max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
+added_noise_term: 0.5
+
+########### Pretraining of Dual Discriminator ###########
+model_name: None # "cnn" # "swin_transformer"
+pretrain_classifier: False
+are_Ds_alternating_to_update_G: False
+start_training_D2_after_epoch: 0
+start_backprop_D2_into_G_after_epoch: 0
+
+########### Conditional GAN Training ###########
 conditioned_on: None
 conditional: False
 is_condition_binary: True
 is_condition_categorical: False
 split_birads_fours: False
-is_trained_on_masses: True
-is_trained_on_calcifications: True
-is_trained_on_other_roi_types: True
-is_training_data_augmented: True
-leakiness: 0.1
-lr_g: 0.0001
-lr_d1: 0.0001
-lr_d2: 0.0001
-beta1: 0.5
-nz: 100
-weight_decay: 0
-num_epochs: 20000
-workers: 2
-ngpu: 1
-dataset_names:
-  - bcdr
+
+

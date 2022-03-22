@@ -1,0 +1,33 @@
+model_name: "swin_transformer"
+batch_size: 12
+num_epochs: 100
+data:
+  train:
+    dataset_names:
+      - inbreast
+    roi_types:
+      - mass
+      - healthy
+  val:
+    dataset_names:
+      - inbreast
+    roi_types:
+      - mass
+      - healthy
+  test:
+    dataset_names:
+      - inbreast
+    roi_types:
+      - mass
+      - healthy
+metadata_path: setup/all_metadata.json
+classify_binary_healthy: True
+split_path: setup/train_test_val_split.json
+train_shuffle_proportion: 0.5
+output_model_dir: model_checkpoints/classifier/masses/swin_transformer_optimam_bcdr
+validation_shuffle_proportion: 0
+classes: is_healthy
+use_synthetic: True
+image_size: 128
+classify_binary_healthy: True
+synthetic_data_dir: synthetic/masses/exp26exp36

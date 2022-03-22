@@ -1,22 +1,33 @@
 model_name: "cnn"
 batch_size: 12
 num_epochs: 100
-train_metadata_path: metadata/final_inbreast_masses_metadata/train_metadata_ub.json
-# train_metadata_path: /Users/zuzanna/Desktop/eucanimage/mammo_gans/metadata/healthy_inbreast_bcdr_metadata_2.json
-validation_metadata_path: metadata/final_inbreast_masses_metadata/val_metadata.json
-# validation_metadata_path: /Users/zuzanna/Desktop/eucanimage/mammo_gans/metadata/healthy_inbreast_bcdr_metadata_2.json
-test_metadata_path: metadata/final_inbreast_masses_metadata/test_metadata.json
-synthetic_metadata_path: metadata/synthetic_metadata.json
-no_transforms: False
-train_shuffle_proportion: 0.
-out_checkpoint_path: model_checkpoints/classifier/cnn_masses_ub
+data:
+  train:
+    dataset_names:
+      - bcdr
+      - inbreast
+    roi_types:
+      - mass
+      - healthy
+  val:
+    dataset_names:
+      - inbreast
+    roi_types:
+      - mass
+      - healthy
+  test:
+    dataset_names:
+      - inbreast
+    roi_types:
+      - mass
+      - healthy
+metadata_path: setup/all_metadata.json
+classify_binary_healthy: True
+split_path: setup/train_test_val_split.json
+train_shuffle_proportion: 0.5
+output_model_dir: model_checkpoints/classifier/masses/cnn_ub
 validation_shuffle_proportion: 0
 classes: is_healthy
 use_synthetic: False
-dataset_names:
-  - inbreast
-  - bcdr_only_train
 training_sampling_proportion: 1.
-is_trained_on_calcifications: True
 image_size: 128
-classify_binary_healthy: True

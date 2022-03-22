@@ -1,14 +1,14 @@
 import logging
 from dataclasses import dataclass
-from time import time
+from time import strftime
 
 from gan_compare.training.base_config import BaseConfig
 
 
 @dataclass
 class GANConfig(BaseConfig):
-    # This gan_type default should be overwritten by and further specified in -> the yaml file.
-    model_name: str = "dcgan"
+
+    model_name: str = None
 
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
@@ -17,7 +17,7 @@ class GANConfig(BaseConfig):
     weight_decay: float = 0  # 5e-06  # 0.000005
 
     # Whether to use least square loss
-    use_lsgan_loss: bool = True  # FIXME Why does this not change in config
+    use_lsgan_loss: bool = True
 
     # Whether to switch the loss function (i.e. from ls to bce) on each epoch.
     switch_loss_each_epoch: bool = False
@@ -78,7 +78,9 @@ class GANConfig(BaseConfig):
     is_training_data_augmented: bool = True
 
     # Where the files and information produced for this model will be stored
-    output_model_dir: str = f"model_checkpoints/GAN_training_{model_name}_{time()}/"
+    output_model_dir: str = (
+        f"model_checkpoints/GAN_training_{model_name}_{strftime('%Y_%m_%d-%H_%M_%S')}/"
+    )
 
     # Is the classifier pretrained during GAN training?
     pretrain_classifier: bool = False
@@ -96,10 +98,20 @@ class GANConfig(BaseConfig):
     # If we want to start the training of D2 later during GAN training, we specify the number of the epoch, in which D2 will start to train itself
     start_training_D2_after_epoch: int = 0
 
-    # TODO Add other, non-adversarial, CLF pretraining methods during GAN training
+    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
+    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
+    added_noise_term: float = 0.0
+
+    # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
+    num_embedding_dimensions: int = 50
+
+    # the number of epochs that need to have passed before storing the first GAN model as .pt file
+    num_epochs_before_gan_storage: int = 500
+
+    # the number of epochs passed between each GAN model .pt file storage, i.e. store on each i_th epoch
+    num_epochs_between_gan_storage: int = 50
 
     ########## Start: Variables related to condition ###########
-
     # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
     is_condition_categorical: bool = False
 
@@ -109,31 +121,12 @@ class GANConfig(BaseConfig):
     # the maximum possible value that the condition can have
     condition_max: int = 4
 
-    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
-    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
-    added_noise_term: float = 0.0
-
-    # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
-    num_embedding_dimensions: int = 50
-
-    # Variables for utils.py -> get_measures_for_crop():
-    zoom_offset: float = 0.0  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-    zoom_spread: float = (
-        0.0  # 0.33 # the higher, the more variance in zooming. must be greater 0.
-    )
-    ratio_spread: float = 0.0  # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
-    translation_spread: float = (
-        0.0  # 0.25 # the higher, the more variance in translation. must be greater 0.
-    )
-    max_translation_offset: float = (
-        0.0  # 0.33 # coefficient relative to the image size.
-    )
-
     ########## Variables related to WGAN GP ###########
     wgangp_lambda = 10
-    d_iters_per_g_update = 1  # Upade critic n times for each g update.
+    d_iters_per_g_update = 1  # Update critic n times for each g update.
 
     def __post_init__(self):
+        super().__post_init__()
         if self.conditional:
             self.nc = self.nc + 1
             if self.is_condition_binary:
@@ -151,14 +144,3 @@ class GANConfig(BaseConfig):
                     self.condition_min = 2
                     self.condition_max = 6
             self.n_cond = self.condition_max + 1
-        assert all(
-            dataset_name in ["bcdr", "inbreast"] for dataset_name in self.dataset_names
-        )
-        if self.model_name == "swin_transformer":
-            self.image_size = (
-                224  # swin transformer currently only supports 224x224 images
-            )
-            self.nc = 3
-            logging.info(
-                f"Changed image shape to {self.image_size}x{self.image_size}x{self.nc}, as is needed for the selected model ({self.model_name})"
-            )

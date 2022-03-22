@@ -11,12 +11,10 @@ import torch
 import torchvision.transforms as transforms
 from dacite import from_dict
 from torch.utils.data import DataLoader
-from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
-from gan_compare.data_utils.utils import collate_fn, setup_logger
-from gan_compare.dataset.bcdr_dataset import BCDRDataset
-from gan_compare.dataset.inbreast_dataset import InbreastDataset
+from gan_compare.data_utils.utils import collate_fn, init_seed, setup_logger
+from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
@@ -48,28 +46,26 @@ def parse_args() -> argparse.Namespace:
         help="Directory to save the dataset samples in.",
     )
     parser.add_argument(
-        "--in_metadata_path",
-        type=str,
-        required=True,
-        help="File system location of metadata.json file.",
+        "--seed",
+        type=int,
+        default=42,
+        help="Global random seed.",
     )
     args = parser.parse_args()
     return args
 
 
-DATASET_DICT = {
-    "bcdr": BCDRDataset,
-    "inbreast": InbreastDataset,
-}
-
-if __name__ == "__main__":
+def train_gan(args):
     setup_logger()
-
-    args = parse_args()
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(GANConfig, config_dict)
-    logging.info(f"GANConfig dict: {asdict(config)}")
+
+    logging.info(f"GAN config dict: {asdict(config)}")
+    logging.info(f"GAN args dict: {args}")
+
+    init_seed(args.seed)  # initializing the random seed
+
     dataset_list = []
     transform_to_use = None
     if config.is_training_data_augmented:
@@ -85,15 +81,9 @@ if __name__ == "__main__":
                 # transforms.RandomAffine(),
             ]
         )
-    for dataset_name in config.dataset_names:
-        dataset = DATASET_DICT[dataset_name](
-            metadata_path=args.in_metadata_path,
-            # https://pytorch.org/vision/stable/transforms.html
-            transform=transform_to_use,
-            config=config,
-        )
-        dataset_list.append(dataset)
-    dataset = ConcatDataset(dataset_list)
+    dataset = MammographyDataset(
+        metadata_path=config.metadata_path, transform=transform_to_use, config=config
+    )
 
     logging.info(
         f"Loaded dataset {dataset.__class__.__name__}, with augmentations(?): {config.is_training_data_augmented}"
@@ -135,7 +125,7 @@ if __name__ == "__main__":
                 else f"{i}.png"
             )
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
-    # Emptying the cache to avoid cuda out of memory issues
+    # Emptying the cache for GPU RAM i.e. to avoid cuda out of memory issues
     torch.cuda.empty_cache()
     logging.info("Loading model...")
     model = GANModel(
@@ -145,5 +135,9 @@ if __name__ == "__main__":
         out_dataset_path=args.out_dataset_path,
     )
     logging.info("Loaded model. Starting training...")
-    # Start model training.
     model.train()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    train_gan(args)

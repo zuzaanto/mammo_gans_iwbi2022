@@ -2,9 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 
-from gan_compare.training.networks.generation.base_discriminator import (
-    BaseDiscriminator,
-)
+from gan_compare.training.networks.generation.base_discriminator import \
+    BaseDiscriminator
 
 
 class Discriminator(BaseDiscriminator):

@@ -12,7 +12,9 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-def compute_gradient_penalty(netD, real_images, fake_images, wgangp_lambda, device: str = "cpu"):
+def compute_gradient_penalty(
+    netD, real_images, fake_images, wgangp_lambda, device: str = "cpu"
+):
     """gradient penalty computation according to paper https://arxiv.org/pdf/1704.00028.pdf
 
     Adapted from https://github.com/caogang/wgan-gp/blob/ae47a185ed2e938c39cf3eb2f06b32dc1b6a2064/gan_cifar10.py#L74
@@ -47,14 +49,14 @@ def compute_gradient_penalty(netD, real_images, fake_images, wgangp_lambda, devi
 
     # Compute the final gradient penalty where _lambda is the gradient penalty coefficient
     gradient_penalty = wgangp_lambda * (
-        ((gradients.norm(2, dim=1) - 1) ** 2).mean()#.item()
+        ((gradients.norm(2, dim=1) - 1) ** 2).mean()  # .item()
     )
 
     # Deleting the variables that may use up space on CUDA device.
-    #del gradients
-    #del disc_x_hat
-    #del x_hat
-    #del alpha
+    # del gradients
+    # del disc_x_hat
+    # del x_hat
+    # del alpha
 
     return gradient_penalty
 
