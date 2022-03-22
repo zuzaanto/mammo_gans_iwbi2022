@@ -8,8 +8,7 @@ import numpy as np
 from dacite import from_dict
 from torch.utils.data import Dataset
 
-from gan_compare.dataset.constants import (BCDR_BIRADS_DICT, BIRADS_DICT,
-                                           DENSITY_DICT)
+from gan_compare.dataset.constants import BCDR_BIRADS_DICT, BIRADS_DICT, DENSITY_DICT
 from gan_compare.dataset.metapoint import Metapoint
 from gan_compare.training.base_config import BaseConfig
 

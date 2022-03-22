@@ -11,20 +11,29 @@ import pandas as pd
 import pydicom as dicom
 from tqdm import tqdm
 
-from gan_compare.data_utils.utils import (generate_bcdr_metapoint,
-                                          generate_cbis_ddsm_metapoints,
-                                          generate_healthy_bcdr_metapoints,
-                                          generate_healthy_inbreast_metapoints,
-                                          generate_inbreast_metapoints,
-                                          get_file_list, load_inbreast_mask,
-                                          read_csv)
-from gan_compare.dataset.constants import (BCDR_HEALTHY_SUBDIRECTORIES,
-                                           BCDR_SUBDIRECTORIES,
-                                           CBIS_DDSM_CSV_DICT)
+from gan_compare.data_utils.utils import (
+    generate_bcdr_metapoint,
+    generate_cbis_ddsm_metapoints,
+    generate_healthy_bcdr_metapoints,
+    generate_healthy_inbreast_metapoints,
+    generate_inbreast_metapoints,
+    get_file_list,
+    load_inbreast_mask,
+    read_csv,
+)
+from gan_compare.dataset.constants import (
+    BCDR_HEALTHY_SUBDIRECTORIES,
+    BCDR_SUBDIRECTORIES,
+    CBIS_DDSM_CSV_DICT,
+)
 from gan_compare.dataset.metapoint import Metapoint
-from gan_compare.paths import (BCDR_ROOT_PATH, CBIS_DDSM_ROOT_PATH,
-                               INBREAST_CSV_PATH, INBREAST_IMAGE_PATH,
-                               INBREAST_XML_PATH)
+from gan_compare.paths import (
+    BCDR_ROOT_PATH,
+    CBIS_DDSM_ROOT_PATH,
+    INBREAST_CSV_PATH,
+    INBREAST_IMAGE_PATH,
+    INBREAST_XML_PATH,
+)
 
 
 def parse_args() -> argparse.Namespace:

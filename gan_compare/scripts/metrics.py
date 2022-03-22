@@ -3,9 +3,14 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from sklearn.metrics import (accuracy_score, auc, average_precision_score,
-                             precision_recall_fscore_support, roc_auc_score,
-                             roc_curve)
+from sklearn.metrics import (
+    accuracy_score,
+    auc,
+    average_precision_score,
+    precision_recall_fscore_support,
+    roc_auc_score,
+    roc_curve,
+)
 
 
 def calc_all_scores(y_true, y_prob_logit, v_loss, run_type, epoch=None):

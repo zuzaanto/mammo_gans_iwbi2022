@@ -27,7 +27,10 @@ from gan_compare.dataset.constants import DENSITY_DICT
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.io import save_yaml
 from gan_compare.training.networks.generation.utils import (
-    compute_gradient_penalty, compute_ls_loss, weights_init)
+    compute_gradient_penalty,
+    compute_ls_loss,
+    weights_init,
+)
 from gan_compare.training.visualization import VisualizationUtils
 
 
@@ -100,10 +103,12 @@ class GANModel:
             logging.info(f"self.config.kernel_size: {self.config.kernel_size}")
             logging.info(f"self.config.image_size: {self.config.image_size}")
 
-            from gan_compare.training.networks.generation.dcgan.discriminator import \
-                Discriminator
-            from gan_compare.training.networks.generation.dcgan.generator import \
-                Generator
+            from gan_compare.training.networks.generation.dcgan.discriminator import (
+                Discriminator,
+            )
+            from gan_compare.training.networks.generation.dcgan.generator import (
+                Generator,
+            )
         elif self.gan_type == "wgangp":
             assert (
                 self.config.conditional == False
@@ -111,10 +116,12 @@ class GANModel:
             assert (
                 self.config.pretrain_classifier == False
             ), "WGAN-GP does not support classifier pretaining yet. This still needs to be implemented. Change pretrain_classifier to False before proceeding."
-            from gan_compare.training.networks.generation.wgangp.discriminator import \
-                Discriminator
-            from gan_compare.training.networks.generation.wgangp.generator import \
-                Generator
+            from gan_compare.training.networks.generation.wgangp.discriminator import (
+                Discriminator,
+            )
+            from gan_compare.training.networks.generation.wgangp.generator import (
+                Generator,
+            )
 
         if self.gan_type == "lsgan":
             # only 64x64 image resolution will be supported
@@ -125,10 +132,12 @@ class GANModel:
                 self.config.conditional == False
             ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
 
-            from gan_compare.training.networks.generation.lsgan.discriminator import \
-                Discriminator
-            from gan_compare.training.networks.generation.lsgan.generator import \
-                Generator
+            from gan_compare.training.networks.generation.lsgan.discriminator import (
+                Discriminator,
+            )
+            from gan_compare.training.networks.generation.lsgan.generator import (
+                Generator,
+            )
 
             self.netG = Generator(
                 nz=self.config.nz,
