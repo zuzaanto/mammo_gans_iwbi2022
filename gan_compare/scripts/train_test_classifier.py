@@ -97,6 +97,7 @@ if __name__ == "__main__":
             [
                 # transforms.RandomResizedCrop(224),
                 transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
                 transforms.Normalize((0.5), (0.5)),
             ]
         )
