@@ -313,7 +313,7 @@ class GANModel:
             errD = errD_real + errD_fake
 
         elif self.gan_type == "wgangp":
-            # TODO: Integrate wgangp more nicely into the pipeline i.e. into self._netD_forward_backward_pass()
+            # TODO: Is there a way to integrate wgangp more nicely into the pipeline e.g. into self._netD_forward_backward_pass()
             errD, output_fake, output_real, gradient_penalty = self._compute_loss(
                 output=None,
                 label=None,
@@ -325,7 +325,7 @@ class GANModel:
                 fake_images=fake_images,
             )
             errD.backward()
-            # TODO Test the assumptions below. Check if might be better ways to report/visualize WGAN-GP errors
+            # TODO: Check if might be better ways to report/visualize WGAN-GP errors
             errD_real = output_real
             D_x = output_real
             errD_fake = output_fake
@@ -976,7 +976,7 @@ class GANModel:
                         if self.config.pretrain_classifier:
                             # While not necessarily backpropagating into G, both D1 and D2 are used and we have all possible numbers available.
                             logging.info(
-                                "[%d/%d][%d/%d]\tLoss_D1: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z)): %.4f \tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f"
+                                "[%d/%d][%d/%d]\tLoss_D1: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z1)): %.4f\tD(G(z2)): %.4f \tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z1)): %.4f\tD2(G(z2)): %.4f \tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f"
                                 % (
                                     epoch,
                                     self.config.num_epochs - 1,
