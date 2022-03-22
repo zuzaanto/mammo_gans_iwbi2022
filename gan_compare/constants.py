@@ -4,12 +4,11 @@ from typing import Optional
 
 import torch.nn as nn
 
-from gan_compare.training.networks.classification.classifier_64 import \
-    Net as Net64
-from gan_compare.training.networks.classification.classifier_128 import \
-    Net as Net128
-from gan_compare.training.networks.classification.swin_transformer import \
-    SwinTransformer
+from gan_compare.training.networks.classification.classifier_64 import Net as Net64
+from gan_compare.training.networks.classification.classifier_128 import Net as Net128
+from gan_compare.training.networks.classification.swin_transformer import (
+    SwinTransformer,
+)
 
 DATASET_LIST = ["bcdr", "inbreast", "cbis-ddsm"]
 

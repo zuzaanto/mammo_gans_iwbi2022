@@ -18,8 +18,7 @@ from skimage.draw import polygon
 
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 from gan_compare.dataset.metapoint import Metapoint
-from gan_compare.paths import (BCDR_ROOT_PATH, INBREAST_IMAGE_PATH,
-                               INBREAST_ROOT_PATH)
+from gan_compare.paths import BCDR_ROOT_PATH, INBREAST_IMAGE_PATH, INBREAST_ROOT_PATH
 
 LOGFILENAME = None
 

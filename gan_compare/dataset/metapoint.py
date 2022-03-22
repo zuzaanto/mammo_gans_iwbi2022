@@ -2,9 +2,14 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
 from gan_compare.constants import DATASET_LIST
-from gan_compare.dataset.constants import (BIOPSY_STATUS, BIRADS_DICT,
-                                           DENSITY_DICT, LATERALITIES,
-                                           ROI_TYPES, VIEWS)
+from gan_compare.dataset.constants import (
+    BIOPSY_STATUS,
+    BIRADS_DICT,
+    DENSITY_DICT,
+    LATERALITIES,
+    ROI_TYPES,
+    VIEWS,
+)
 
 
 @dataclass
