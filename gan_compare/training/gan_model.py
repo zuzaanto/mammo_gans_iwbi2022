@@ -976,7 +976,7 @@ class GANModel:
                         if self.config.pretrain_classifier:
                             # While not necessarily backpropagating into G, both D1 and D2 are used and we have all possible numbers available.
                             logging.info(
-                                "[%d/%d][%d/%d]\tLoss_D1: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f"
+                                "[%d/%d][%d/%d]\tLoss_D1: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z)): %.4f \tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z)): %.4f / %.4f\tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f"
                                 % (
                                     epoch,
                                     self.config.num_epochs - 1,
@@ -1001,7 +1001,7 @@ class GANModel:
                         else:
                             # We only log D1 and G statistics, as D2 was not used in GAN training.
                             logging.info(
-                                "[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z1)): %.4f \t D(G(z2)): %.4f %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f"
+                                "[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z1)): %.4f\tD(G(z2)): %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f"
                                 % (
                                     epoch,
                                     self.config.num_epochs - 1,
