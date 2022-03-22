@@ -5,7 +5,7 @@ start_training_D2_after_epoch: 0
 start_backprop_D2_into_G_after_epoch: 0
 beta1: 0.5
 beta2: 0.9 # This is different to DCGAN's 0.999
-d_iters_per_g_update: 5 # Upade critic n times for each g update
+d_iters_per_g_update: 5 # Update critic n times for each g update
 ndf: 64
 ngf: 64
 batch_size: 16
@@ -20,8 +20,8 @@ is_condition_binary: True
 is_condition_categorical: False
 split_birads_fours: False
 is_trained_on_masses: True
-is_trained_on_calcifications: False
-is_trained_on_other_roi_types: False
+is_trained_on_calcifications: True
+is_trained_on_other_roi_types: True
 is_training_data_augmented: True
 leakiness: 0.1
 lr_g: 0.0001

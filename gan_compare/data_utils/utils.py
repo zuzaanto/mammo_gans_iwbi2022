@@ -79,8 +79,8 @@ def load_inbreast_mask(
                     mask_calcifications[int(point[1]), int(point[0])] = 1
                 else:
                     mask_other[int(point[1]), int(point[0])] = 1
-                    # logging.info(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
-                    # f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
+                    print(f"Neither Mass nor Calcification, but rather '{roi_type}'. Will be treated as roi type "
+                    f"'Other'. Please consider including '{roi_type}' as dedicated roi_type.")
         else:
             x, y = zip(*points)
             col, row = np.array(x), np.array(y)

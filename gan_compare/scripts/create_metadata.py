@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import List
 
+import logging
 import numpy as np
 import pandas as pd
 import pydicom as dicom
@@ -128,7 +129,7 @@ def create_inbreast_metadata(
                     mask_list = load_inbreast_mask(patient_xml, ds.pixel_array.shape)
             else:
                 mask_list = [{"mask": np.zeros(ds.pixel_array.shape), "roi_type": ""}]
-                print(f"No xml file found. Please review why. Path: {xml_filepath}")
+                logging.info(f"No xml file found. Please review why. Path: {xml_filepath}")
                 xml_filepath = ""
 
             start_index: int = 0

@@ -814,10 +814,10 @@ class GANModel:
 
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
-                # Free up any used memory on each batch iteration
-                gc.collect()
-                torch.cuda.empty_cache()
-                logging.debug(torch.cuda.memory_summary(device=None, abbreviated=False))
+                # Incomment to free up any used memory on each batch iteration
+                #gc.collect()
+                #torch.cuda.empty_cache()
+                #logging.debug(torch.cuda.memory_summary(device=None, abbreviated=False))
 
                 # Unpack data (=image batch) alongside condition (e.g. birads number). Conditions are all -1 if unconditioned.
                 try:
