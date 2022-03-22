@@ -60,5 +60,3 @@ conditional: False
 is_condition_binary: True
 is_condition_categorical: False
 split_birads_fours: False
-
-

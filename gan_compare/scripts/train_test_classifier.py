@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -12,15 +13,20 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 from dacite import from_dict
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.data.dataset import ConcatDataset
 from tqdm import tqdm
 
-from gan_compare.constants import DATASET_DICT, get_classifier
-from gan_compare.data_utils.utils import get_logfilename, setup_logger
+from gan_compare.constants import get_classifier
+from gan_compare.data_utils.utils import init_seed, setup_logger
+from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.dataset.synthetic_dataset import SyntheticDataset
-from gan_compare.scripts.metrics import (calc_all_scores, calc_AUPRC,
-                                         calc_AUROC, output_ROC_curve)
+from gan_compare.scripts.metrics import (
+    calc_all_scores,
+    calc_AUPRC,
+    calc_AUROC,
+    output_ROC_curve,
+)
 from gan_compare.training.classifier_config import ClassifierConfig
 from gan_compare.training.io import load_yaml
 
@@ -49,6 +55,12 @@ def parse_args():
         action="store_true",
         help="Whether to save image patches to images_classifier dir",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Global random seed.",
+    )
 
     args = parser.parse_args()
     return args
@@ -56,20 +68,23 @@ def parse_args():
 
 if __name__ == "__main__":
     logfilename = setup_logger()
-
     args = parse_args()
+
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(ClassifierConfig, config_dict)
-
-    logfilename = get_logfilename(is_time_reset=False)
-
-    config.out_checkpoint_path += f"{logfilename}.pt"
+    if not config.out_checkpoint_path.endswith(".pt"):
+        config.out_checkpoint_path += (
+            f'{datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}/classifier.pt'
+        )
 
     logging.info(str(asdict(config)))
+    logging.info(str(args))
     logging.info(
         "Loading dataset..."
     )  # When we have more datasets implemented, we can specify which one(s) to load in config.
+
+    init_seed(args.seed)  # setting the seed from the args
 
     if config.use_synthetic:
         assert (
@@ -86,7 +101,6 @@ if __name__ == "__main__":
             [
                 # transforms.RandomResizedCrop(224),
                 transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
                 transforms.Normalize((0.5), (0.5)),
             ]
         )
@@ -95,45 +109,32 @@ if __name__ == "__main__":
             transforms.Normalize((0.5), (0.5)),
         ]
     )
-    train_dataset_list = []
-    val_dataset_list = []
-    test_dataset_list = []
-    for dataset_name in config.dataset_names:
-        train_dataset_list.append(
-            DATASET_DICT[dataset_name](
-                metadata_path=config.train_metadata_path,
-                conditional_birads=True,
-                transform=train_transform,
-                config=config,
-            )
-        )
-        val_dataset_list.append(
-            DATASET_DICT[dataset_name](
-                metadata_path=config.validation_metadata_path,
-                conditional_birads=True,
-                transform=val_transform,
-                config=config,
-            )
-        )
-        test_dataset_list.append(
-            DATASET_DICT[dataset_name](
-                metadata_path=config.test_metadata_path,
-                conditional_birads=True,
-                transform=val_transform,
-                config=config,
-            )
-        )
-    train_dataset = ConcatDataset(train_dataset_list)
-    val_dataset = ConcatDataset(val_dataset_list)
-    test_dataset = ConcatDataset(test_dataset_list)
+    train_dataset = MammographyDataset(
+        metadata_path=config.metadata_path,
+        split_path=config.split_path,
+        subset="train",
+        config=config,
+        sampling_ratio=config.train_sampling_ratio,
+    )
+    val_dataset = MammographyDataset(
+        metadata_path=config.metadata_path,
+        split_path=config.split_path,
+        subset="val",
+        config=config,
+    )
+    test_dataset = MammographyDataset(
+        metadata_path=config.metadata_path,
+        split_path=config.split_path,
+        subset="test",
+        config=config,
+    )
+    train_dataset_no_synth = train_dataset
     if config.use_synthetic:
+
         # APPEND SYNTHETIC DATA
 
         synth_train_images = SyntheticDataset(
-            conditional_birads=True,
             transform=train_transform,
-            shuffle_proportion=config.train_shuffle_proportion,
-            current_length=len(train_dataset),
             config=config,
         )
         train_dataset = ConcatDataset([train_dataset, synth_train_images])
@@ -141,53 +142,41 @@ if __name__ == "__main__":
             f"Number of synthetic patches added to training set: {len(synth_train_images)}"
         )
 
-        # YOU MUST ADD THE HEALTHY PATCHES WHICH ARE MEANT TO BALANCE THE SYNTHETIC PATCHES TO THE TRAINING SET ABOVE
-        # TODO REFACTOR
-        # # append healthy patches for balancing the synthetic patches (which are all lesioned)
-        # train_dataset_list = []
-        # for dataset_name in config.dataset_names:
-        #     train_dataset_list.append(
-        #         DATASET_DICT[dataset_name](
-        #         metadata_path=config.synthetic_metadata_path,
-        #         conditional_birads=True,
-        #         transform=train_transform,
-        #         config=config
-        #         # synthetic_metadata_path=config.synthetic_metadata_path,
-        #         # synthetic_shuffle_proportion=config.train_shuffle_proportion,
-        #         )
-        #     )
-        # train_dataset = ConcatDataset([train_dataset, ConcatDataset(train_dataset_list)])
-        # logging.info('Added healthy patches for balancing.')
+    num_train_non_healthy, num_train_healthy = train_dataset_no_synth.len_of_classes()
 
-        # synth_val_images = SyntheticDataset(
-        #     metadata_path=config.synthetic_metadata_path,
-        #     conditional_birads=True,
-        #     transform=val_transform,
-        #     shuffle_proportion=config.train_shuffle_proportion,
-        #     current_length=len(val_dataset),
-        #     config=config,
-        #     indices=None
-        # )
-        # val_dataset = ConcatDataset([val_dataset, synth_val_images])
-        # logging.info(f'Number of samples added to synthetic validation set: {len(synth_val_images)}')
+    logging.info("Training set:")
+    logging.info(f"Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}")
+    logging.info(f"Share of healthy: {num_train_healthy / len(train_dataset)}")
 
+    # Compute the weights for the WeightedRandomSampler for the training set:
+    # Example: labels of training set: [true, true, false] => weight_true = 3/2; weight_false = 3/1
+    weight_non_healthy = len(train_dataset) / num_train_non_healthy
+    weight_healthy = len(train_dataset) / num_train_healthy
+    train_weights = []
+    train_weights.extend(
+        train_dataset_no_synth.arrange_weights(weight_non_healthy, weight_healthy)
+    )
+
+    train_sampler = WeightedRandomSampler(train_weights, len(train_dataset))
+
+    # We don't want any sample weights in validation and test sets, so we stick with shuffle=True below.
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
+        sampler=train_sampler,
     )
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
+        shuffle=True,
     )
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
         num_workers=config.workers,
+        shuffle=True,
     )
 
     if not Path(config.out_checkpoint_path).parent.exists():
@@ -214,6 +203,7 @@ if __name__ == "__main__":
             torch.load("model_checkpoints/classifier 50 no synth/classifier.pt")
         )
         net.eval()
+        # TODO refactor (make optional & parametrize) or remove saving dataset
         save_data_path = Path("save_dataset")
 
         with open(save_data_path / "validation.txt", "w") as f:
@@ -311,7 +301,11 @@ if __name__ == "__main__":
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
                 _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(
-                    torch.cat(y_true), torch.cat(y_prob_logit), val_loss, "Valid", epoch
+                    torch.cat(y_true),
+                    torch.cat(y_prob_logit),
+                    val_loss,
+                    "Valid",
+                    epoch,
                 )
                 val_f1 = prec_rec_f1[-1:][0]
                 # if val_loss < best_loss:
@@ -340,59 +334,64 @@ if __name__ == "__main__":
     model_path = (
         args.in_checkpoint_path if args.only_get_metrics else config.out_checkpoint_path
     )
-    logging.info(f"Loading model from {model_path}")
-    net.load_state_dict(torch.load(model_path))
-    with torch.no_grad():
-        y_true = []
-        y_prob_logit = []
-        test_loss = []
-        roi_types = []
-        net.eval()
-        logging.info("Testing...")
-        for i, data in enumerate(tqdm(test_dataloader)):
-            samples, labels, _, roi_type_arr = data
-            # logging.info(images.size())
-            outputs = net(samples.to(device))
-            test_loss.append(criterion(outputs.cpu(), labels))
-            y_true.append(labels)
-            y_prob_logit.append(outputs.data.cpu())
+    if os.path.exists(model_path):
+        logging.info(f"Loading model from {model_path}")
+        net.load_state_dict(torch.load(model_path))
+        with torch.no_grad():
+            y_true = []
+            y_prob_logit = []
+            test_loss = []
+            roi_types = []
+            net.eval()
+            logging.info("Testing...")
+            for i, data in enumerate(tqdm(test_dataloader)):
+                samples, labels, _, roi_type_arr = data
+                # logging.info(images.size())
+                outputs = net(samples.to(device))
+                test_loss.append(criterion(outputs.cpu(), labels))
+                y_true.append(labels)
+                y_prob_logit.append(outputs.data.cpu())
 
-            roi_types.extend(roi_type_arr)
-        test_loss = np.mean(test_loss)
-        y_true = torch.cat(y_true)
-        y_prob_logit = torch.cat(y_prob_logit)
-        calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
+                roi_types.extend(roi_type_arr)
+            test_loss = np.mean(test_loss)
+            y_true = torch.cat(y_true)
+            y_prob_logit = torch.cat(y_prob_logit)
+            calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
 
-        mass_indices = [
-            i for i, item in enumerate(roi_types) if item == "Mass" or item == "healthy"
-        ]
-        calc_AUROC(
-            y_true[mass_indices],
-            torch.exp(y_prob_logit)[mass_indices],
-            "Test only Masses",
-        )
-        calc_AUPRC(
-            y_true[mass_indices],
-            torch.exp(y_prob_logit)[mass_indices],
-            "Test only Masses",
-        )
+            mass_indices = [
+                i
+                for i, item in enumerate(roi_types)
+                if item == "mass" or item == "healthy"
+            ]
+            calc_AUROC(
+                y_true[mass_indices],
+                torch.exp(y_prob_logit)[mass_indices],
+                "Test only Masses",
+            )
+            calc_AUPRC(
+                y_true[mass_indices],
+                torch.exp(y_prob_logit)[mass_indices],
+                "Test only Masses",
+            )
 
-        calcification_indices = [
-            i
-            for i, item in enumerate(roi_types)
-            if item == "Calcification" or item == "healthy"
-        ]
-        calc_AUROC(
-            y_true[calcification_indices],
-            torch.exp(y_prob_logit)[calcification_indices],
-            "Test only Calcifications",
-        )
-        calc_AUPRC(
-            y_true[calcification_indices],
-            torch.exp(y_prob_logit)[calcification_indices],
-            "Test only Calcifications",
-        )
+            calcification_indices = [
+                i
+                for i, item in enumerate(roi_types)
+                if item == "calcification" or item == "healthy"
+            ]
+            calc_AUROC(
+                y_true[calcification_indices],
+                torch.exp(y_prob_logit)[calcification_indices],
+                "Test only Calcifications",
+            )
+            calc_AUPRC(
+                y_true[calcification_indices],
+                torch.exp(y_prob_logit)[calcification_indices],
+                "Test only Calcifications",
+            )
 
-        if config.classify_binary_healthy:
-            output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
-    logging.info("Finished testing.")
+            if config.classify_binary_healthy:
+                output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
+        logging.info("Finished testing.")
+    else:
+        logging.info("No checkpoint found. Testing omitted.")
