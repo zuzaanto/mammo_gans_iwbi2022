@@ -7,6 +7,7 @@ lr_d2: 0.0001
 beta1: 0.5
 beta2: 0.9 # This is different to DCGAN's 0.999
 d_iters_per_g_update: 5 # Update critic n times for each g update
+is_instance_norm_used: True # Set to True to use nn.InstanceNorm2d layers in D. Else: No normalization is used
 nz: 100
 weight_decay: 0
 num_epochs: 20000

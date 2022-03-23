@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 from time import strftime
 
@@ -7,7 +6,6 @@ from gan_compare.training.base_config import BaseConfig
 
 @dataclass
 class GANConfig(BaseConfig):
-
     model_name: str = None
 
     # l2 regularization in discriminator value taken from here:
@@ -122,8 +120,9 @@ class GANConfig(BaseConfig):
     condition_max: int = 4
 
     ########## Variables related to WGAN GP ###########
-    wgangp_lambda = 10
-    d_iters_per_g_update = 1  # Update critic n times for each g update.
+    wgangp_lambda: int = 10
+    d_iters_per_g_update: int = 1  # Update critic n times for each g update.
+    is_instance_norm_used: bool = False  # Set to True to use nn.InstanceNorm2d layers in D. Else: No normalization is used
 
     def __post_init__(self):
         super().__post_init__()

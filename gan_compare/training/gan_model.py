@@ -167,6 +167,7 @@ class GANModel:
                 num_embedding_dimensions=self.config.num_embedding_dimensions,
                 kernel_size=self.config.kernel_size,
                 leakiness=self.config.leakiness,
+                is_instance_norm_used=self.config.is_instance_norm_used,
             ).to(self.device)
 
             self.netG = Generator(
