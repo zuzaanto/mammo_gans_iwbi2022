@@ -20,7 +20,6 @@ class Discriminator(BaseDiscriminator):
         num_embedding_dimensions: int = 50,
         kernel_size: int = 6,
         is_instance_norm_used: bool = True,
-
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,
@@ -63,7 +62,6 @@ class Discriminator(BaseDiscriminator):
             raise ValueError(
                 f"Allowed kernel sizes are 6 and 4. You provided {self.kernel_size}. Please adjust."
             )
-
 
         if self.image_size == 224:
             self.ndf_input_main = (
@@ -206,12 +204,11 @@ class Discriminator(BaseDiscriminator):
         # FIXME Adjust input dimension in linear layer!
         # self.linear = nn.Linear(self.ndf_input_main * 16, 1)
 
-
     def normalize(self, num_features):
         if self.is_instance_norm_used:
             return nn.InstanceNorm2d(num_features=num_features)
         else:
-            pass # We do not use normalization layers (as recommended in wgangp paper)
+            pass  # We do not use normalization layers (as recommended in wgangp paper)
 
     def forward(self, x, conditions=None):
         output = self.main(x)
