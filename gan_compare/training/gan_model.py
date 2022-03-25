@@ -644,7 +644,7 @@ class GANModel:
                         _,
                     ) = data
                 except:
-                    data, conditions, _, _ = data
+                    data, conditions, _, _, _ = data
 
                 # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
                 real_images = data.to(self.device)
