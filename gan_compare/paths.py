@@ -4,9 +4,6 @@ INBREAST_ROOT_PATH = Path("/path/to/datasets/InBreast/")
 BCDR_ROOT_PATH = Path("/path/to/datasets/BCDR/")
 CBIS_DDSM_ROOT_PATH = Path("/path/to/datasets/CBIS-DDSM/")
 
-INBREAST_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/InBreast/")
-BCDR_ROOT_PATH = Path("/Users/richardosuala/Desktop/Datasets/BCDR/")
-
 DATASET_PATH_DICT = {
     "bcdr": BCDR_ROOT_PATH,
     "inbreast": INBREAST_ROOT_PATH,
