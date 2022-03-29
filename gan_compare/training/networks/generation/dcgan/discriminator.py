@@ -21,6 +21,7 @@ class Discriminator(BaseDiscriminator):
         is_condition_categorical: bool = False,
         num_embedding_dimensions: int = 50,
         kernel_size: int = 6,
+        **kwargs,
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,

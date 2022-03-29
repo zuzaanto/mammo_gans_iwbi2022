@@ -10,7 +10,7 @@ from gan_compare.training.networks.generation.base_discriminator import (
 
 class Discriminator(BaseDiscriminator):
     def __init__(
-        self, ndf: int, nc: int, ngpu: int, leakiness: float, bias: bool = False
+        self, ndf: int, nc: int, ngpu: int, leakiness: float, bias: bool = False, **kwargs,
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,

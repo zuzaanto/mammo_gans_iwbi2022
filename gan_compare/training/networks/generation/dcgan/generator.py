@@ -19,6 +19,7 @@ class Generator(BaseGenerator):
         n_cond: int = 10,
         is_condition_categorical: bool = False,
         num_embedding_dimensions: int = 50,
+        **kwargs,
     ):
         super(Generator, self).__init__(
             nz=nz,

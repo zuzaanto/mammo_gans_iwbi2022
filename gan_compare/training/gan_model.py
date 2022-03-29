@@ -73,9 +73,9 @@ class GANModel:
             out_path = self.output_model_dir / f"{epoch_number}.pt"
 
         d = {
-            # "discriminator": self.netD.state_dict(),
+            "discriminator": self.netD.state_dict(),
             "generator": self.netG.state_dict(),
-            # "optim_discriminator": self.optimizerD.state_dict(),
+            "optim_discriminator": self.optimizerD.state_dict(),
             "optim_generator": self.optimizerG.state_dict(),
         }
         if self.config.pretrain_classifier:
@@ -92,10 +92,7 @@ class GANModel:
     def _create_network(self):
         """Importing and initializing the desired GAN architecture, weights and configuration."""
 
-        if self.gan_type not in ["dcgan", "wgangp", "lsgan"]:
-            raise ValueError(
-                f"Unknown gan_type. Please revise the name of the GAN model: {self.gan_type}"
-            )
+        assert (self.gan_type in ["dcgan", "wgangp", "lsgan"]), f"Unknown gan_type. Please revise the name of the GAN model you provided ({self.gan_type}). Allowed values are 'dcgan', 'wgangp', 'lsgan'"
 
         if (
             self.gan_type == "dcgan"
@@ -123,7 +120,7 @@ class GANModel:
                 Generator,
             )
 
-        if self.gan_type == "lsgan":
+        elif self.gan_type == "lsgan":
             # only 64x64 image resolution will be supported
             assert (
                 self.config.image_size == 64
@@ -139,48 +136,31 @@ class GANModel:
                 Generator,
             )
 
-            self.netG = Generator(
-                nz=self.config.nz,
-                ngf=self.config.ngf,
-                nc=self.config.nc,
-                ngpu=self.config.ngpu,
-                leakiness=self.config.leakiness,
-            ).to(self.device)
+        self.netD = Discriminator(
+            ndf=self.config.ndf,
+            nc=self.config.nc,
+            ngpu=self.config.ngpu,
+            image_size=self.config.image_size,
+            conditional=self.config.conditional,
+            n_cond=self.config.n_cond,
+            is_condition_categorical=self.config.is_condition_categorical,
+            num_embedding_dimensions=self.config.num_embedding_dimensions,
+            kernel_size=self.config.kernel_size,
+            leakiness=self.config.leakiness,
+        ).to(self.device)
 
-            self.netD = Discriminator(
-                ndf=self.config.ndf,
-                nc=self.config.nc,
-                ngpu=self.config.ngpu,
-                leakiness=self.config.leakiness,
-                bias=False,
-            ).to(self.device)
-
-        else:
-            self.netD = Discriminator(
-                ndf=self.config.ndf,
-                nc=self.config.nc,
-                ngpu=self.config.ngpu,
-                image_size=self.config.image_size,
-                conditional=self.config.conditional,
-                n_cond=self.config.n_cond,
-                is_condition_categorical=self.config.is_condition_categorical,
-                num_embedding_dimensions=self.config.num_embedding_dimensions,
-                kernel_size=self.config.kernel_size,
-                leakiness=self.config.leakiness,
-            ).to(self.device)
-
-            self.netG = Generator(
-                nz=self.config.nz,
-                ngf=self.config.ngf,
-                nc=self.config.nc,
-                ngpu=self.config.ngpu,
-                image_size=self.config.image_size,
-                conditional=self.config.conditional,
-                n_cond=self.config.n_cond,
-                is_condition_categorical=self.config.is_condition_categorical,
-                num_embedding_dimensions=self.config.num_embedding_dimensions,
-                leakiness=self.config.leakiness,
-            ).to(self.device)
+        self.netG = Generator(
+            nz=self.config.nz,
+            ngf=self.config.ngf,
+            nc=self.config.nc,
+            ngpu=self.config.ngpu,
+            image_size=self.config.image_size,
+            conditional=self.config.conditional,
+            n_cond=self.config.n_cond,
+            is_condition_categorical=self.config.is_condition_categorical,
+            num_embedding_dimensions=self.config.num_embedding_dimensions,
+            leakiness=self.config.leakiness,
+        ).to(self.device)
 
         # Check if channel size is correct
         if self.config.conditional:
@@ -321,6 +301,9 @@ class GANModel:
             # Add the gradients from the all-real and all-fake batches
             errD = errD_real + errD_fake
 
+            # Calculate gradients for D in backward pass
+            errD.backward()
+
         elif self.gan_type == "wgangp":
             # TODO: Is there a way to integrate wgangp more nicely into the pipeline e.g. into self._netD_forward_backward_pass()
             errD, output_fake, output_real, gradient_penalty = self._compute_loss(
@@ -383,7 +366,7 @@ class GANModel:
         )
 
         # Calculate loss on all-real batch
-        errD = self._compute_loss(
+        errD_real_or_fake = self._compute_loss(
             output=output,
             label=labels,
             epoch=epoch,
@@ -391,11 +374,10 @@ class GANModel:
             get_loss_for="D",
         )
 
-        # Calculate gradients for D in backward pass of real data batch
-        errD.backward()
+        # The mean prediction of the discriminator
         D_input = output.mean().item()
 
-        return output, errD, D_input
+        return output, errD_real_or_fake, D_input
 
     def _compute_loss(
         self,
@@ -513,8 +495,7 @@ class GANModel:
                 return self.criterion(output, label)
             else:
                 raise Exception(
-                    f"the gan_type ('{self.gan_type}') you provided via args is not valid. Currently only 'dcgan', "
-                    f"'lsgan', or 'wgangp' are supported. Please adjust."
+                    f"The gan_type ('{self.gan_type}') you provided via args is not valid."
                 )
 
     def _get_labels(self, smoothing: bool = True):

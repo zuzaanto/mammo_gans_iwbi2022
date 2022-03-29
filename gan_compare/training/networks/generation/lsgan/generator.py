@@ -15,6 +15,7 @@ class Generator(BaseGenerator):
         ngpu: int,
         leakiness: float,
         bias: bool = False,
+        **kwargs,
     ):
         super(Generator, self).__init__(
             nz=nz,

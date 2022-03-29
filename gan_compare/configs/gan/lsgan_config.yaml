@@ -11,11 +11,11 @@ num_epochs: 20000
 ndf: 64
 ngf: 64
 batch_size: 16
-image_size: 128
-use_lsgan_loss: False
+image_size: 64
+use_lsgan_loss: True
 switch_loss_each_epoch: False
-kernel_size: 6
-use_one_sided_label_smoothing: True
+kernel_size: 4
+use_one_sided_label_smoothing: False
 
 ########### Hardware & I/O ###########
 workers: 2
@@ -44,7 +44,6 @@ ratio_spread:  0.  # 0.05 # coefficient for how much to spread the ratio between
 translation_spread: 0.  # 0.25 # the higher, the more variance in translation. must be greater 0.
 max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
 
-
 ########### Pretraining of Dual Discriminator ###########
 model_name: None # "cnn" # "swin_transformer"
 pretrain_classifier: False
@@ -59,4 +58,5 @@ is_condition_binary: False
 is_condition_categorical: False
 split_birads_fours: False
 added_noise_term: 0. # relevant for adding some random noise for the condition label of the conditional GAN.
+
 

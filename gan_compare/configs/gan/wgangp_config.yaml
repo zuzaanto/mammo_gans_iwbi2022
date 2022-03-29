@@ -9,11 +9,11 @@ beta2: 0.9 # This is different to DCGAN's 0.999
 d_iters_per_g_update: 5 # Update critic n times for each g update
 nz: 100
 weight_decay: 0
-num_epochs: 20000
+num_epochs: 10000
 ndf: 64
 ngf: 64
 batch_size: 16
-image_size: 128
+image_size: 224
 use_lsgan_loss: False
 switch_loss_each_epoch: False
 kernel_size: 6
@@ -32,20 +32,19 @@ data:
     dataset_names:
       - inbreast
       - bcdr
-      - cbis-ddsm
+      #- cbis-ddsm
     roi_types:
       - mass
-      - calcification
-      - other
+      #- calcification
+      #- other
 is_training_data_augmented: True
 
 ########### Preprocessing ###########
 zoom_offset:  0.  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-zoom_spread: 0.  # 0.33 # the higher, the more variance in zooming. must be greater 0.
+zoom_spread: 0.  # 0.33 # the higher, the more variance in zooming. 0. seems to be the minimal variance
 ratio_spread:  0.  # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
-translation_spread: 0.  # 0.25 # the higher, the more variance in translation. must be greater 0.
+translation_spread: 0.  # 0.25 # the higher, the more variance in translation. 0. seems to be the minimal variance
 max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
-added_noise_term: 0.5
 
 ########### Pretraining of Dual Discriminator ###########
 model_name: None # "cnn" # "swin_transformer"
@@ -57,6 +56,7 @@ start_backprop_D2_into_G_after_epoch: 0
 ########### Conditional GAN Training ###########
 conditioned_on: None
 conditional: False
-is_condition_binary: True
+is_condition_binary: False
 is_condition_categorical: False
 split_birads_fours: False
+added_noise_term: 0. # relevant for adding some random noise for the condition label of the conditional GAN.
