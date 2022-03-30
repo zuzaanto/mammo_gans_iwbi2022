@@ -60,7 +60,6 @@ def train_gan(args):
 
     init_seed(args.seed)  # initializing the random seed
 
-    dataset_list = []
     transform_to_use = None
     if config.is_training_data_augmented:
         transform_to_use = transforms.Compose(

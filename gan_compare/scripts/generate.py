@@ -11,6 +11,7 @@ from gan_compare.data_utils.utils import interval_mapping
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
+from gan_compare.data_utils.utils import init_seed
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,6 +81,9 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
+
+    init_seed(args.seed)  # initializing the random seed
+
     # Load model and config
     assert Path(
         args.model_checkpoint_dir

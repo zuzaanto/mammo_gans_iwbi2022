@@ -1095,9 +1095,6 @@ class GANModel:
         device: str = "cpu",
     ) -> list:
 
-        random.seed(seed)
-        torch.manual_seed(seed)
-
         self.optimizerG = optim.Adam(
             self.netG.parameters(),
             lr=self.config.lr_g,
