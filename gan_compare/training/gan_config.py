@@ -8,7 +8,29 @@ from gan_compare.training.base_config import BaseConfig
 @dataclass
 class GANConfig(BaseConfig):
 
+    # which type of GAN do you want to train, e.g. "lsgan", "dcgan", "wgangp"
+    gan_type: str = "wgangp"
+
+    ########## Start: Variables related to D2 Pretraining ###########
+
+    # in case of a second discriminator is pretrained, which model should be used, e.g. "cnn", "swin_transformer"
     model_name: str = None
+
+    # Is the classifier pretrained during GAN training?
+    pretrain_classifier: bool = False
+
+    # Is the type of classifier pretraining during GAN training adversarial? i.e. real/fake prediction with BCE loss.
+    is_pretraining_adversarial: bool = True
+
+    # If we pretrain_classifier, then the updates of G alternate per batch, e.g. in iteration 1 update is based on
+    # prediction from D1 and in iteration 2 it is based on D2, and so on.
+    are_Ds_alternating_to_update_G: bool = True
+
+    # If we want to wait with the backpropagation of D2, we specify the number of the epoch, in which D2 will start to backpropagate into G
+    start_backprop_D2_into_G_after_epoch: int = 0
+
+    # If we want to start the training of D2 later during GAN training, we specify the number of the epoch, in which D2 will start to train itself
+    start_training_D2_after_epoch: int = 0
 
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
@@ -82,25 +104,6 @@ class GANConfig(BaseConfig):
         f"model_checkpoints/GAN_training_{model_name}_{strftime('%Y_%m_%d-%H_%M_%S')}/"
     )
 
-    # Is the classifier pretrained during GAN training?
-    pretrain_classifier: bool = False
-
-    # Is the type of classifier pretraining during GAN training adversarial? i.e. real/fake prediction with BCE loss.
-    is_pretraining_adversarial: bool = True
-
-    # If we pretrain_classifier, then the updates of G alternate per batch, e.g. in iteration 1 update is based on
-    # prediction from D1 and in iteration 2 it is based on D2, and so on.
-    are_Ds_alternating_to_update_G: bool = True
-
-    # If we want to wait with the backpropagation of D2, we specify the number of the epoch, in which D2 will start to backpropagate into G
-    start_backprop_D2_into_G_after_epoch: int = 0
-
-    # If we want to start the training of D2 later during GAN training, we specify the number of the epoch, in which D2 will start to train itself
-    start_training_D2_after_epoch: int = 0
-
-    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
-    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
-    added_noise_term: float = 0.0
 
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50
@@ -114,6 +117,10 @@ class GANConfig(BaseConfig):
     ########## Start: Variables related to condition ###########
     # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
     is_condition_categorical: bool = False
+
+    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
+    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
+    added_noise_term: float = 0.0
 
     # the minimum possible value that the condition can have
     condition_min: int = 1

@@ -23,12 +23,6 @@ from gan_compare.training.io import load_yaml
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--gan_type",
-        type=str,
-        required=True,
-        help="GAN type: supported: dcgan and lsgan and wgangp",
-    )
-    parser.add_argument(
         "--config_path",
         type=str,
         default="gan_compare/configs/dcgan_config.yaml",
@@ -129,7 +123,7 @@ def train_gan(args):
     torch.cuda.empty_cache()
     logging.info("Loading model...")
     model = GANModel(
-        gan_type=args.gan_type,
+        gan_type=config.gan_type,
         config=config,
         dataloader=dataloader,
         out_dataset_path=args.out_dataset_path,

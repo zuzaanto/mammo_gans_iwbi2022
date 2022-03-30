@@ -1,4 +1,7 @@
 
+########### GAN type ###########
+gan_type: wgangp # which GAN type to train, e.g. "lsgan", "dcgan", "wgangp"
+
 ########### Network Hyperparams ###########
 leakiness: 0.1
 lr_g: 0.0001
