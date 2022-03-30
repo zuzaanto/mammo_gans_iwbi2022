@@ -17,12 +17,6 @@ from gan_compare.data_utils.utils import init_seed
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--gan_type",
-        type=str,
-        required=True,
-        help="Model name: supported: dcgan and lsgan",
-    )
-    parser.add_argument(
         "--model_checkpoint_dir",
         type=str,
         required=True,
@@ -63,11 +57,10 @@ def parse_args() -> argparse.Namespace:
         help="The type of device on which images should be generated, e.g. cuda or cpu",
     )
     parser.add_argument(
-        "--birads",
+        "--condition",
         type=int,
         default=None,
-        help="Define the associated risk of malignancy (1-6) accroding to the Breast Imaging-Reporting and Data "
-        "System (BIRADS).",
+        help="Define the conditional input into the GAN i.e. a scalar between 0 and 1.",
     )
     parser.add_argument(
         "--seed",
@@ -82,7 +75,8 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
 
-    init_seed(args.seed)  # initializing the random seed
+    # initializing the random seed
+    init_seed(args.seed)
 
     # Load model and config
     assert Path(
@@ -96,19 +90,19 @@ if __name__ == "__main__":
     print(asdict(config))
     print("Loading model...")
     model = GANModel(
-        gan_type=args.gan_type,
+        gan_type=config.gan_type,
         config=config,
         dataloader=None,
     )
 
-    if config.conditional is False and args.birads is not None:
+    if config.conditional is False and args.condition is not None:
         print(
-            f"You want to generate ROIs with birads={args.birads}. Note that the GAN model you provided is not "
+            f"You want to generate ROIs with condition ({config.conditioned_on}) = {args.condition}. Note that the GAN model you provided is not "
             f"conditioned on BIRADS. Therefore, it will generate unconditional random samples."
         )
-        args.birads = None
-    elif config.conditional is True and args.birads is not None:
-        print(f"Conditional samples will be generate for BIRADS = {args.birads}.")
+        args.condition = None
+    elif config.conditional is True and args.condition is not None:
+        print(f"Conditional samples will be generate for condition {config.conditioned_on} = {args.condition}.")
     if args.device is None:
         args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -147,7 +141,7 @@ if __name__ == "__main__":
     img_list = model.generate(
         model_checkpoint_path=args.model_checkpoint_path,
         num_samples=args.num_samples,
-        fixed_condition=args.birads,
+        fixed_condition=args.condition,
         device=args.device,
         seed=args.seed,
     )
@@ -165,7 +159,7 @@ if __name__ == "__main__":
 
     if args.save_images:
         for i, img_ in enumerate(img_list):
-            img_path = args.out_images_path / f"{args.gan_type}_{i}_{time()}.png"
+            img_path = args.out_images_path / f"{config.gan_type}_{i}_{time()}.png"
             # print(min(img_))
             # print(max(img_))
             img_ = interval_mapping(img_.transpose(1, 2, 0), 0.0, 1.0, 0, 255)

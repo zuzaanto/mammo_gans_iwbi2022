@@ -1090,8 +1090,6 @@ class GANModel:
         fixed_noise=None,
         fixed_condition=None,
         num_samples: int = 10,
-        seed: int = 42,
-        birads: int = None,
         device: str = "cpu",
     ) -> list:
 
