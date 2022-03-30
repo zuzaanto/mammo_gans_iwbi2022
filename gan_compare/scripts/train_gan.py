@@ -16,7 +16,7 @@ from tqdm import tqdm
 from gan_compare.data_utils.utils import collate_fn, init_seed, setup_logger
 from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.gan_model import GANModel
+from gan_compare.training.dcgan_model import BaseGANModel
 from gan_compare.training.io import load_yaml
 
 
@@ -121,7 +121,7 @@ def train_gan(args):
     # Emptying the cache for GPU RAM i.e. to avoid cuda out of memory issues
     torch.cuda.empty_cache()
     logging.info("Loading model...")
-    model = GANModel(
+    model = BaseGANModel(
         gan_type=config.gan_type,
         config=config,
         dataloader=dataloader,

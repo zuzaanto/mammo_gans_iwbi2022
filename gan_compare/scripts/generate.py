@@ -9,7 +9,7 @@ from dacite import from_dict
 
 from gan_compare.data_utils.utils import interval_mapping
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.gan_model import GANModel
+from gan_compare.training.dcgan_model import BaseGANModel
 from gan_compare.training.io import load_yaml
 from gan_compare.data_utils.utils import init_seed
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     config = from_dict(GANConfig, config_dict)
     print(asdict(config))
     print("Loading model...")
-    model = GANModel(
+    model = BaseGANModel(
         gan_type=config.gan_type,
         config=config,
         dataloader=None,

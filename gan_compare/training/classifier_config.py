@@ -46,7 +46,7 @@ class ClassifierConfig(BaseConfig):
         assert self.classes in [
             "is_healthy",
             "birads",
-        ], "Classifier currently supports either healthy vs unhealthy, or birads classification"  # TODO Add ACR classification
+        ], "Classifier currently supports either healthy vs unhealthy, or birads classification."  # TODO Add density classification
 
         assert (
             1 >= self.train_shuffle_proportion >= 0
