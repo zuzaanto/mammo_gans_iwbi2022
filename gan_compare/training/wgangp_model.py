@@ -653,7 +653,7 @@ class GANModel:
                 self.netG.zero_grad()
                 if is_D2_using_new_fakes:
                     # Generating new fake images as previous ones had been already incorporated in D's previous update
-                    fake_images, fake_conditions = self.generate_during_training(
+                    fake_images, fake_conditions = self._netG_forward_pass(netG=self.netG,
                         b_size=b_size
                     )
                 output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
@@ -798,12 +798,12 @@ class GANModel:
                 if self.config.conditional:
                     real_conditions = conditions.to(self.device)
                     # generate fake conditions
-                    fake_images, fake_conditions = self.generate_during_training(
+                    fake_images, fake_conditions = self._netG_forward_pass(netG=self.netG,
                         b_size=b_size
                     )
                 else:
                     # Generate fake image batch with G (without condition)
-                    fake_images, _ = self.generate_during_training(b_size=b_size)
+                    fake_images, _ = self._netG_forward_pass(b_size=b_size, netG=self.netG,)
 
                 # We start by updating the discriminator
                 # Reset the gradient of the discriminator of previous training iterations
@@ -1069,18 +1069,17 @@ class GANModel:
                 self._save_model(epoch)
         self._save_model()
 
-    def generate_during_training(self, b_size, noise=None):
+    def _netG_forward_pass(self, netG, b_size, noise=None, fake_conditions = None):
         """Generate batch of latent vectors (& conditions) as input into generator to generate fake images"""
 
-        fake_conditions = None
         if noise is None:
             noise = torch.randn(b_size, self.config.nz, 1, 1, device=self.device)
         if self.config.conditional:
-            fake_conditions = self._get_random_conditions(batch_size=b_size)
-            fake_images = self.netG(noise, fake_conditions)
+            fake_conditions = self._get_random_conditions(batch_size=b_size) if fake_conditions is None else fake_conditions
+            fake_images = netG(noise, fake_conditions)
         else:
             # Generate fake image batch with G (without condition)
-            fake_images = self.netG(noise)
+            fake_images = netG(noise)
 
         return fake_images, fake_conditions
 
@@ -1092,6 +1091,8 @@ class GANModel:
         num_samples: int = 10,
         device: str = "cpu",
     ) -> list:
+        """Generator inference: Creating synthetic samples with trained generator """
+
 
         self.optimizerG = optim.Adam(
             self.netG.parameters(),
@@ -1107,23 +1108,16 @@ class GANModel:
         # self.optimizerG.load_state_dict(checkpoint["optim_generator"])
         self.netG.eval()
 
+        if self.config.conditional and isinstance(fixed_condition, int):
+            fixed_condition = self._get_random_conditions(
+                minimum=fixed_condition,
+                maximum=fixed_condition + 1,
+                batch_size=num_samples,
+            )
+        samples, _ = self._netG_forward_pass(netG=self.netG, b_size=num_samples, noise=fixed_noise, fake_conditions = fixed_condition)
+        samples = samples.detach().cpu().numpy()
         img_list = []
-        # for ind in tqdm(range(num_samples)):
-        if fixed_noise is None:
-            fixed_noise = torch.randn(num_samples, self.config.nz, 1, 1, device=device)
-        if self.config.conditional:
-            if fixed_condition is None:
-                fixed_condition = self._get_random_conditions(batch_size=num_samples)
-            elif isinstance(fixed_condition, int):
-                fixed_condition = self._get_random_conditions(
-                    minimum=fixed_condition,
-                    maximum=fixed_condition + 1,
-                    batch_size=num_samples,
-                )
-            fake = self.netG(fixed_noise, fixed_condition).detach().cpu().numpy()
-        else:
-            fake = self.netG(fixed_noise).detach().cpu().numpy()
-        img_list.extend(fake)
+        img_list.extend(samples)
         return img_list
 
     def visualize(self, fixed_noise=None, fixed_condition=None):

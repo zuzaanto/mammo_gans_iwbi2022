@@ -110,30 +110,25 @@ class BaseGANModel:
         self._print_network_info(net=netG)
         return netD, netG
 
-    def create_optimizer(self, net, lr, betas, type="Adam", weight_decay=0):
-        # Setup Adam optimizers for both G and D
-        assert type != "Adam", "Currently only optim.Adam is implemented. Please extend code if you want to use other optimizers "
-        return optim.Adam(
-            net.parameters(),
-            lr=lr,
-            betas=betas,
-            weight_decay=weight_decay,
-        )
+    def create_optimizer(self, net, lr, betas, optim_type="Adam", weight_decay=0.0) -> optim.optimizer:
+        """ Create and return an optimizer """
 
+        assert optim_type != "Adam", "Currently only optim.Adam is implemented. Please extend code if you want to use other optimizers "
+        return optim.Adam(params=net.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
 
     def optimizer_setup(self, netD, netG):
         """ Setup Adam optimizers for both G and D """
 
         # Setup Adam optimizers for both G and D
         optimizerD = self.create_optimizer(
-            net=self.netD,
+            net=netD,
             lr=self.config.lr_d1,
             betas=(self.config.beta1, self.config.beta2),
             weight_decay=self.config.weight_decay,
         )
 
         optimizerG = self.create_optimizer(
-            net=self.netG,
+            net=netG,
             lr=self.config.lr_g,
             betas=(self.config.beta1, self.config.beta2),
         )
@@ -197,6 +192,22 @@ class BaseGANModel:
 
     def init_running_losses(self, init_value=0.0):
         return init_value, init_value, init_value, init_value, [], []
+
+    def _netD_forward_pass(self, netD, images, conditions):
+        """ Forward pass through discriminator network"""
+
+        # Forward pass batch through D
+        output = None
+        if self.config.conditional:
+            output = netD(images, conditions).view(-1)
+        else:
+            output = netD(images).view(-1)
+
+        # The mean prediction of the discriminator
+        D_output_mean = output.mean().item()
+
+        return output, D_output_mean
+
 
     def _netD_backward_pass(
             self,
@@ -401,7 +412,7 @@ class BaseGANModel:
                 self.netG.zero_grad()
                 if is_D2_using_new_fakes:
                     # Generating new fake images as previous ones had been already incorporated in D's previous update
-                    fake_images, fake_conditions = self.generate_during_training(
+                    fake_images, fake_conditions = self._netG_forward_pass(
                         b_size=b_size
                     )
                 output_fake_2_D2, D2_G_z, errG_2 = self._netG_update(
@@ -480,6 +491,76 @@ class BaseGANModel:
         img_list.extend(fake)
         return img_list
 
+
+    def include_D2_training_check(self, epoch: int):
+        """ Check if D2 to be included into training in current epoch and set pretrain_classifier accordingly. """
+
+        # We check if netD2 was initialized, which means self.config.pretrain_classifier was true.
+        if (
+                hasattr(self, "netD2")
+                and epoch >= self.config.start_training_D2_after_epoch
+        ):
+            if not self.config.pretrain_classifier or epoch == 0:
+                logging.info(
+                    f"As we have reached epoch={epoch}, we now start training D2 ({self.config.model_name})."
+                )
+            self.config.pretrain_classifier = True
+        else:
+            # We only want to train D2 after a certain number of epochs, hence we set self.config.pretrain_classifier = False
+            # until that number of epochs is reached.
+            self.config.pretrain_classifier = False
+
+    def periodic_visualization_log(self,
+       epoch,
+       iteration,
+       running_loss_of_generator,
+       running_loss_of_discriminator,
+       running_real_discriminator_accuracy,
+       running_fake_discriminator_accuracy,
+       running_loss_of_generator_D2 = None,
+       running_loss_of_discriminator2 = None,
+       running_real_discriminator2_accuracy = None,
+       running_fake_discriminator2_accuracy = None,
+    ):
+        """ wrapper adding multiple items of interest to visualization_utils """
+
+        # Add loss scalars to tensorboard
+        self.visualization_utils.add_value_to_tensorboard_loss_diagram(
+            epoch=epoch,
+            iteration=iteration,
+            running_loss_of_generator=running_loss_of_generator,
+            running_loss_of_generator_D2=running_loss_of_generator_D2,
+            running_loss_of_discriminator=running_loss_of_discriminator,
+            running_loss_of_discriminator2=running_loss_of_discriminator2,
+        )
+        # Add accuracy scalars to tensorboard
+        self.visualization_utils.add_value_to_tensorboard_accuracy_diagram(
+            epoch=epoch,
+            iteration=iteration,
+            running_real_discriminator_accuracy=running_real_discriminator_accuracy,
+            running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
+            running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
+            running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
+        )
+
+        # Visually check how the generator is doing by saving G's output on fixed_noise
+        # if (iters % self.config.num_iterations_between_prints * 10 == 0) or (
+        #        (epoch == self.config.num_epochs - 1) and (i == len(self.dataloader) - 1)):
+        img_name: str = (
+                "generated fixed-noise images each <"
+                + str(self.config.num_iterations_between_prints) # * 10)
+                + ">th iteration. Epoch="
+                + str(epoch)
+                + ", iteration="
+                + str(iteration)
+        )
+        self.visualization_utils.add_generated_batch_to_tensorboard(
+            neural_network=self.netG,
+            network_input_1=self.fixed_noise,
+            network_input_2=self.fixed_condition,
+            img_name=img_name,
+        )
+
     def visualize(self, fixed_noise=None, fixed_condition=None):
         """visualization init for tensorboard logging of sample batches, losses, D accuracy, and model architecture"""
 
@@ -513,3 +594,12 @@ class BaseGANModel:
                 network_input_2=fixed_condition,
             )
             return visualization_utils
+
+    @staticmethod
+    def empty_cache():
+        # TODO Move this and other functions into utils.
+        # Free up any used memory on each batch iteration
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+        logging.debug(torch.cuda.memory_summary(device=None, abbreviated=False))
