@@ -65,4 +65,8 @@ class Metapoint:
             self.density in DENSITY_DICT.keys() or self.density == -1
         ), f"{self.density} not in known DENSITY_DICT"
         self.is_healthy = "healthy" in self.roi_type
-        self.is_benign = self.biopsy_proven_status == "benign" if self.biopsy_proven_status in ["benign", "malignant"] else -1 # this will throw an error later if benign/malignant classification is attempted and there is a metapoint without a biopsy_proven_status
+        self.is_benign = (
+            self.biopsy_proven_status == "benign"
+            if self.biopsy_proven_status in ["benign", "malignant"]
+            else -1
+        )  # this will throw an error later if benign/malignant classification is attempted and there is a metapoint without a biopsy_proven_status

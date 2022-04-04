@@ -27,7 +27,7 @@ class BaseDataset(Dataset):
         # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         transform: any = None,
         sampling_ratio: float = 1.0,
-        subset: str = "train"
+        subset: str = "train",
     ):
         assert (
             metadata_path is not None and Path(metadata_path).is_file()
@@ -78,12 +78,14 @@ class BaseDataset(Dataset):
             if type(d) is str:
                 continue  # then d is a synthetic sample (therefore non-healthy) TODO: might not work the same for synthetic benign/malignant patches
             elif getattr(d, self.config.classes):
-                    cnt += 1
+                cnt += 1
         return len(self) - cnt, cnt
 
     def arrange_weights(self, weight_non_healthy, weight_healthy):
         return [
-            weight_healthy if type(d) is not str and d.is_healthy else weight_non_healthy
+            weight_healthy
+            if type(d) is not str and d.is_healthy
+            else weight_non_healthy
             for d in self.metadata
         ]
 
@@ -129,8 +131,12 @@ class BaseDataset(Dataset):
     def determine_label(self, metapoint: Metapoint) -> int:
         if self.config.binary_classification:
             target = getattr(metapoint, self.config.classes)
-            if target == -1: raise Exception(f"Target of patch {metapoint.patch_id} is not valid. This happens for example if metapoint.biopsy_proven_status is not set: metapoint.biopsy_proven_status == {metapoint.biopsy_proven_status}")
-            else: return int(target)  # label = 1 iff metapoint is positive
+            if target == -1:
+                raise Exception(
+                    f"Target of patch {metapoint.patch_id} is not valid. This happens for example if metapoint.biopsy_proven_status is not set: metapoint.biopsy_proven_status == {metapoint.biopsy_proven_status}"
+                )
+            else:
+                return int(target)  # label = 1 iff metapoint is positive
         elif self.conditional_birads:
             if self.config.is_condition_binary:
                 condition = metapoint.birads[0]

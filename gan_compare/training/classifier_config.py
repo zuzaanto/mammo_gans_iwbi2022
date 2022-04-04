@@ -11,7 +11,7 @@ class ClassifierConfig(BaseConfig):
     train_shuffle_proportion: float = 0.4
     validation_shuffle_proportion: float = 0
 
-    train_sampling_ratio: float = 1.
+    train_sampling_ratio: float = 1.0
 
     # Directory with synthetic patches
     synthetic_data_dir: str = None
@@ -29,7 +29,7 @@ class ClassifierConfig(BaseConfig):
 
     out_checkpoint_path: str = ""
 
-    classes: str = "is_healthy" # one of ["is_benign", "is_healthy", "birads"]
+    classes: str = "is_healthy"  # one of ["is_benign", "is_healthy", "birads"]
 
     # Learning rate for optimizer
     lr: float = 0.0001  # Note: The CLF equivalent of the learning rates lr_g, lr_d1, lr_d2 in gan_config.py for GAN training.
