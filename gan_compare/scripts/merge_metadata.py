@@ -49,7 +49,7 @@ def main():
             f"If not, you may ignore this warning: {e}"
         )
     merged_metadata = first_metadata.append(second_metadata)
-    merged_metadata.healthy = merged_metadata.healthy.fillna(False)
+    merged_metadata.is_healthy = merged_metadata.is_healthy.fillna(False)
     assert len(first_metadata) + len(second_metadata) == len(merged_metadata)
     merged_metadata = merged_metadata.reset_index(drop=True)
     save_metadata_to_file(merged_metadata, out_path=Path(args.out_path))

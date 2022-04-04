@@ -87,7 +87,7 @@ class MammographyDataset(BaseDataset):
             image = convert_to_uint8(ds.pixel_array)
         else:
             image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        if metapoint.healthy:
+        if metapoint.is_healthy:
             x, y, w, h = self.get_crops_around_bbox(
                 metapoint.bbox,
                 margin=0,

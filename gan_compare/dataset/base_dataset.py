@@ -75,19 +75,15 @@ class BaseDataset(Dataset):
         ), "Function len_of_classes() works only in the binary classification case."
         cnt = 0
         for d in self.metadata:
-            if self.config.classes == "is_healthy":
-                if type(d) is str:
-                    continue  # then d is a synthetic sample (non-healthy)
-                if d.healthy:
-                    cnt += 1
-            elif self.config.classes == "is_benign":
-                if d.benign:
+            if type(d) is str:
+                continue  # then d is a synthetic sample (therefore non-healthy) TODO: might not work the same for synthetic benign/malignant patches
+            elif getattr(d, self.config.classes):
                     cnt += 1
         return len(self) - cnt, cnt
 
     def arrange_weights(self, weight_non_healthy, weight_healthy):
         return [
-            weight_healthy if type(d) is not str and d.healthy else weight_non_healthy
+            weight_healthy if type(d) is not str and d.is_healthy else weight_non_healthy
             for d in self.metadata
         ]
 
@@ -131,11 +127,10 @@ class BaseDataset(Dataset):
         return condition
 
     def determine_label(self, metapoint: Metapoint) -> int:
-        if self.config.classes == "is_healthy":
-            return int(metapoint.healthy)  # label = 1 iff metapoint is healthy
-        elif self.config.classes == "is_benign":
-            if metapoint.benign == -1: raise Exception(f"metapoint.biopsy_proven_status of patch {metapoint.patch_id} should be benign/malignant, but is: {metapoint.biopsy_proven_status}")
-            else: return int(metapoint.benign)  # label = 1 iff metapoint is benign
+        if self.config.binary_classification:
+            target = getattr(metapoint, self.config.classes)
+            if target == -1: raise Exception(f"Target of patch {metapoint.patch_id} is not valid. This happens for example if metapoint.biopsy_proven_status is not set: metapoint.biopsy_proven_status == {metapoint.biopsy_proven_status}")
+            else: return int(target)  # label = 1 iff metapoint is positive
         elif self.conditional_birads:
             if self.config.is_condition_binary:
                 condition = metapoint.birads[0]
