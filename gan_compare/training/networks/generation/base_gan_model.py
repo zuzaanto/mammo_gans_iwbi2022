@@ -62,11 +62,6 @@ class BaseGANModel:
         # Create batch of fixed conditions that we will use to visualize the progression of the generator
         self.fixed_condition = None if self.config.conditional else self._get_random_conditions()
 
-        # visualize model in tensorboard and instantiate visualizationUtils class object
-        self.visualization_utils = self.visualize(
-            fixed_noise=self.fixed_noise, fixed_condition=self.fixed_condition
-        )
-
         # Handle init of classifier D2 pretraining
         if self.config.pretrain_classifier:
             if self.config.is_pretraining_adversarial:  # real/fake prediction
@@ -85,7 +80,6 @@ class BaseGANModel:
         # As we train a new model (atm no continued checkpoint training), we create new model dir and save config.
         self._save_config()
 
-
     def _assert_network_channels(self):
         """ Check if channel size is correct """
 
@@ -98,8 +92,8 @@ class BaseGANModel:
                     self.config.nc == 3 and self.config.model_name == "swin_transformer"
             ), "Without conditional input into GAN, change number of channels (nc) to 1 (default) or 3 (swin transformer)."
 
-    def network_setup(self, netD, netG) -> (nn.Module, nn.Module):
-        """ Wrapper function to init weights and multigpu, and print network architecture """
+    def network_setup(self, netD, netG, is_visualized:bool=True) -> (nn.Module, nn.Module):
+        """ Wrapper function to init weights and multigpu, print and optionally visualize network architecture """
 
         netD = self._network_weights_init(net=netD)
         netD = self._handle_multigpu(net=netD)
@@ -108,12 +102,18 @@ class BaseGANModel:
         netG = self._network_weights_init(net=netG)
         netG = self._handle_multigpu(net=netG)
         self._print_network_info(net=netG)
+
+        if is_visualized:
+            # visualize model in tensorboard and instantiate visualizationUtils class object
+            self.visualization_utils = self.visualize(
+                fixed_noise=self.fixed_noise, fixed_condition=self.fixed_condition
+            )
         return netD, netG
 
-    def create_optimizer(self, net, lr, betas, optim_type="Adam", weight_decay=0.0) -> optim.optimizer:
+    def create_optimizer(self, net, lr, betas, optim_type="Adam", weight_decay=0.0):
         """ Create and return an optimizer """
 
-        assert optim_type != "Adam", "Currently only optim.Adam is implemented. Please extend code if you want to use other optimizers "
+        assert not optim_type != "Adam", "Currently only optim.Adam is implemented. Please extend code if you want to use other optimizers "
         return optim.Adam(params=net.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
 
     def optimizer_setup(self, netD, netG):
@@ -257,13 +257,13 @@ class BaseGANModel:
     def _get_labels(self, b_size: int, label: str, smoothing: bool = True, real_label:str=1.0, fake_label:str=0.0):
         """ get the labels as tensor and optionally smooth the real label """
 
-        if label=="real":
+        if label == "real":
             if smoothing:
                 # if enabled, let's smooth the labels for "real" (--> real !=1)
                 label_tensor = torch.FloatTensor(size=(b_size,), device=self.device).uniform_(self.config.label_smoothing_start, self.config.label_smoothing_end)
             else:
-                label_tensor= torch.full(size=(b_size, ), fill_value=real_label, device=self.device)
-        elif label=="fake":
+                label_tensor = torch.full(size=(b_size,), fill_value=real_label, device=self.device)
+        elif label == "fake":
             label_tensor = torch.full(size=(b_size,), fill_value=fake_label, device=self.device)
             logging.debug(f"Created {label} labels tensor: {label_tensor}")
         return label_tensor
@@ -431,244 +431,6 @@ class BaseGANModel:
                 )
         return output_fake_2_D1, D_G_z2, errG, output_fake_2_D2, D2_G_z, errG_2
 
-
-    def train(self):
-        """ Training the GAN network iterating over the dataloader """
-
-        # initializing variables needed for visualization and # lists to keep track of progress
-        running_loss_of_generator, running_loss_of_discriminator, running_real_discriminator_accuracy, running_fake_discriminator_accuracy, G_losses, D_losses = self.init_losses()
-
-        iters = 0
-
-        # set to None for function calls later below
-        running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, D2_losses, G2_losses = self.init_running_losses(
-            init_value=None)
-
-        if self.config.pretrain_classifier:
-            running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, D2_losses, G2_losses = self.init_running_losses(
-                init_value=0.0)
-
-        # Training Loop
-        logging.info(
-            f"Starting Training on {self.device}. Image size: {self.config.image_size}"
-        ) if not self.config.conditional else logging.info(
-                f"Starting Training on {self.device}. Image size: {self.config.image_size}. Training conditioned on: {self.config.conditioned_on}"
-                f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable"
-            )
-
-        # For each epoch
-        for epoch in range(self.config.num_epochs):
-
-            # We check if we should include D2 into training in the current epoch by resetting config.pretrain_classifier
-            self.config.pretrain_classifier = self.is_D2_pretrained(epoch=epoch)
-
-            # d_iteration: For each n discriminator ("critic") updates we do 1 generator update.
-            d_iteration: int = (
-                self.config.d_iters_per_g_update
-            )  # In the very first iteration 0, G is trained.
-
-
-            # For each batch in the dataloader
-            for i, data in enumerate(self.dataloader, 0):
-
-                # Unpack data (=image batch) alongside condition (e.g. birads number). Conditions are all -1 if unconditioned.
-                try:
-                    (
-                        data,
-                        conditions,
-                        _,
-                    ) = data
-                except:
-                    data, conditions, _, _ = data
-
-                # Compute the actual batch size (not from config!) as last batch might be smaller than.
-                b_size = data.size(0)
-
-                # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = data.to(self.device)
-
-                real_conditions = None
-                fake_conditions = None
-                if self.config.conditional:
-                    real_conditions = conditions.to(self.device)
-                    # generate fake conditions
-                    fake_images, fake_conditions = self._netG_forward_pass(
-                        b_size=b_size
-                    )
-                else:
-                    # Generate fake image batch with G (without condition)
-                    fake_images, _ = self._netG_forward_pass(b_size=b_size)
-
-                # We start by updating the discriminator
-                # Reset the gradient of the discriminator of previous training iterations
-                self.netD.zero_grad()
-
-                # Perform a forward backward training step for D with optimizer weight update for real and fake data
-                (
-                    output_real_D1,
-                    errD_real,
-                    D_x,
-                    output_fake_D1,
-                    errD_fake,
-                    D_G_z1,
-                    errD,
-                    gradient_penalty,
-                ) = self._netD_update(
-                    netD=self.netD,
-                    optimizerD=self.optimizerD,
-                    real_images=real_images,
-                    fake_images=fake_images.detach(),
-                    epoch=epoch,
-                    are_outputs_logits=False,
-                    real_conditions=real_conditions,
-                    fake_conditions=fake_conditions,
-                )
-
-                if self.config.pretrain_classifier:
-                    self.netD2.zero_grad()
-                    are_outputs_logits = (
-                        True if self.config.model_name == "swin_transformer" else False
-                    )
-                    (
-                        output_real_D2,
-                        errD2_real,
-                        D2_x,
-                        output_fake_D2,
-                        errD2_fake,
-                        D2_G_z1,
-                        errD2,
-                        gradient_penalty_D2,
-                    ) = self._netD_update(
-                        netD=self.netD2,
-                        optimizerD=self.optimizerD2,
-                        real_images=real_images,
-                        fake_images=fake_images.detach(),
-                        epoch=epoch,
-                        are_outputs_logits=are_outputs_logits,
-                        real_conditions=real_conditions,
-                        fake_conditions=fake_conditions,
-                    )
-                errG = None
-                errG_D2 = None
-                # After updating the discriminator, we now update the generator
-                if not d_iteration == self.config.d_iters_per_g_update:
-                    # We update D n times per G update. n = self.config.d_iters_per_g_update
-                    d_iteration = d_iteration + 1
-
-                else:
-
-                    # Reset d_iteration to zero.
-                    d_iteration = 0
-
-                    # Reset to zero as previous gradient should have already been used to update the generator network
-                    self.netG.zero_grad()
-
-                    # (optional) Incomment if you want to generate new fake images as previous ones are already incorporated in D's gradient update
-                    # fake_images, fake_conditions = self.generate_during_training(b_size=b_size)
-
-                    # Perform a forward backward training step for G with optimizer weight update including a second
-                    # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
-                    (
-                        output_fake_2_D1,
-                        D_G_z2,
-                        errG,
-                        output_fake_2_D2,
-                        D2_G_z2,
-                        errG_D2,
-                    ) = self.handle_G_updates(
-                        iteration=i,
-                        fake_images=fake_images,
-                        fake_conditions=fake_conditions,
-                        epoch=epoch,
-                        b_size=b_size,
-                        is_D2_using_new_fakes=False,  # TODO: Try is_D2_using_new_fakes out and see if it works better
-                    )
-
-                    # Save G Losses for plotting later
-                    G_losses.append(errG.item())
-                    # Update the running loss of G which is used in visualization
-                    running_loss_of_generator += errG.item()
-
-                    if self.config.pretrain_classifier:
-                        G2_losses.append(errG_D2.item())
-                        running_loss_of_generator_D2 += errG_D2.item()
-
-                # Save D Losses for plotting later
-                D_losses.append(errD.item())
-                # Update the running loss which is used in visualization
-                running_loss_of_discriminator += errD.item()
-
-                if self.config.pretrain_classifier:
-                    D2_losses.append(errD2.item())
-                    running_loss_of_discriminator2 += errD2.item()
-
-                # Accuracy of D1 (and D2) if they predict real/fake of synthetic images from G
-                output_real_D1, running_real_discriminator_accuracy, output_fake_D1, running_fake_discriminator_accuracy, output_real_D2, running_real_discriminator2_accuracy, output_fake_D2, running_fake_discriminator2_accuracy, current_real_acc_2, current_fake_acc_2 = self.compute_discriminator_accuracy(
-                    output_real_D1=output_real_D1,
-                    running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-                    output_fake_D1=output_fake_D1,
-                    running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
-                    output_real_D2=output_real_D2,
-                    running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
-                    output_fake_D2=output_fake_D2,
-                    running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
-                )
-
-                # Output training stats on each iteration length threshold
-                if i % self.config.num_iterations_between_prints == 0:
-                    self.periodic_training_console_log(
-                        epoch=epoch,
-                        iteration=i,
-                        errD=errD,
-                        errG=errG,
-                        D_x=D_x,
-                        D_G_z1=D_G_z1,
-                        D_G_z2=D_G_z2,
-                        current_real_acc=current_real_acc,
-                        current_fake_acc=current_fake_acc,
-                        errD2=errD2,
-                        errG_D2=errG_D2,
-                        D2_x=D2_x,
-                        D2_G_z1=D2_G_z1,
-                        D2_G_z2=D2_G_z2,
-                        current_real_acc_2=current_real_acc_2,
-                        current_fake_acc_2=current_fake_acc_2,
-                    )
-                    self.periodic_visualization_log(
-                        epoch=epoch,
-                        iteration=i,
-                        running_loss_of_generator=running_loss_of_generator,
-                        running_loss_of_discriminator=running_loss_of_discriminator,
-                        running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-                        running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
-                        running_loss_of_generator_D2=running_loss_of_generator_D2,
-                        running_loss_of_discriminator2=running_loss_of_discriminator2,
-                        running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
-                        running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
-                    )
-
-                    # Reset the running losses and accuracies
-                    running_loss_of_generator, running_loss_of_discriminator, running_real_discriminator_accuracy, running_fake_discriminator_accuracy, _, _ = self.init_losses(
-                        init_value=0.0)
-
-                    if self.config.pretrain_classifier:
-                        running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, _, _ = self.init_running_losses(
-                            init_value=0.0)
-
-                iters += 1
-            self.visualization_utils.plot_losses(
-                D_losses=D_losses,
-                D2_losses=D2_losses,
-                G_losses=G_losses,
-                G2_losses=G2_losses,
-            )
-            if (
-                    epoch % self.config.num_epochs_between_gan_storage == 0
-                    and epoch >= self.config.num_epochs_before_gan_storage
-            ):
-                # Save on each {self.config.num_epochs_between_gan_storage}'th epoch starting at epoch {self.config.num_epochs_before_gan_storage}.
-                self._save_model(epoch)
-        self._save_model()
 
     def _netG_forward_pass(self, b_size, noise=None):
         """Generate batch of latent vectors (& conditions) as input into generator to generate fake images"""

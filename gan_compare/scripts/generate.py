@@ -9,7 +9,7 @@ from dacite import from_dict
 
 from gan_compare.data_utils.utils import interval_mapping
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.dcgan_model import BaseGANModel
+from gan_compare.training.networks.generation.dcgan.dcgan_model import BaseGANModel
 from gan_compare.training.io import load_yaml
 from gan_compare.data_utils.utils import init_seed
 

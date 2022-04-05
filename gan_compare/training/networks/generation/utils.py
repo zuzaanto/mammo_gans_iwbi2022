@@ -65,7 +65,3 @@ def compute_wgangp_loss(d_fake_images, d_real_images, gradient_penalty):
     d_loss = d_fake_images.mean() - d_real_images.mean() + gradient_penalty
     g_loss = -d_fake_images.mean()
     return d_loss, g_loss
-
-
-def compute_ls_loss(output, label):
-    return 0.5 * torch.mean((output - label) ** 2)
