@@ -124,29 +124,70 @@ class DCGANModel(BaseGANModel):
             )
             return 0.5 * torch.mean((output - label) ** 2)
 
-    def _netD_backward_pass(
-            self,
-            output,
-            label_as_float: float,
-            epoch: int,
-            are_outputs_logits: bool = False,
+    def _netD_update(
+        self,
+        netD,
+        optimizerD,
+        real_images,
+        fake_images,
+        epoch: int,
+        real_conditions = None,
+        fake_conditions = None,
+        are_outputs_logits = False,
     ):
-        """ Backward pass through discriminator network"""
+        """Update Discriminator network on real AND fake data."""
 
-        # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images/outputs
-        labels = torch.full(
-            (output.size(0),), label_as_float, dtype=torch.float, device=self.device
+        # Forward pass real batch through D
+        output_real, D_x = self._netD_forward_pass(
+            netD,
+            real_images,
+            real_conditions,
         )
 
-        # Calculate D loss for batch
-        errD_real_or_fake = self.loss(
-            output=output,
-            label=labels,
+        # Forward pass fake batch through D
+        output_fake, D_G_z1 = self._netD_forward_pass(
+            netD,
+            fake_images.detach(),
+            fake_conditions,
+        )
+
+        # Create labels fo real and fake batches
+        labels_real = self._get_labels(b_size=output_real.size(0), label = "real", smoothing=self.config.use_one_sided_label_smoothing,)
+        labels_fake = self._get_labels(b_size=output_fake.size(0), label = "fake")
+
+        # Calculate D loss for real batch
+        errD_real = self.loss(
+            output=output_real,
+            label=labels_real,
             epoch=epoch,
             are_outputs_logits=are_outputs_logits,
         )
 
-        return errD_real_or_fake
+        # Calculate D loss for fake batch
+        errD_fake = self.loss(
+            output=output_fake,
+            label=labels_fake,
+            epoch=epoch,
+            are_outputs_logits=are_outputs_logits,
+        )
+
+        # Add the gradients from the all-real and all-fake batches
+        errD = errD_real + errD_fake
+
+        # Calculate gradients for D in backward pass
+        errD.backward()
+
+        # Update D
+        optimizerD.step()
+        return (
+            output_real,
+            errD_real,
+            D_x,
+            output_fake,
+            errD_fake,
+            D_G_z1,
+            errD,
+        )
 
     def _netG_update(
             self,
@@ -163,12 +204,7 @@ class DCGANModel(BaseGANModel):
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
         # Here, the "real" label is needed, as the fake labels are "real" for generator cost.
         # label smoothing is False, as this option would decrease the loss of the generator.
-        labels = torch.full(
-            (fake_images.size(0),),
-            self._get_labels(smoothing=False).get("real"),
-            dtype=torch.float,
-            device=self.device,
-        )
+        labels = self._get_labels(b_size=fake_images.size(0), label = "real", smoothing=False,),
 
         # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
         # The generator loss of the updated discriminator should be higher than the previous one.
@@ -183,7 +219,6 @@ class DCGANModel(BaseGANModel):
             are_outputs_logits=are_outputs_logits,
         )
 
-        torch.autograd.set_detect_anomaly(True)
         if is_G_updated:
             # Calculate gradients for G
             errG.backward(
@@ -197,252 +232,16 @@ class DCGANModel(BaseGANModel):
 
         return output, D_G_z2, errG
 
-    def train(self):
-
-        # initializing variables needed for visualization and # lists to keep track of progress
-        running_loss_of_generator, running_loss_of_discriminator, running_real_discriminator_accuracy, running_fake_discriminator_accuracy, G_losses, D_losses = self.init_losses()
-
-        iters = 0
-
-        # set to None for function calls later below
-        running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, D2_losses, G2_losses = self.init_running_losses(
-            init_value=None)
-
-        if self.config.pretrain_classifier:
-            running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, D2_losses, G2_losses = self.init_running_losses(
-                init_value=0.0)
-
-        # Training Loop
-        logging.info(
-            f"Starting Training on {self.device}.. Image size: {self.config.image_size}"
-        )
-        if self.config.conditional:
-            logging.info(
-                f"Training conditioned on: {self.config.conditioned_on}"
-                f"{' as a continuous (with random noise: ' + f'{self.config.added_noise_term}' + ') and not' * (1 - self.config.is_condition_categorical)} as a categorical variable"
-            )
-        # For each epoch
-        for epoch in range(self.config.num_epochs):
-
-            # We check if we should include D2 into training in the current epoch.
-            self.include_D2_training_check(epoch=epoch)
-
-            # d_iteration: For each n discriminator ("critic") updates we do 1 generator update.
-            d_iteration: int = (
-                self.config.d_iters_per_g_update
-            )  # In the very first iteration 0, G is trained.
-
-            # For each batch in the dataloader
-            for i, data in enumerate(self.dataloader, 0):
-
-                # Unpack data (=image batch) alongside condition (e.g. birads number). Conditions are all -1 if unconditioned.
-                try:
-                    (
-                        data,
-                        conditions,
-                        _,
-                    ) = data
-                except:
-                    data, conditions, _, _ = data
-
-                # Compute the actual batch size (not from config!) as last batch might be smaller than.
-                b_size = data.size(0)
-
-                # Format batch (fake and real), get images and, optionally, corresponding conditional GAN inputs
-                real_images = data.to(self.device)
-
-                real_conditions = None
-                fake_conditions = None
-                if self.config.conditional:
-                    real_conditions = conditions.to(self.device)
-                    # generate fake conditions
-                    fake_images, fake_conditions = self.generate_during_training(
-                        b_size=b_size
-                    )
-                else:
-                    # Generate fake image batch with G (without condition)
-                    fake_images, _ = self.generate_during_training(b_size=b_size)
-
-                # We start by updating the discriminator
-                # Reset the gradient of the discriminator of previous training iterations
-                self.netD.zero_grad()
-
-                # Perform a forward backward training step for D with optimizer weight update for real and fake data
-                (
-                    output_real_1_D1,
-                    errD_real,
-                    D_x,
-                    output_fake_1_D1,
-                    errD_fake,
-                    D_G_z1,
-                    errD,
-                    gradient_penalty,
-                ) = self._netD_update(
-                    netD=self.netD,
-                    optimizerD=self.optimizerD,
-                    real_images=real_images,
-                    fake_images=fake_images.detach(),
-                    epoch=epoch,
-                    are_outputs_logits=False,
-                    real_conditions=real_conditions,
-                    fake_conditions=fake_conditions,
-                )
-
-                if self.config.pretrain_classifier:
-                    self.netD2.zero_grad()
-                    are_outputs_logits = (
-                        True if self.config.model_name == "swin_transformer" else False
-                    )
-                    (
-                        output_real_1_D2,
-                        errD2_real,
-                        D2_x,
-                        output_fake_1_D2,
-                        errD2_fake,
-                        D2_G_z1,
-                        errD2,
-                        gradient_penalty_D2,
-                    ) = self._netD_update(
-                        netD=self.netD2,
-                        optimizerD=self.optimizerD2,
-                        real_images=real_images,
-                        fake_images=fake_images.detach(),
-                        epoch=epoch,
-                        are_outputs_logits=are_outputs_logits,
-                        real_conditions=real_conditions,
-                        fake_conditions=fake_conditions,
-                    )
-                errG = None
-                errG_D2 = None
-                # After updating the discriminator, we now update the generator
-                if not d_iteration == self.config.d_iters_per_g_update:
-                    # We update D n times per G update. n = self.config.d_iters_per_g_update
-                    d_iteration = d_iteration + 1
-
-                else:
-
-                    # Reset d_iteration to zero.
-                    d_iteration = 0
-
-                    # Reset to zero as previous gradient should have already been used to update the generator network
-                    self.netG.zero_grad()
-
-                    # (optional) Generating new fake images as previous ones are already incorporated in D's gradient update
-                    # fake_images, fake_conditions = self.generate_during_training(b_size=b_size)
-
-                    # Perform a forward backward training step for G with optimizer weight update including a second
-                    # output prediction by D to get bigger gradients as D has been already updated on this fake image batch.
-                    (
-                        output_fake_2_D1,
-                        D_G_z2,
-                        errG,
-                        output_fake_2_D2,
-                        D2_G_z2,
-                        errG_D2,
-                    ) = self.handle_G_updates(
-                        iteration=i,
-                        fake_images=fake_images,
-                        fake_conditions=fake_conditions,
-                        epoch=epoch,
-                        b_size=b_size,
-                        is_D2_using_new_fakes=False,  # TODO: Try is_D2_using_new_fakes out and see if it works better
-                    )
-
-                    # Save G Losses for plotting later
-                    G_losses.append(errG.item())
-                    # Update the running loss of G which is used in visualization
-                    running_loss_of_generator += errG.item()
-
-                    if self.config.pretrain_classifier:
-                        G2_losses.append(errG_D2.item())
-                        running_loss_of_generator_D2 += errG_D2.item()
-
-                # Save D Losses for plotting later
-                D_losses.append(errD.item())
-                # Update the running loss which is used in visualization
-                running_loss_of_discriminator += errD.item()
-
-                if self.config.pretrain_classifier:
-                    D2_losses.append(errD2.item())
-                    running_loss_of_discriminator2 += errD2.item()
-
-                # Accuracy of D1 (and D2) if they predict real/fake of synthetic images from G
-                output_real_1_D1, running_real_discriminator_accuracy, output_fake_1_D1, running_fake_discriminator_accuracy, output_real_1_D2, running_real_discriminator2_accuracy, output_fake_1_D2, running_fake_discriminator2_accuracy = self.compute_discriminator_accuracy(
-                    output_real_1_D1=output_real_1_D1,
-                    running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-                    output_fake_1_D1=output_fake_1_D1,
-                    running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
-                    output_real_1_D2=output_real_1_D2,
-                    running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
-                    output_fake_1_D2=output_fake_1_D2,
-                    running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
-                )
-
-                # Output training stats on each iteration length threshold
-                if i % self.config.num_iterations_between_prints == 0:
-                    self.periodic_training_console_log(
-                        epoch=epoch,
-                        iteration=i,
-                        errD=errD,
-                        errG=errG,
-                        D_x=D_x,
-                        D_G_z1=D_G_z1,
-                        D_G_z2=D_G_z2,
-                        current_real_acc=current_real_acc,
-                        current_fake_acc=current_fake_acc,
-                        errD2=errD2,
-                        errG_D2=errG_D2,
-                        D2_x=D2_x,
-                        D2_G_z1=D2_G_z1,
-                        D2_G_z2=D2_G_z2,
-                        current_real_acc_2=current_real_acc_2,
-                        current_fake_acc_2=current_fake_acc_2,
-                    )
-                    self.periodic_visualization_log(
-                        epoch=epoch,
-                        iteration=i,
-                        running_loss_of_generator=running_loss_of_generator,
-                        running_loss_of_discriminator=running_loss_of_discriminator,
-                        running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-                        running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
-                        running_loss_of_generator_D2=running_loss_of_generator_D2,
-                        running_loss_of_discriminator2=running_loss_of_discriminator2,
-                        running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
-                        running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
-                    )
-
-                    # Reset the running losses and accuracies
-                    running_loss_of_generator, running_loss_of_discriminator, running_real_discriminator_accuracy, running_fake_discriminator_accuracy, _, _ = self.init_losses(
-                        init_value=0.0)
-
-                    if self.config.pretrain_classifier:
-                        running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, _, _ = self.init_running_losses(
-                            init_value=0.0)
-
-                iters += 1
-            self.visualization_utils.plot_losses(
-                D_losses=D_losses,
-                D2_losses=D2_losses,
-                G_losses=G_losses,
-                G2_losses=G2_losses,
-            )
-            if (
-                    epoch % self.config.num_epochs_between_gan_storage == 0
-                    and epoch >= self.config.num_epochs_before_gan_storage
-            ):
-                # Save on each {self.config.num_epochs_between_gan_storage}'th epoch starting at epoch {self.config.num_epochs_before_gan_storage}.
-                self._save_model(epoch)
-        self._save_model()
 
     def compute_discriminator_accuracy(
             self,
-            output_real_1_D1,
+            output_real_D1,
             running_real_discriminator_accuracy,
-            output_fake_1_D1,
+            output_fake_D1,
             running_fake_discriminator_accuracy,
-            output_real_1_D2=None,
+            output_real_D2=None,
             running_real_discriminator2_accuracy=None,
-            output_fake_1_D2=None,
+            output_fake_D2=None,
             running_fake_discriminator2_accuracy=None,
     ):
         """ compute the current training accuracy metric """
@@ -450,40 +249,39 @@ class DCGANModel(BaseGANModel):
         # Calculate D's accuracy on the real data with real_label being = 1.
         current_real_acc = (
                 torch.sum(
-                    output_real_1_D1 > self.config.discriminator_clf_threshold
+                    output_real_D1 > self.config.discriminator_clf_threshold
                 ).item()
-                / list(output_real_1_D1.size())[0]
+                / list(output_real_D1.size())[0]
         )
         running_real_discriminator_accuracy += current_real_acc
 
         # Calculate D's accuracy on the fake data from G with fake_label being = 0.
-        # Note that we use the output_fake_1_D1 and not output_fake_2_D1, as 2 would be unfair,
+        # Note that we use the output_fake_D1 and not output_fake_2_D1, as 2 would be unfair,
         # as the discriminator has already received a weight update for the training batch
         current_fake_acc = (
                 torch.sum(
-                    output_fake_1_D1 < self.config.discriminator_clf_threshold
+                    output_fake_D1 < self.config.discriminator_clf_threshold
                 ).item()
-                / list(output_fake_1_D1.size())[0]
+                / list(output_fake_D1.size())[0]
         )
         running_fake_discriminator_accuracy += current_fake_acc
 
-        if self.config.pretrain_classifier:
-            current_real_acc_2 = (
-                    torch.sum(
-                        output_real_1_D2 > self.config.discriminator_clf_threshold
-                    ).item()
-                    / list(output_real_1_D2.size())[0]
-            )
-            running_real_discriminator2_accuracy += current_real_acc_2
-            current_fake_acc_2 = (
-                    torch.sum(
-                        output_fake_1_D2 < self.config.discriminator_clf_threshold
-                    ).item()
-                    / list(output_fake_1_D2.size())[0]
-            )
-            running_fake_discriminator2_accuracy += current_fake_acc_2
+        current_real_acc_2 = (
+                torch.sum(
+                    output_real_D2 > self.config.discriminator_clf_threshold
+                ).item()
+                / list(output_real_D2.size())[0]
+        )
+        running_real_discriminator2_accuracy += current_real_acc_2 if self.config.pretrain_classifier else running_real_discriminator2_accuracy
+        current_fake_acc_2 = (
+                torch.sum(
+                    output_fake_D2 < self.config.discriminator_clf_threshold
+                ).item()
+                / list(output_fake_D2.size())[0]
+        ) if self.config.pretrain_classifier else None
+        running_fake_discriminator2_accuracy += current_fake_acc_2 if self.config.pretrain_classifier else running_fake_discriminator2_accuracy
 
-        return output_real_1_D1, running_real_discriminator_accuracy, output_fake_1_D1, running_fake_discriminator_accuracy, output_real_1_D2, running_real_discriminator2_accuracy, output_fake_1_D2, running_fake_discriminator2_accuracy
+        return output_real_D1, running_real_discriminator_accuracy, output_fake_D1, running_fake_discriminator_accuracy, output_real_D2, running_real_discriminator2_accuracy, output_fake_D2, running_fake_discriminator2_accuracy, current_real_acc_2, current_fake_acc_2
 
     def periodic_training_console_log(
             self,
