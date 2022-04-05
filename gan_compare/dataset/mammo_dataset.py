@@ -41,9 +41,10 @@ class MammographyDataset(BaseDataset):
             transform=transform,
             config=config,
             sampling_ratio=sampling_ratio,
+            subset=subset,
         )
 
-        if self.config.classify_binary_healthy:
+        if self.config.binary_classification:
             assert split_path is not None, "Missing split path!"
             split_dict = load_json(split_path)
             self.patient_ids = split_dict[subset]
@@ -86,7 +87,7 @@ class MammographyDataset(BaseDataset):
             image = convert_to_uint8(ds.pixel_array)
         else:
             image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        if metapoint.healthy:
+        if metapoint.is_healthy:
             x, y, w, h = self.get_crops_around_bbox(
                 metapoint.bbox,
                 margin=0,

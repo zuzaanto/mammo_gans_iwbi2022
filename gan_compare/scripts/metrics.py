@@ -78,8 +78,12 @@ def calc_AUROC(y_true, y_prob, run_type, epoch=None):
             logging.info(f"{run_type} AUROC in {epoch} epoch: {roc_auc}")
         return roc_auc
     except ValueError:
-        logging.info(
+        logging.warning(
             f"WARNING cannot calculate AUROC. calc_AUROC got a ValueError. This happens for example when only one class is present in the dataset; run_type: {run_type}; epoch: {epoch}"
+        )
+    except IndexError:
+        logging.warning(
+            f"WARNING cannot calculate AUROC. calc_AUROC got an IndexError. This happens for example when the respective dataset is empty, for example when filtering for calcifications although there are no calcifications; run_type: {run_type}; epoch: {epoch}"
         )
 
 
@@ -92,8 +96,12 @@ def calc_AUPRC(y_true, y_prob, run_type, epoch=None):
             logging.info(f"{run_type} AUPRC in {epoch} epoch: {prc_auc}")
         return prc_auc
     except ValueError:
-        logging.info(
+        logging.warning(
             f"WARNING cannot calculate AUPRC. calc_AUPRC got a ValueError. This happens for example when only one class is present in the dataset;; run_type: {run_type}; epoch: {epoch}"
+        )
+    except IndexError:
+        logging.warning(
+            f"WARNING cannot calculate AUPRC. calc_AUPRC got an IndexError. This happens for example when the respective dataset is empty, for example when filtering for calcifications although there are no calcifications; run_type: {run_type}; epoch: {epoch}"
         )
 
 
