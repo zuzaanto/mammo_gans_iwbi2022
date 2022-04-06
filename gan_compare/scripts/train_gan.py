@@ -17,6 +17,8 @@ from gan_compare.data_utils.utils import collate_fn, init_seed, setup_logger
 from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.generation.dcgan.dcgan_model import DCGANModel
+from gan_compare.training.networks.generation.lsgan.lsgan_model import LSGANModel
+
 from gan_compare.training.io import load_yaml
 
 
@@ -127,7 +129,10 @@ def train_gan(args):
             dataloader=dataloader,
         )
     elif config.gan_type == "lsgan":
-        pass #TODO
+        model = LSGANModel(
+            config=config,
+            dataloader=dataloader,
+        )
     elif config.gan_type == "wgangp":
         pass #TODO
     else:

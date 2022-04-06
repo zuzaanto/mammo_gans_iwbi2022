@@ -22,6 +22,7 @@ class Discriminator(BaseDiscriminator):
         # input : (batch * nc * image width * image height)
         # Discriminator will be consisted with a series of convolution networks
 
+
         self.layer1 = nn.Sequential(
             # Input size : input image with dimension (nc)*64*64
             # Output size: output feature vector with (ndf)*32*32

@@ -18,7 +18,7 @@ image_size: 128
 use_lsgan_loss: False
 switch_loss_each_epoch: False
 kernel_size: 6
-use_one_sided_label_smoothing: True
+use_one_sided_label_smoothing: False
 
 ########### Hardware & I/O ###########
 workers: 2

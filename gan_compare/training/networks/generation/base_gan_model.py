@@ -60,7 +60,7 @@ class BaseGANModel:
         )
 
         # Create batch of fixed conditions that we will use to visualize the progression of the generator
-        self.fixed_condition = None if self.config.conditional else self._get_random_conditions()
+        self.fixed_condition = self._get_random_conditions() if self.config.conditional else None
 
         # Handle init of classifier D2 pretraining
         if self.config.pretrain_classifier:
@@ -211,10 +211,6 @@ class BaseGANModel:
 
     def _netD_update(
             self,
-            output,
-            label_as_float: float,
-            epoch: int,
-            are_outputs_logits: bool = False,
             **kwargs
     ):
         """ Backward pass through discriminator network"""
@@ -223,13 +219,6 @@ class BaseGANModel:
 
     def _netG_update(
             self,
-            netD,
-            fake_images,
-            fake_conditions,
-            epoch: int,
-            are_outputs_logits: bool = False,
-            retain_graph: bool = False,
-            is_G_updated: bool = True,
             **kwargs
     ):
         """Update Generator network: e.g. in dcgan the goal is to maximize log(D(G(z)))"""
@@ -239,14 +228,6 @@ class BaseGANModel:
 
     def _compute_loss(
         self,
-        output,
-        label,
-        epoch: int,
-        get_loss_for: str,
-        are_outputs_logits: bool = False,
-        netD=None,
-        real_images=None,
-        fake_images=None,
         **kwargs
     ):
         """Setting the loss function. Computing and returning the loss."""
@@ -255,7 +236,7 @@ class BaseGANModel:
 
 
     def _get_labels(self, b_size: int, label: str, smoothing: bool = True, real_label:str=1.0, fake_label:str=0.0):
-        """ get the labels as tensor and optionally smooth the real label """
+        """ get the labels as tensor and optionally smooth the real label values """
 
         if label == "real":
             if smoothing:
@@ -266,6 +247,8 @@ class BaseGANModel:
         elif label == "fake":
             label_tensor = torch.full(size=(b_size,), fill_value=fake_label, device=self.device)
             logging.debug(f"Created {label} labels tensor: {label_tensor}")
+        else:
+            raise Exception(f"label parameter needs to be defined as either 'real' or 'fake'. '{label}' was provided. Please adjust.")
         return label_tensor
 
     def _get_random_conditions(
@@ -533,14 +516,15 @@ class BaseGANModel:
             running_loss_of_discriminator2=running_loss_of_discriminator2,
         )
         # Add accuracy scalars to tensorboard
-        self.visualization_utils.add_value_to_tensorboard_accuracy_diagram(
-            epoch=epoch,
-            iteration=iteration,
-            running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-            running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
-            running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
-            running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
-        )
+        if None not in (running_real_discriminator_accuracy, running_fake_discriminator_accuracy):
+            self.visualization_utils.add_value_to_tensorboard_accuracy_diagram(
+                epoch=epoch,
+                iteration=iteration,
+                running_real_discriminator_accuracy=running_real_discriminator_accuracy,
+                running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
+                running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
+                running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
+            )
 
         # Visually check how the generator is doing by saving G's output on fixed_noise
         # if (iters % self.config.num_iterations_between_prints * 10 == 0) or (

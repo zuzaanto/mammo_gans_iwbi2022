@@ -18,7 +18,8 @@ except:
     matplotlib.use("Agg")
 
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.networks.generation.dcgan import DCGANModel
+from gan_compare.training.networks.generation.dcgan.dcgan_model import DCGANModel
+
 from gan_compare.training.networks.generation.lsgan.discriminator import (
     Discriminator,
 )
@@ -70,71 +71,32 @@ class LSGANModel(DCGANModel):
             leakiness=self.config.leakiness,
         ).to(self.device)
 
+        # only 64x64 image resolution will be supported
+        assert (
+                self.config.image_size == 64
+        ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
+        assert (
+                self.config.conditional == False
+        ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
+
+
     def _compute_loss(
             self,
             output,
             label,
+            epoch=None,
             are_outputs_logits: bool = False,
     ):
         """Setting the LS loss function. Computing and returning the loss."""
         # Least Square Loss - https://arxiv.org/abs/1611.04076
+        print(f"output: {output}")
+        print(f"label: {label}")
         if not are_outputs_logits:
             return 0.5 * torch.mean((output - label) ** 2)
         else:
             raise Exception(
-                "ls-loss does not yet work with logits as input. Please extend before using this function"
+                f"epoch={epoch}: ls-loss does not yet work with logits as input. Please extend before using this function"
             )
-
-
-    def compute_discriminator_accuracy(
-            self,
-            output_real_D1,
-            running_real_discriminator_accuracy,
-            output_fake_D1,
-            running_fake_discriminator_accuracy,
-            output_real_D2=None,
-            running_real_discriminator2_accuracy=None,
-            output_fake_D2=None,
-            running_fake_discriminator2_accuracy=None,
-    ):
-        """ compute the current training accuracy metric """
-
-        # Calculate D's accuracy on the real data with real_label being = 1.
-        current_real_acc = (
-                torch.sum(
-                    output_real_D1 > self.config.discriminator_clf_threshold
-                ).item()
-                / list(output_real_D1.size())[0]
-        )
-        running_real_discriminator_accuracy += current_real_acc
-
-        # Calculate D's accuracy on the fake data from G with fake_label being = 0.
-        # Note that we use the output_fake_D1 and not output_fake_2_D1, as 2 would be unfair,
-        # as the discriminator has already received a weight update for the training batch
-        current_fake_acc = (
-                torch.sum(
-                    output_fake_D1 < self.config.discriminator_clf_threshold
-                ).item()
-                / list(output_fake_D1.size())[0]
-        )
-        running_fake_discriminator_accuracy += current_fake_acc
-
-        current_real_acc_2 = (
-                torch.sum(
-                    output_real_D2 > self.config.discriminator_clf_threshold
-                ).item()
-                / list(output_real_D2.size())[0]
-        )
-        running_real_discriminator2_accuracy += current_real_acc_2 if self.config.pretrain_classifier else running_real_discriminator2_accuracy
-        current_fake_acc_2 = (
-                torch.sum(
-                    output_fake_D2 < self.config.discriminator_clf_threshold
-                ).item()
-                / list(output_fake_D2.size())[0]
-        ) if self.config.pretrain_classifier else None
-        running_fake_discriminator2_accuracy += current_fake_acc_2 if self.config.pretrain_classifier else running_fake_discriminator2_accuracy
-
-        return output_real_D1, running_real_discriminator_accuracy, output_fake_D1, running_fake_discriminator_accuracy, output_real_D2, running_real_discriminator2_accuracy, output_fake_D2, running_fake_discriminator2_accuracy, current_real_acc_2, current_fake_acc_2
 
     def periodic_training_console_log(
             self,
@@ -145,23 +107,18 @@ class LSGANModel(DCGANModel):
             D_x,
             D_G_z1,
             D_G_z2,
-            current_real_acc,
-            current_fake_acc,
             errD2=None,
             errG_D2=None,
             D2_x=None,
             D2_G_z1=None,
             D2_G_z2=None,
-            current_real_acc_2=None,
-            current_fake_acc_2=None,
     ):
-
         """ logging the training progress and current metrics to console """
 
         if self.config.pretrain_classifier:
             # While not necessarily backpropagating into G, both D1 and D2 are used and we have all possible numbers available.
             logging.info(
-                "[%d/%d][%d/%d]\tLoss_D1: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z1)): %.4f\tD(G(z2)): %.4f \tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f\tD2(x): %.4f\tD2(G(z1)): %.4f\tD2(G(z2)): %.4f \tAcc(D2(x)): %.4f\tAcc(D2(G(z)): %.4f"
+                "[%d/%d][%d/%d]\tLoss_D1: %.4f\tLoss_D2: %.4f\tLoss_G_D1: %.4f\tLoss_G_D2: %.4f\tD(x): %.4f\tD(G(z1)): %.4f\tD(G(z2)): %.4f\tD2(x): %.4f\tD2(G(z1)): %.4f\tD2(G(z2)): %.4f "
                 % (
                     epoch,
                     self.config.num_epochs - 1,
@@ -174,19 +131,15 @@ class LSGANModel(DCGANModel):
                     D_x,
                     D_G_z1,
                     D_G_z2,
-                    current_real_acc,
-                    current_fake_acc,
                     D2_x,
                     D2_G_z1,
                     D2_G_z2,
-                    current_real_acc_2,
-                    current_fake_acc_2,
                 )
             )
         else:
             # We only log D1 and G statistics, as D2 was not used in GAN training.
             logging.info(
-                "[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z1)): %.4f\tD(G(z2)): %.4f\tAcc(D(x)): %.4f\tAcc(D(G(z)): %.4f"
+                "[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z1)): %.4f\tD(G(z2)): %.4f"
                 % (
                     epoch,
                     self.config.num_epochs - 1,
@@ -197,8 +150,6 @@ class LSGANModel(DCGANModel):
                     D_x,
                     D_G_z1,
                     D_G_z2,
-                    current_real_acc,
-                    current_fake_acc,
                 )
             )
 
@@ -207,12 +158,12 @@ class LSGANModel(DCGANModel):
         """ Training the GAN network iterating over the dataloader """
 
         # initializing variables needed for visualization and # lists to keep track of progress
-        running_loss_of_generator, running_loss_of_discriminator, running_real_discriminator_accuracy, running_fake_discriminator_accuracy, G_losses, D_losses = self.init_running_losses()
+        running_loss_of_generator, running_loss_of_discriminator, _, _, G_losses, D_losses = self.init_running_losses()
 
         iters = 0
 
         # set to None for function calls later below
-        running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, D2_losses, G2_losses = self.init_running_losses(
+        running_loss_of_discriminator2, running_loss_of_generator_D2, _, _, D2_losses, G2_losses = self.init_running_losses(
             init_value=0.0 if self.config.pretrain_classifier else None)
 
         # Training Loop
@@ -233,7 +184,6 @@ class LSGANModel(DCGANModel):
             d_iteration: int = (
                 self.config.d_iters_per_g_update
             )  # In the very first iteration 0, G is trained.
-
 
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
@@ -367,18 +317,6 @@ class LSGANModel(DCGANModel):
                     D2_losses.append(errD2.item())
                     running_loss_of_discriminator2 += errD2.item()
 
-                # Accuracy of D1 (and D2) if they predict real/fake of synthetic images from G
-                output_real_D1, running_real_discriminator_accuracy, output_fake_D1, running_fake_discriminator_accuracy, output_real_D2, running_real_discriminator2_accuracy, output_fake_D2, running_fake_discriminator2_accuracy, current_real_acc_2, current_fake_acc_2 = self.compute_discriminator_accuracy(
-                    output_real_D1=output_real_D1,
-                    running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-                    output_fake_D1=output_fake_D1,
-                    running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
-                    output_real_D2=output_real_D2,
-                    running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
-                    output_fake_D2=output_fake_D2,
-                    running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
-                )
-
                 # Output training stats on each iteration length threshold
                 if i % self.config.num_iterations_between_prints == 0:
                     self.periodic_training_console_log(
@@ -389,35 +327,27 @@ class LSGANModel(DCGANModel):
                         D_x=D_x,
                         D_G_z1=D_G_z1,
                         D_G_z2=D_G_z2,
-                        current_real_acc=current_real_acc,
-                        current_fake_acc=current_fake_acc,
                         errD2=errD2,
                         errG_D2=errG_D2,
                         D2_x=D2_x,
                         D2_G_z1=D2_G_z1,
                         D2_G_z2=D2_G_z2,
-                        current_real_acc_2=current_real_acc_2,
-                        current_fake_acc_2=current_fake_acc_2,
                     )
                     self.periodic_visualization_log(
                         epoch=epoch,
                         iteration=i,
                         running_loss_of_generator=running_loss_of_generator,
                         running_loss_of_discriminator=running_loss_of_discriminator,
-                        running_real_discriminator_accuracy=running_real_discriminator_accuracy,
-                        running_fake_discriminator_accuracy=running_fake_discriminator_accuracy,
                         running_loss_of_generator_D2=running_loss_of_generator_D2,
                         running_loss_of_discriminator2=running_loss_of_discriminator2,
-                        running_real_discriminator2_accuracy=running_real_discriminator2_accuracy,
-                        running_fake_discriminator2_accuracy=running_fake_discriminator2_accuracy,
                     )
 
                     # Reset the running losses and accuracies
-                    running_loss_of_generator, running_loss_of_discriminator, running_real_discriminator_accuracy, running_fake_discriminator_accuracy, _, _ = self.init_running_losses(
+                    running_loss_of_generator, running_loss_of_discriminator,  _,_,_, _ = self.init_running_losses(
                         init_value=0.0)
 
                     if self.config.pretrain_classifier:
-                        running_loss_of_discriminator2, running_loss_of_generator_D2, running_real_discriminator2_accuracy, running_fake_discriminator2_accuracy, _, _ = self.init_running_losses(
+                        running_loss_of_discriminator2, running_loss_of_generator_D2, _,_, _, _ = self.init_running_losses(
                             init_value=0.0)
 
                 iters += 1
