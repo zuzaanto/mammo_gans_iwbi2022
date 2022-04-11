@@ -104,7 +104,6 @@ class GANConfig(BaseConfig):
         f"model_checkpoints/GAN_training_{model_name}_{strftime('%Y_%m_%d-%H_%M_%S')}/"
     )
 
-
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50
 

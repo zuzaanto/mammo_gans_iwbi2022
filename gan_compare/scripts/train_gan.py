@@ -16,10 +16,10 @@ from tqdm import tqdm
 from gan_compare.data_utils.utils import collate_fn, init_seed, setup_logger
 from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.training.gan_config import GANConfig
+from gan_compare.training.io import load_yaml
 from gan_compare.training.networks.generation.dcgan.dcgan_model import DCGANModel
 from gan_compare.training.networks.generation.lsgan.lsgan_model import LSGANModel
 from gan_compare.training.networks.generation.wgangp.wgangp_model import WGANGPModel
-from gan_compare.training.io import load_yaml
 
 
 def parse_args() -> argparse.Namespace:

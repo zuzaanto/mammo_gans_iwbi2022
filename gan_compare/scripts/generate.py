@@ -7,11 +7,10 @@ import cv2
 import torch
 from dacite import from_dict
 
-from gan_compare.data_utils.utils import interval_mapping
+from gan_compare.data_utils.utils import init_seed, interval_mapping
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.networks.generation.dcgan.dcgan_model import BaseGANModel
 from gan_compare.training.io import load_yaml
-from gan_compare.data_utils.utils import init_seed
+from gan_compare.training.networks.generation.dcgan.dcgan_model import BaseGANModel
 
 
 def parse_args() -> argparse.Namespace:
@@ -102,7 +101,9 @@ if __name__ == "__main__":
         )
         args.condition = None
     elif config.conditional is True and args.condition is not None:
-        print(f"Conditional samples will be generate for condition {config.conditioned_on} = {args.condition}.")
+        print(
+            f"Conditional samples will be generate for condition {config.conditioned_on} = {args.condition}."
+        )
     if args.device is None:
         args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

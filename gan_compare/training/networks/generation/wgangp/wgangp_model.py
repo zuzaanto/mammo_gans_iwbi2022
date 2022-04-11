@@ -4,9 +4,8 @@ import logging
 
 import torch
 import torch.nn.parallel
-from torch import autograd, nn
-import torch.nn.parallel
 import torch.utils.data
+from torch import autograd, nn
 from torch.utils.data import DataLoader
 
 try:
@@ -20,26 +19,20 @@ except:
 
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.generation.base_gan_model import BaseGANModel
-from gan_compare.training.networks.generation.wgangp.discriminator import (
-    Discriminator,
-)
-from gan_compare.training.networks.generation.wgangp.generator import (
-    Generator,
-)
+from gan_compare.training.networks.generation.wgangp.discriminator import Discriminator
+from gan_compare.training.networks.generation.wgangp.generator import Generator
 
 
 class WGANGPModel(BaseGANModel):
-    def __init__(
-            self,
-            config: GANConfig,
-            dataloader: DataLoader
-    ):
+    def __init__(self, config: GANConfig, dataloader: DataLoader):
         super(WGANGPModel, self).__init__(config=config, dataloader=dataloader)
         self.config = config
         self.dataloader = dataloader
         self._create_network()
         self.netD, self.netG = self.network_setup(netD=self.netD, netG=self.netG)
-        self.optimizerD, self.optimizerG = self.optimizer_setup(netD=self.netD, netG=self.netG)
+        self.optimizerD, self.optimizerG = self.optimizer_setup(
+            netD=self.netD, netG=self.netG
+        )
 
     def _create_network(self):
         """Importing and initializing the desired GAN architecture, weights and configuration."""
@@ -71,29 +64,31 @@ class WGANGPModel(BaseGANModel):
         ).to(self.device)
 
     def _compute_loss_G(
-            self,
-            output_fake_2_D: str,
-            are_outputs_logits: bool = False,
+        self,
+        output_fake_2_D: str,
+        are_outputs_logits: bool = False,
     ):
-        """ Computing and returning the  WGAN-GP Generator loss. """
+        """Computing and returning the  WGAN-GP Generator loss."""
 
-        assert not are_outputs_logits, "wgangp-loss does not yet work with logits as input. Please extend before using this function."
+        assert (
+            not are_outputs_logits
+        ), "wgangp-loss does not yet work with logits as input. Please extend before using this function."
         return -output_fake_2_D.mean()  # G loss is the output from D i.e. d_fake_images
 
     def _compute_loss_D(
-            self,
-            netD,
-            real_images,
-            fake_images,
-            are_outputs_logits: bool = False,
+        self,
+        netD,
+        real_images,
+        fake_images,
+        are_outputs_logits: bool = False,
     ):
-        """ Computing and returning the  WGAN-GP Discriminator loss. """
+        """Computing and returning the  WGAN-GP Discriminator loss."""
 
-        assert not are_outputs_logits, "wgangp-loss does not yet work with logits as input. Please extend before using this function."
         assert (
-                netD is not None
-                and real_images is not None
-                and fake_images is not None
+            not are_outputs_logits
+        ), "wgangp-loss does not yet work with logits as input. Please extend before using this function."
+        assert (
+            netD is not None and real_images is not None and fake_images is not None
         ), f"Please make sure that none of the variables 'fake_images', 'real_images', and 'netD' is None. Currently they are real_images={real_images}, fake_images={fake_images}, netD={netD}."
 
         gradient_penalty = self.compute_gradient_penalty(
@@ -101,13 +96,13 @@ class WGANGPModel(BaseGANModel):
             real_images=real_images,
             fake_images=fake_images,
         )
-        output_fake_D, output_fake_D_mean = self._netD_forward_pass(netD=netD, images=fake_images)
-        output_real_D, output_real_D_mean = self._netD_forward_pass(netD=netD, images=real_images)
-        errD = (
-                output_fake_D.mean()
-                - output_real_D.mean()
-                + gradient_penalty
-        )  # D loss
+        output_fake_D, output_fake_D_mean = self._netD_forward_pass(
+            netD=netD, images=fake_images
+        )
+        output_real_D, output_real_D_mean = self._netD_forward_pass(
+            netD=netD, images=real_images
+        )
+        errD = output_fake_D.mean() - output_real_D.mean() + gradient_penalty  # D loss
 
         return (
             errD,
@@ -118,9 +113,11 @@ class WGANGPModel(BaseGANModel):
             gradient_penalty,
         )
 
-
     def compute_gradient_penalty(
-            self, netD, real_images, fake_images,
+        self,
+        netD,
+        real_images,
+        fake_images,
     ):
         """gradient penalty computation according to paper https://arxiv.org/pdf/1704.00028.pdf
 
@@ -161,18 +158,25 @@ class WGANGPModel(BaseGANModel):
         return gradient_penalty
 
     def _netD_update(
-            self,
-            netD,
-            optimizerD,
-            real_images,
-            fake_images,
-            epoch: int = None,
-            are_outputs_logits=False,
-            **kwargs,
+        self,
+        netD,
+        optimizerD,
+        real_images,
+        fake_images,
+        epoch: int = None,
+        are_outputs_logits=False,
+        **kwargs,
     ):
         """Update WGANGP Discriminator network."""
 
-        errD, output_fake_D, output_real_D, D_x, D_G_z1, gradient_penalty = self._compute_loss_D(
+        (
+            errD,
+            output_fake_D,
+            output_real_D,
+            D_x,
+            D_G_z1,
+            gradient_penalty,
+        ) = self._compute_loss_D(
             netD=netD,
             real_images=real_images,
             fake_images=fake_images,
@@ -192,23 +196,26 @@ class WGANGPModel(BaseGANModel):
             gradient_penalty,
         )
 
-
     def _netG_update(
-            self,
-            netD,
-            fake_images,
-            fake_conditions = None,
-            are_outputs_logits: bool = False,
-            retain_graph: bool = False,
-            is_G_updated: bool = True,
-            **kwargs
+        self,
+        netD,
+        fake_images,
+        fake_conditions=None,
+        are_outputs_logits: bool = False,
+        retain_graph: bool = False,
+        is_G_updated: bool = True,
+        **kwargs,
     ):
         """Update the generator network"""
 
         # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
         # The generator loss of the updated discriminator should be higher than the previous one.
         # D_G_z2 is the D output mean on the second generator input
-        output_fake_2_D, D_G_z2 = self._netD_forward_pass(netD=netD, images=fake_images, conditions=fake_conditions, )
+        output_fake_2_D, D_G_z2 = self._netD_forward_pass(
+            netD=netD,
+            images=fake_images,
+            conditions=fake_conditions,
+        )
 
         # Calculate G's loss based on D's output
         errG = self._compute_loss_G(
@@ -230,26 +237,26 @@ class WGANGPModel(BaseGANModel):
         return output_fake_2_D, D_G_z2, errG
 
     def periodic_training_console_log(
-            self,
-            epoch,
-            iteration,
-            errD,
-            errG,
-            D_x,
-            D_G_z1,
-            D_G_z2,
-            gradient_penalty,
-            errD2=None,
-            errG_D2=None,
-            D2_x=None,
-            D2_G_z1=None,
-            D2_G_z2=None,
-            current_real_acc_2=None,
-            current_fake_acc_2=None,
-            **kwargs,
+        self,
+        epoch,
+        iteration,
+        errD,
+        errG,
+        D_x,
+        D_G_z1,
+        D_G_z2,
+        gradient_penalty,
+        errD2=None,
+        errG_D2=None,
+        D2_x=None,
+        D2_G_z1=None,
+        D2_G_z2=None,
+        current_real_acc_2=None,
+        current_fake_acc_2=None,
+        **kwargs,
     ):
 
-        """ logging the training progress and current metrics to console """
+        """logging the training progress and current metrics to console"""
         if self.config.pretrain_classifier:
             # While not necessarily backpropagating into G, both D1 and D2 are used and we have all possible numbers available.
             logging.info(
@@ -291,33 +298,57 @@ class WGANGPModel(BaseGANModel):
             )
 
     def compute_discriminator_accuracy(
-            self,
-            output_real_D2=None,
-            running_real_D2_acc=None,
-            output_fake_D2=None,
-            running_fake_D2_acc=None,
-            **kwargs
+        self,
+        output_real_D2=None,
+        running_real_D2_acc=None,
+        output_fake_D2=None,
+        running_fake_D2_acc=None,
+        **kwargs,
     ):
-        """ compute the current training accuracy metric
+        """compute the current training accuracy metric
 
         As discriminator (D1) in wgangp is not a classifier, we only calculate the accuracy for the second discriminator (D2)
         """
 
         # D2
-        current_real_D2_acc = None if output_real_D2 is None else (
+        current_real_D2_acc = (
+            None
+            if output_real_D2 is None
+            else (
                 torch.sum(
                     output_real_D2 > self.config.discriminator_clf_threshold
                 ).item()
                 / list(output_real_D2.size())[0]
+            )
         )
-        current_fake_D2_acc = None if output_fake_D2 is None else (
+        current_fake_D2_acc = (
+            None
+            if output_fake_D2 is None
+            else (
                 torch.sum(
                     output_fake_D2 < self.config.discriminator_clf_threshold
                 ).item()
                 / list(output_fake_D2.size())[0]
+            )
         )
-        running_real_D2_acc = running_real_D2_acc if current_real_D2_acc is None else running_real_D2_acc + current_real_D2_acc
-        running_fake_D2_acc = running_fake_D2_acc if current_fake_D2_acc is None else running_fake_D2_acc + current_fake_D2_acc
+        running_real_D2_acc = (
+            running_real_D2_acc
+            if current_real_D2_acc is None
+            else running_real_D2_acc + current_real_D2_acc
+        )
+        running_fake_D2_acc = (
+            running_fake_D2_acc
+            if current_fake_D2_acc is None
+            else running_fake_D2_acc + current_fake_D2_acc
+        )
 
-        return None, None, None, None, running_real_D2_acc, running_fake_D2_acc, current_real_D2_acc, current_fake_D2_acc
-
+        return (
+            None,
+            None,
+            None,
+            None,
+            running_real_D2_acc,
+            running_fake_D2_acc,
+            current_real_D2_acc,
+            current_fake_D2_acc,
+        )

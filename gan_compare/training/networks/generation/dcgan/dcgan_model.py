@@ -19,27 +19,25 @@ except:
 
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.generation.base_gan_model import BaseGANModel
-from gan_compare.training.networks.generation.dcgan.discriminator import (
-    Discriminator,
-)
-from gan_compare.training.networks.generation.dcgan.generator import (
-    Generator,
-)
+from gan_compare.training.networks.generation.dcgan.discriminator import Discriminator
+from gan_compare.training.networks.generation.dcgan.generator import Generator
 
 
 class DCGANModel(BaseGANModel):
-    def __init__(
-            self,
-            config: GANConfig,
-            dataloader: DataLoader
-    ):
+    def __init__(self, config: GANConfig, dataloader: DataLoader):
         super(DCGANModel, self).__init__(config=config, dataloader=dataloader)
         self.config = config
         self.dataloader = dataloader
         self._create_network()
         self.netD, self.netG = self.network_setup(netD=self.netD, netG=self.netG)
-        self.optimizerD, self.optimizerG = self.optimizer_setup(netD=self.netD, netG=self.netG)
-        self.loss = self._compute_switching_loss if self.config.switch_loss_each_epoch else self._compute_loss
+        self.optimizerD, self.optimizerG = self.optimizer_setup(
+            netD=self.netD, netG=self.netG
+        )
+        self.loss = (
+            self._compute_switching_loss
+            if self.config.switch_loss_each_epoch
+            else self._compute_loss
+        )
 
     def _create_network(self):
         """Importing and initializing the desired GAN architecture, weights and configuration."""
@@ -71,11 +69,11 @@ class DCGANModel(BaseGANModel):
         ).to(self.device)
 
     def _compute_loss(
-            self,
-            output,
-            label,
-            epoch: int,
-            are_outputs_logits: bool = False,
+        self,
+        output,
+        label,
+        epoch: int,
+        are_outputs_logits: bool = False,
     ):
         """Setting the BCE loss function. Computing and returning the loss."""
 
@@ -83,9 +81,9 @@ class DCGANModel(BaseGANModel):
         is_output_type_changed = self.are_outputs_logits != are_outputs_logits
         self.are_outputs_logits = are_outputs_logits
         if (
-                not hasattr(self, "criterion")
-                or self.criterion is None
-                or is_output_type_changed
+            not hasattr(self, "criterion")
+            or self.criterion is None
+            or is_output_type_changed
         ):
             # Initialize standard criterion. Note: Could be moved to config.
             if are_outputs_logits:
@@ -98,17 +96,16 @@ class DCGANModel(BaseGANModel):
         logging.debug(f"output: {output} \n label: {label}")
         return self.criterion(output, label)
 
-
     def _netD_update(
-            self,
-            netD,
-            optimizerD,
-            real_images,
-            fake_images,
-            epoch: int,
-            real_conditions=None,
-            fake_conditions=None,
-            are_outputs_logits=False,
+        self,
+        netD,
+        optimizerD,
+        real_images,
+        fake_images,
+        epoch: int,
+        real_conditions=None,
+        fake_conditions=None,
+        are_outputs_logits=False,
     ):
         """Update Discriminator network on real AND fake data."""
 
@@ -126,9 +123,15 @@ class DCGANModel(BaseGANModel):
             fake_conditions,
         )
         # Create labels fo real and fake batches
-        labels_real = self._get_labels(b_size=output_real.size(0), label="real",
-                                       smoothing=self.config.use_one_sided_label_smoothing, )
-        labels_fake = self._get_labels(b_size=output_fake.size(0), label="fake", )
+        labels_real = self._get_labels(
+            b_size=output_real.size(0),
+            label="real",
+            smoothing=self.config.use_one_sided_label_smoothing,
+        )
+        labels_fake = self._get_labels(
+            b_size=output_fake.size(0),
+            label="fake",
+        )
 
         # Calculate D loss for fake batch
         errD_fake = self.loss(
@@ -154,36 +157,37 @@ class DCGANModel(BaseGANModel):
 
         # Update D
         optimizerD.step()
-        return (
-            output_real,
-            D_x,
-            output_fake,
-            D_G_z1,
-            errD,
-            None
-        )
+        return (output_real, D_x, output_fake, D_G_z1, errD, None)
 
     def _netG_update(
-            self,
-            netD,
-            fake_images,
-            fake_conditions,
-            epoch: int,
-            are_outputs_logits: bool = False,
-            retain_graph: bool = False,
-            is_G_updated: bool = True,
+        self,
+        netD,
+        fake_images,
+        fake_conditions,
+        epoch: int,
+        are_outputs_logits: bool = False,
+        retain_graph: bool = False,
+        is_G_updated: bool = True,
     ):
         """Update Generator network: e.g. in dcgan the goal is to maximize log(D(G(z)))"""
 
         # Since we just updated D, perform another forward pass of all-fake batch through the updated D.
         # The generator loss of the updated discriminator should be higher than the previous one.
         # D_G_z2 is the D output mean on the second generator input
-        output_fake_2_D, D_G_z2 = self._netD_forward_pass(netD=netD, images=fake_images, conditions=fake_conditions, )
+        output_fake_2_D, D_G_z2 = self._netD_forward_pass(
+            netD=netD,
+            images=fake_images,
+            conditions=fake_conditions,
+        )
 
         # Generate label is repeated each time due to varying b_size i.e. last batch of epoch has less images
         # Here, the "real" label is needed, as the fake labels are "real" for generator cost.
         # label smoothing is False, as this option would decrease the loss of the generator.
-        labels = self._get_labels(b_size=output_fake_2_D.size(0), label="real", smoothing=False, )
+        labels = self._get_labels(
+            b_size=output_fake_2_D.size(0),
+            label="real",
+            smoothing=False,
+        )
 
         # Calculate G's loss based on D's output
         errG = self.loss(
@@ -206,29 +210,28 @@ class DCGANModel(BaseGANModel):
 
         return output_fake_2_D, D_G_z2, errG
 
-
     def periodic_training_console_log(
-            self,
-            epoch,
-            iteration,
-            errD,
-            errG,
-            D_x,
-            D_G_z1,
-            D_G_z2,
-            current_real_D_acc,
-            current_fake_D_acc,
-            errD2=None,
-            errG_D2=None,
-            D2_x=None,
-            D2_G_z1=None,
-            D2_G_z2=None,
-            current_real_acc_2=None,
-            current_fake_acc_2=None,
-            **kwargs,
+        self,
+        epoch,
+        iteration,
+        errD,
+        errG,
+        D_x,
+        D_G_z1,
+        D_G_z2,
+        current_real_D_acc,
+        current_fake_D_acc,
+        errD2=None,
+        errG_D2=None,
+        D2_x=None,
+        D2_G_z1=None,
+        D2_G_z2=None,
+        current_real_acc_2=None,
+        current_fake_acc_2=None,
+        **kwargs,
     ):
 
-        """ logging the training progress and current metrics to console """
+        """logging the training progress and current metrics to console"""
 
         if self.config.pretrain_classifier:
             # While not necessarily backpropagating into G, both D1 and D2 are used and we have all possible numbers available.
@@ -273,5 +276,3 @@ class DCGANModel(BaseGANModel):
                     current_fake_D_acc,
                 )
             )
-
-

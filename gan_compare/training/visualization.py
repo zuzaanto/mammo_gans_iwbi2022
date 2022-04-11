@@ -6,11 +6,13 @@ Credits: richardosuala (Richard Osuala)
 import matplotlib
 
 matplotlib.use("agg")
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import torch
 import torchvision.utils as vutils
 from torch.utils.tensorboard import SummaryWriter
-from pathlib import Path
+
 
 class VisualizationUtils:
     """This class contains different visualization mechanisms for the GAN training process such as tensorboard writers."""

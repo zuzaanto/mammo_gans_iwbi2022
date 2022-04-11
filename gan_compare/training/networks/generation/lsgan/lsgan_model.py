@@ -19,28 +19,25 @@ except:
 
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.generation.dcgan.dcgan_model import DCGANModel
-
-from gan_compare.training.networks.generation.lsgan.discriminator import (
-    Discriminator,
-)
-from gan_compare.training.networks.generation.lsgan.generator import (
-    Generator,
-)
+from gan_compare.training.networks.generation.lsgan.discriminator import Discriminator
+from gan_compare.training.networks.generation.lsgan.generator import Generator
 
 
 class LSGANModel(DCGANModel):
-    def __init__(
-            self,
-            config: GANConfig,
-            dataloader: DataLoader
-    ):
+    def __init__(self, config: GANConfig, dataloader: DataLoader):
         super(LSGANModel, self).__init__(config=config, dataloader=dataloader)
         self.config = config
         self.dataloader = dataloader
         self._create_network()
         self.netD, self.netG = self.network_setup(netD=self.netD, netG=self.netG)
-        self.optimizerD, self.optimizerG = self.optimizer_setup(netD=self.netD, netG=self.netG)
-        self.loss = self._compute_switching_loss if self.config.switch_loss_each_epoch else self._compute_loss
+        self.optimizerD, self.optimizerG = self.optimizer_setup(
+            netD=self.netD, netG=self.netG
+        )
+        self.loss = (
+            self._compute_switching_loss
+            if self.config.switch_loss_each_epoch
+            else self._compute_loss
+        )
 
     def _create_network(self):
         """Importing and initializing the desired GAN architecture, weights and configuration."""
@@ -73,19 +70,18 @@ class LSGANModel(DCGANModel):
 
         # only 64x64 image resolution will be supported
         assert (
-                self.config.image_size == 64
+            self.config.image_size == 64
         ), "Wrong image size for LSGAN, change it to 64x64 before proceeding."
         assert (
-                self.config.conditional == False
+            self.config.conditional == False
         ), "LSGAN does not support conditional inputs. Change conditional to False before proceeding."
 
-
     def _compute_loss(
-            self,
-            output,
-            label,
-            epoch=None,
-            are_outputs_logits: bool = False,
+        self,
+        output,
+        label,
+        epoch=None,
+        are_outputs_logits: bool = False,
     ):
         """Setting the LS loss function. Computing and returning the loss."""
         # Least Square Loss - https://arxiv.org/abs/1611.04076
@@ -98,22 +94,22 @@ class LSGANModel(DCGANModel):
             )
 
     def periodic_training_console_log(
-            self,
-            epoch,
-            iteration,
-            errD,
-            errG,
-            D_x,
-            D_G_z1,
-            D_G_z2,
-            errD2=None,
-            errG_D2=None,
-            D2_x=None,
-            D2_G_z1=None,
-            D2_G_z2=None,
-            **kwargs,
+        self,
+        epoch,
+        iteration,
+        errD,
+        errG,
+        D_x,
+        D_G_z1,
+        D_G_z2,
+        errD2=None,
+        errG_D2=None,
+        D2_x=None,
+        D2_G_z1=None,
+        D2_G_z2=None,
+        **kwargs,
     ):
-        """ logging the training progress and current metrics to console """
+        """logging the training progress and current metrics to console"""
 
         if self.config.pretrain_classifier:
             # While not necessarily backpropagating into G, both D1 and D2 are used and we have all possible numbers available.

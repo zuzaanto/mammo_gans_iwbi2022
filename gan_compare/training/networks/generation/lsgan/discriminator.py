@@ -10,7 +10,13 @@ from gan_compare.training.networks.generation.base_discriminator import (
 
 class Discriminator(BaseDiscriminator):
     def __init__(
-        self, ndf: int, nc: int, ngpu: int, leakiness: float, bias: bool = False, **kwargs,
+        self,
+        ndf: int,
+        nc: int,
+        ngpu: int,
+        leakiness: float,
+        bias: bool = False,
+        **kwargs,
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,
@@ -21,7 +27,6 @@ class Discriminator(BaseDiscriminator):
         )
         # input : (batch * nc * image width * image height)
         # Discriminator will be consisted with a series of convolution networks
-
 
         self.layer1 = nn.Sequential(
             # Input size : input image with dimension (nc)*64*64

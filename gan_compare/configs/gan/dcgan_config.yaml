@@ -49,7 +49,7 @@ max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
 
 
 ########### Pretraining of Dual Discriminator ###########
-model_name: None #"cnn" # "swin_transformer"
+model_name: None #One of the following: "swin_transformer", None, "cnn"
 pretrain_classifier: True
 are_Ds_alternating_to_update_G: False
 start_training_D2_after_epoch: 0
