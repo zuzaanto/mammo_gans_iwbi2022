@@ -18,7 +18,7 @@ from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.training.gan_config import GANConfig
 from gan_compare.training.networks.generation.dcgan.dcgan_model import DCGANModel
 from gan_compare.training.networks.generation.lsgan.lsgan_model import LSGANModel
-
+from gan_compare.training.networks.generation.wgangp.wgangp_model import WGANGPModel
 from gan_compare.training.io import load_yaml
 
 
@@ -134,7 +134,10 @@ def train_gan(args):
             dataloader=dataloader,
         )
     elif config.gan_type == "wgangp":
-        pass #TODO
+        model = WGANGPModel(
+            config=config,
+            dataloader=dataloader,
+        )
     else:
         raise Exception(
             f"The gan_type ('{config.gan_type}') you provided via args is not valid."

@@ -1,7 +1,12 @@
 import torch
 import torch.nn.parallel
 from torch import autograd, nn
+import logging
+from gan_compare.training.io import save_yaml
+from typing import Optional, Union
 
+from pathlib import Path
+import os
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -12,56 +17,53 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-def compute_gradient_penalty(
-    netD, real_images, fake_images, wgangp_lambda, device: str = "cpu"
-):
-    """gradient penalty computation according to paper https://arxiv.org/pdf/1704.00028.pdf
+def empty_cache():
+    # Free up any used memory on each batch iteration
+    import gc
+    gc.collect()
+    # emptying the cache to avoid "CUDA out of memory"
+    torch.cuda.empty_cache()
+    # Checking the memory consumption
+    logging.debug(torch.cuda.memory_summary(device=None, abbreviated=False))
 
-    Adapted from https://github.com/caogang/wgan-gp/blob/ae47a185ed2e938c39cf3eb2f06b32dc1b6a2064/gan_cifar10.py#L74
-    """
+def init_running_losses(init_value=0.0):
+    return init_value, init_value, init_value, init_value, [], []
 
-    # Determine image shape
-    b_size = real_images.size()[0]
+def mkdir_model_dir(output_model_dir):
+    """ Create folder where GAN will be stored """
 
-    # Define alpha, which is a random number a ∼ U[0, 1].
-    alpha = torch.rand(b_size, 1, 1, 1)
-    alpha = alpha.expand_as(real_images)
-    alpha = alpha.to(device)
+    if not Path(output_model_dir).exists():
+        os.makedirs(Path(output_model_dir).resolve())
 
-    # Compute the x_hat as a random spread between real and generated
-    x_hat = alpha * real_images + ((1 - alpha) * fake_images)
-    x_hat.to(device)
-    x_hat = autograd.Variable(x_hat, requires_grad=True)
+def save_config(config, output_model_dir, config_file_name: str = f"config.yaml"):
+    """ Save the config to disc """
+    output_model_dir = Path (output_model_dir)
+    mkdir_model_dir(output_model_dir=output_model_dir)  # validation to make sure model dir exists
+    out_config_path = output_model_dir / config_file_name
+    save_yaml(path=out_config_path, data=config)
+    logging.info(f"Saved model config to {out_config_path.resolve()}")
 
-    # Pass x_hat as a random spread between real and generated
-    disc_x_hat = netD(x_hat)
+def save_model(netD, optimizerD, netG, optimizerG, netD2, optimizerD2, output_model_dir, epoch_number: Optional[int] = None):
+    """ Save the model to disc """
+    output_model_dir = Path (output_model_dir)
 
-    # Compute gradient for disc_x_hat
-    gradients = autograd.grad(
-        outputs=disc_x_hat,
-        inputs=x_hat,
-        grad_outputs=torch.ones(disc_x_hat.size()).to(device),
-        create_graph=True,
-        retain_graph=True,
-        only_inputs=True,
-    )[0]
-    gradients = gradients.view(gradients.size(0), -1)
-
-    # Compute the final gradient penalty where _lambda is the gradient penalty coefficient
-    gradient_penalty = wgangp_lambda * (
-        ((gradients.norm(2, dim=1) - 1) ** 2).mean()  # .item()
+    mkdir_model_dir(output_model_dir=output_model_dir)  # validation to make sure model dir exists
+    if epoch_number is None:
+        out_path = output_model_dir / "model.pt"
+    else:
+        out_path = output_model_dir / f"{epoch_number}.pt"
+    d = {
+        "discriminator": netD.state_dict(),
+        "generator": netG.state_dict(),
+        "optim_discriminator": optimizerD.state_dict(),
+        "optim_generator": optimizerG.state_dict(),
+    }
+    if None not in (netD2, optimizerD2):
+        d["discriminator2"] = netD2.state_dict()
+        d["optim_discriminator2"] = optimizerD2.state_dict()
+    # Saving the model in out_path
+    torch.save(d, out_path)
+    logging.info(
+        f"Saved model (on epoch(?): {epoch_number}) to {out_path.resolve()}"
     )
 
-    # Deleting the variables that may use up space on CUDA device.
-    # del gradients
-    # del disc_x_hat
-    # del x_hat
-    # del alpha
-
-    return gradient_penalty
-
-
-def compute_wgangp_loss(d_fake_images, d_real_images, gradient_penalty):
-    d_loss = d_fake_images.mean() - d_real_images.mean() + gradient_penalty
-    g_loss = -d_fake_images.mean()
-    return d_loss, g_loss

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 import torchvision.utils as vutils
 from torch.utils.tensorboard import SummaryWriter
-
+from pathlib import Path
 
 class VisualizationUtils:
     """This class contains different visualization mechanisms for the GAN training process such as tensorboard writers."""
@@ -25,7 +25,7 @@ class VisualizationUtils:
         :param tensorboard_writer_dir: The location in the fs where tensorboard visualization files are stored.
         """
         # setup tensorboard writer
-        self.output_model_dir = output_model_dir
+        self.output_model_dir = Path(output_model_dir)
         self.tensorboard_writer = SummaryWriter(f"{output_model_dir}/visualization")
         self.num_iterations_per_epoch = num_iterations_per_epoch
         self.num_iterations_between_prints = num_iterations_between_prints
