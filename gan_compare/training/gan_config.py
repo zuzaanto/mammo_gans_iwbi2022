@@ -13,6 +13,9 @@ class GANConfig(BaseConfig):
 
     ########## Start: Variables related to D2 Pretraining ###########
 
+    # Classification targets. Not relevant for GAN training atm, but required in base_config. Perhaps to be integrated into D2 GAN pretraining in the future.
+    classes: str = None  # one of ["is_benign", "is_healthy", "birads"]
+
     # in case of a second discriminator is pretrained, which model should be used, e.g. "cnn", "swin_transformer"
     model_name: str = None
 
@@ -31,6 +34,16 @@ class GANConfig(BaseConfig):
 
     # If we want to start the training of D2 later during GAN training, we specify the number of the epoch, in which D2 will start to train itself
     start_training_D2_after_epoch: int = 0
+
+    ########## Start: Variables related to WGAN GP Training ###########
+
+    # lambda parameter is a multiplier of the gradient penalty in WGAN-GP's Discriminator loss.
+    wgangp_lambda = 10
+
+    # Update the critic (D) n times for each G update.
+    d_iters_per_g_update = 1
+
+    ########## Start: Variables related to standard GAN Training ###########
 
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
@@ -113,7 +126,8 @@ class GANConfig(BaseConfig):
     # the number of epochs passed between each GAN model .pt file storage, i.e. store on each i_th epoch
     num_epochs_between_gan_storage: int = 50
 
-    ########## Start: Variables related to condition ###########
+    ########## Start: Variables related to conditional GAN training ###########
+
     # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
     is_condition_categorical: bool = False
 
@@ -126,10 +140,6 @@ class GANConfig(BaseConfig):
 
     # the maximum possible value that the condition can have
     condition_max: int = 4
-
-    ########## Variables related to WGAN GP ###########
-    wgangp_lambda = 10
-    d_iters_per_g_update = 1  # Update critic n times for each g update.
 
     def __post_init__(self):
         super().__post_init__()

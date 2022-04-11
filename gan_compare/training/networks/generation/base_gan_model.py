@@ -672,11 +672,7 @@ class BaseGANModel:
 
                 # Unpack data (=image batch) alongside condition (e.g. birads number). Conditions are all -1 if unconditioned.
                 try:
-                    (
-                        data,
-                        conditions,
-                        _,
-                    ) = data
+                    (data, conditions, _, _, _) = data
                 except:
                     data, conditions, _, _ = data
 

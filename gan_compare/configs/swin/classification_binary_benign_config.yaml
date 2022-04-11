@@ -1,0 +1,31 @@
+model_name: "swin_transformer"
+batch_size: 12
+num_epochs: 100
+data:
+  train:
+    dataset_names:
+      - bcdr
+    roi_types:
+      - mass
+      - calcification
+  val:
+    dataset_names:
+      - bcdr
+    roi_types:
+      - mass
+      - calcification
+  test:
+    dataset_names:
+      - bcdr
+    roi_types:
+      - mass
+      - calcification
+metadata_path: setup/all_metadata.json
+split_path: setup/train_test_val_split.json
+train_shuffle_proportion: 1
+output_model_dir: model_checkpoints/classifier/masses/cnn_lb
+validation_shuffle_proportion: 0
+classes: is_benign
+use_synthetic: False
+training_sampling_proportion: 1.
+image_size: 128

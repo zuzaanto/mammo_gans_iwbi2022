@@ -27,6 +27,7 @@ class BaseDataset(Dataset):
         # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         transform: any = None,
         sampling_ratio: float = 1.0,
+        subset: str = "train",
     ):
         assert (
             metadata_path is not None and Path(metadata_path).is_file()
@@ -38,7 +39,7 @@ class BaseDataset(Dataset):
                 for metapoint in json.load(metadata_file)
             ]
         logging.info(
-            f"Number of train metadata before sampling: {len(self.metadata_unfiltered)}"
+            f"Number of {subset} metadata before sampling: {len(self.metadata_unfiltered)}"
         )
         random.seed(config.seed)
         self.metadata_unfiltered = random.sample(
@@ -46,7 +47,7 @@ class BaseDataset(Dataset):
             int(sampling_ratio * len(self.metadata_unfiltered)),
         )
         logging.info(
-            f"Number of train metadata after sampling: {len(self.metadata_unfiltered)}"
+            f"Number of {subset} metadata after sampling: {len(self.metadata_unfiltered)}"
         )
 
         self.crop = crop
@@ -69,17 +70,22 @@ class BaseDataset(Dataset):
         Returns:
             (int, int): (num samples of non-healthy, num samples of healthy)
         """
+        assert (
+            self.config.binary_classification
+        ), "Function len_of_classes() works only in the binary classification case."
         cnt = 0
         for d in self.metadata:
             if type(d) is str:
-                continue  # then d is a synthetic sample (non-healthy)
-            if d.healthy:
+                continue  # then d is a synthetic sample (therefore non-healthy) TODO: might not work the same for synthetic benign/malignant patches
+            elif getattr(d, self.config.classes):
                 cnt += 1
         return len(self) - cnt, cnt
 
     def arrange_weights(self, weight_non_healthy, weight_healthy):
         return [
-            weight_healthy if type(d) is not str and d.healthy else weight_non_healthy
+            weight_healthy
+            if type(d) is not str and d.is_healthy
+            else weight_non_healthy
             for d in self.metadata
         ]
 
@@ -123,8 +129,14 @@ class BaseDataset(Dataset):
         return condition
 
     def determine_label(self, metapoint: Metapoint) -> int:
-        if self.config.classify_binary_healthy:
-            return int(metapoint.healthy)  # label = 1 iff metapoint is healthy
+        if self.config.binary_classification:
+            target = getattr(metapoint, self.config.classes)
+            if target == -1:
+                raise Exception(
+                    f"Target of patch {metapoint.patch_id} is not valid. This happens for example if metapoint.biopsy_proven_status is not set: metapoint.biopsy_proven_status == {metapoint.biopsy_proven_status}"
+                )
+            else:
+                return int(target)  # label = 1 iff metapoint is positive
         elif self.conditional_birads:
             if self.config.is_condition_binary:
                 condition = metapoint.birads[0]

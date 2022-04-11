@@ -8,6 +8,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -143,19 +144,19 @@ if __name__ == "__main__":
             f"Number of synthetic patches added to training set: {len(synth_train_images)}"
         )
 
-    num_train_non_healthy, num_train_healthy = train_dataset_no_synth.len_of_classes()
+    num_train_negative, num_train_positive = train_dataset_no_synth.len_of_classes()
 
     logging.info("Training set:")
-    logging.info(f"Non-healthy: {num_train_non_healthy}, Healthy: {num_train_healthy}")
-    logging.info(f"Share of healthy: {num_train_healthy / len(train_dataset)}")
+    logging.info(f"Negative: {num_train_negative}, Positive: {num_train_positive}")
+    logging.info(f"Share of positives: {num_train_positive / len(train_dataset)}")
 
     # Compute the weights for the WeightedRandomSampler for the training set:
     # Example: labels of training set: [true, true, false] => weight_true = 3/2; weight_false = 3/1
-    weight_non_healthy = len(train_dataset) / num_train_non_healthy
-    weight_healthy = len(train_dataset) / num_train_healthy
+    weight_negative = len(train_dataset) / num_train_negative
+    weight_positive = len(train_dataset) / num_train_positive
     train_weights = []
     train_weights.extend(
-        train_dataset_no_synth.arrange_weights(weight_non_healthy, weight_healthy)
+        train_dataset_no_synth.arrange_weights(weight_negative, weight_positive)
     )
 
     train_sampler = WeightedRandomSampler(train_weights, len(train_dataset))
@@ -263,7 +264,7 @@ if __name__ == "__main__":
             logging.info("Training...")
             for i, data in enumerate(tqdm(train_dataloader)):
                 # get the inputs; data is a list of [inputs, labels]
-                samples, labels, _, _ = data
+                samples, labels, _, _, _ = data
 
                 if len(samples) <= 1:
                     continue  # batch normalization won't work if samples too small (https://stackoverflow.com/a/48344268/3692004)
@@ -294,7 +295,7 @@ if __name__ == "__main__":
                 net.eval()
                 logging.info("Validating...")
                 for i, data in enumerate(tqdm(val_dataloader)):
-                    samples, labels, _, _ = data
+                    samples, labels, _, _, _ = data
                     # logging.info(images.size())
                     outputs = net(samples.to(device))
                     val_loss.append(criterion(outputs.cpu(), labels))
@@ -342,26 +343,48 @@ if __name__ == "__main__":
             y_true = []
             y_prob_logit = []
             test_loss = []
-            roi_types = []
+            roi_type_arr = []
+            id_arr = []
             net.eval()
             logging.info("Testing...")
             for i, data in enumerate(tqdm(test_dataloader)):
-                samples, labels, _, roi_type_arr = data
+                samples, labels, _, roi_types, ids = data
                 # logging.info(images.size())
                 outputs = net(samples.to(device))
                 test_loss.append(criterion(outputs.cpu(), labels))
                 y_true.append(labels)
                 y_prob_logit.append(outputs.data.cpu())
 
-                roi_types.extend(roi_type_arr)
+                roi_type_arr.extend(roi_types)
+                id_arr.extend(ids)
             test_loss = np.mean(test_loss)
             y_true = torch.cat(y_true)
             y_prob_logit = torch.cat(y_prob_logit)
+
+            if config.output_classification_result in {"json", "csv"}:
+                df_meta = pd.read_json(config.metadata_path)
+                df_results = pd.DataFrame(
+                    {
+                        "patch_id": id_arr,
+                        f"y_prob": np.array(torch.exp(y_prob_logit)[:, -1]),
+                    }
+                )
+                df_results["patch_id"] = df_results["patch_id"].astype("int64")
+                df_meta = pd.merge(df_meta, df_results, how="inner", on="patch_id")
+                if config.output_classification_result == "json":
+                    df_meta.to_json(
+                        f"{config.metadata_path}_{logfilename}.json", orient="records"
+                    )
+                else:
+                    df_meta.to_csv(
+                        f"{config.metadata_path}_{logfilename}.csv", index=False
+                    )
+
             calc_all_scores(y_true, y_prob_logit, test_loss, "Test")
 
             mass_indices = [
                 i
-                for i, item in enumerate(roi_types)
+                for i, item in enumerate(roi_type_arr)
                 if item == "mass" or item == "healthy"
             ]
             calc_AUROC(
@@ -377,7 +400,7 @@ if __name__ == "__main__":
 
             calcification_indices = [
                 i
-                for i, item in enumerate(roi_types)
+                for i, item in enumerate(roi_type_arr)
                 if item == "calcification" or item == "healthy"
             ]
             calc_AUROC(
@@ -391,7 +414,7 @@ if __name__ == "__main__":
                 "Test only Calcifications",
             )
 
-            if config.classify_binary_healthy:
+            if config.binary_classification:
                 output_ROC_curve(y_true, y_prob_logit, "Test", logfilename)
         logging.info("Finished testing.")
     else:

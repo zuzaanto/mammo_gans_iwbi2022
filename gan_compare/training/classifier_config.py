@@ -11,7 +11,7 @@ class ClassifierConfig(BaseConfig):
     train_shuffle_proportion: float = 0.4
     validation_shuffle_proportion: float = 0
 
-    train_sampling_ratio: float = 0.5
+    train_sampling_ratio: float = 1.0
 
     # Directory with synthetic patches
     synthetic_data_dir: str = None
@@ -29,24 +29,29 @@ class ClassifierConfig(BaseConfig):
 
     out_checkpoint_path: str = ""
 
-    classes: str = "is_healthy"
+    classes: str = "is_healthy"  # one of ["is_benign", "is_healthy", "birads"]
 
     # Learning rate for optimizer
     lr: float = 0.0001  # Note: The CLF equivalent of the learning rates lr_g, lr_d1, lr_d2 in gan_config.py for GAN training.
 
+    # Which format to use when outputting the classification results on the test set, either json, csv, or None. If None, no such results are output.
+    output_classification_result: str = "json"
+
     def __post_init__(self):
         super().__post_init__()
         self.out_checkpoint_path = f"{self.output_model_dir}/best_classifier.pt"
-        if self.classify_binary_healthy:
+        assert self.classes in [
+            "is_benign",
+            "is_healthy",
+            "birads",
+        ], "Classifier currently supports either healthy vs unhealthy, or birads classification"  # TODO Add ACR classification
+
+        if self.binary_classification:
             self.n_cond = 2
         elif self.split_birads_fours:
             self.birads_min = 1
             self.birads_max = 7
             self.n_cond = self.birads_max + 1
-        assert self.classes in [
-            "is_healthy",
-            "birads",
-        ], "Classifier currently supports either healthy vs unhealthy, or birads classification."  # TODO Add density classification
 
         assert (
             1 >= self.train_shuffle_proportion >= 0

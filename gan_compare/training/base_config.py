@@ -27,8 +27,6 @@ class BaseConfig:
     seed: int = 42
     # 4a 4b 4c of birads are splitted into integers
     split_birads_fours: bool = True
-    # Whether to do binary classification of healthy/non-healthy patches
-    classify_binary_healthy: bool = False
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
     # OR for classification, the number of classes (set automatically though in classification_config.py)
     n_cond: int = birads_max + 1
@@ -73,3 +71,4 @@ class BaseConfig:
             self.output_model_dir,
             f"training_{self.model_name}_{strftime('%Y_%m_%d-%H_%M_%S')}",
         )
+        self.binary_classification = self.classes in ["is_benign", "is_healthy"]
