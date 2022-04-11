@@ -49,8 +49,8 @@ max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
 
 
 ########### Pretraining of Dual Discriminator ###########
-model_name: None # "cnn" # "swin_transformer"
-pretrain_classifier: False
+model_name: None #"cnn" # "swin_transformer"
+pretrain_classifier: True
 are_Ds_alternating_to_update_G: False
 start_training_D2_after_epoch: 0
 start_backprop_D2_into_G_after_epoch: 0
@@ -62,4 +62,3 @@ is_condition_binary: False
 is_condition_categorical: False
 split_birads_fours: False
 added_noise_term: 0. # relevant for adding some random noise for the condition label of the conditional GAN.
-

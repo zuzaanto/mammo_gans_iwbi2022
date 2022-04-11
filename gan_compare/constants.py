@@ -40,4 +40,4 @@ def get_classifier(config: dataclass, num_classes: Optional[int] = None) -> nn.M
                 num_labels=num_classes, return_probabilities=return_probabilities
             )
         raise ValueError(f"Unrecognized CNN image size = {config.image_size}")
-    raise ValueError(f"Unrecognized model name = {config.name}")
+    raise ValueError(f"Unrecognized model name = {config.model_name}")

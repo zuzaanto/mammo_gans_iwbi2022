@@ -69,7 +69,7 @@ class BaseGANModel:
             self.netD2 = get_classifier(self.config, num_classes=num_classes).to(self.device)
             self.netD2 = self._network_weights_init(net=self.netD2)
             self.netD2 = self._handle_multigpu(net=self.netD2)
-            self.optimizerD2 = self.optimizer_setup(
+            self.optimizerD2 = self.create_optimizer(
                 net=self.netD2,
                 lr=self.config.lr_d2,
                 betas=(self.config.beta1, self.config.beta2),
@@ -681,6 +681,7 @@ class BaseGANModel:
                         output_fake_D2,
                         D2_G_z1,
                         errD2,
+                        gradient_penalty,
                     ) = self._netD_update(
                         netD=self.netD2,
                         optimizerD=self.optimizerD2,
