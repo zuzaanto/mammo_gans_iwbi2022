@@ -11,6 +11,12 @@ from gan_compare.training.io import save_yaml
 
 
 def weights_init(m):
+    """initializing the weights of the GAN networks.
+
+    The weights of the convolutional layers in G and D are sampled from a normal distribution with mean 0. and std 0.02.
+    Batch normalization weights (alias gamma) are initialized sampling from a normal distribution with mean 1. and std 0.02,
+    while batch normalization bias (alias beta) are initialized with a constant value of 0.
+    """
     classname = m.__class__.__name__
     if classname.find("Conv") != -1:
         nn.init.normal_(m.weight.data, 0.0, 0.02)

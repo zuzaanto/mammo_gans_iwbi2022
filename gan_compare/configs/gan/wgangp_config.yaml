@@ -44,9 +44,9 @@ is_training_data_augmented: True
 
 ########### Preprocessing ###########
 zoom_offset:  0.  # 0.2 # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-zoom_spread: 0.  # 0.33 # the higher, the more variance in zooming. 0. seems to be the minimal variance
+zoom_spread: 0.  # 0.33 # the higher, the more variance in zooming. Must be greater or equal 0. with 0. being minimal variance.
 ratio_spread:  0.  # 0.05 # coefficient for how much to spread the ratio between height and width. the higher, the more spread.
-translation_spread: 0.  # 0.25 # the higher, the more variance in translation. 0. seems to be the minimal variance
+translation_spread: 0.  # 0.25 # the higher, the more variance in translation. Must be greater or equal 0. with 0. being minimal variance.
 max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
 
 ########### Pretraining of Dual Discriminator ###########
