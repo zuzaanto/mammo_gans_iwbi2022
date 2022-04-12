@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 from time import strftime
 
@@ -17,6 +16,7 @@ class GANConfig(BaseConfig):
     classes: str = None  # one of ["is_benign", "is_healthy", "birads"]
 
     # in case of a second discriminator is pretrained, which model should be used, e.g. "cnn", "swin_transformer"
+
     model_name: str = None
 
     # Is the classifier pretrained during GAN training?
@@ -42,6 +42,9 @@ class GANConfig(BaseConfig):
 
     # Update the critic (D) n times for each G update.
     d_iters_per_g_update = 1
+
+    # Set to True to use nn.InstanceNorm2d layers in D. Else: No normalization is used
+    is_instance_norm_used: bool = False
 
     ########## Start: Variables related to standard GAN Training ###########
 
