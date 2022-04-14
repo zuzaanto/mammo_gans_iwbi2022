@@ -1,6 +1,6 @@
 
 ########### GAN type ###########
-gan_type: dcgan # which GAN type to train, e.g. "lsgan", "dcgan", "wgangp"
+gan_type: lsgan # which GAN type to train, e.g. "lsgan", "dcgan", "wgangp"
 
 ########### Network Hyperparams ###########
 leakiness: 0.1
@@ -14,10 +14,10 @@ num_epochs: 20000
 ndf: 64
 ngf: 64
 batch_size: 16
-image_size: 128
-use_lsgan_loss: False
+image_size: 64
+use_lsgan_loss: True
 switch_loss_each_epoch: False
-kernel_size: 6
+kernel_size: 4
 use_one_sided_label_smoothing: False
 
 ########### Hardware & I/O ###########
@@ -48,7 +48,7 @@ translation_spread: 0.  # 0.25 # the higher, the more variance in translation. M
 max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
 
 ########### Pretraining of Dual Discriminator ###########
-model_name: None #One of the following: "swin_transformer", None, "cnn"
+model_name: None # "cnn" # "swin_transformer"
 pretrain_classifier: False
 are_Ds_alternating_to_update_G: False
 start_training_D2_after_epoch: 0
@@ -61,3 +61,5 @@ is_condition_binary: False
 is_condition_categorical: False
 split_birads_fours: False
 added_noise_term: 0. # relevant for adding some random noise for the condition label of the conditional GAN.
+
+

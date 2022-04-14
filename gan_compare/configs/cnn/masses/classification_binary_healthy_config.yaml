@@ -30,4 +30,3 @@ classes: is_healthy
 use_synthetic: False
 training_sampling_proportion: 1.
 image_size: 128
-classify_binary_healthy: True

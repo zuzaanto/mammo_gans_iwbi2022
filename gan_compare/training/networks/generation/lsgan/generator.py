@@ -3,7 +3,7 @@ Implementation taken from https://github.com/meliketoy/LSGAN.pytorch
 """
 import torch.nn as nn
 
-from gan_compare.training.networks.base_generator import BaseGenerator
+from gan_compare.training.networks.generation.base_generator import BaseGenerator
 
 
 class Generator(BaseGenerator):
@@ -15,6 +15,7 @@ class Generator(BaseGenerator):
         ngpu: int,
         leakiness: float,
         bias: bool = False,
+        **kwargs,
     ):
         super(Generator, self).__init__(
             nz=nz,

@@ -1,0 +1,20 @@
+model_name: "cnn"
+batch_size: 12
+num_epochs: 100
+train_metadata_path: metadata/final_inbreast_masses_metadata/train_metadata_very_ub.json
+validation_metadata_path: metadata/final_inbreast_masses_metadata/val_metadata.json
+test_metadata_path: metadata/final_inbreast_masses_metadata/test_metadata.json
+synthetic_metadata_path: metadata/synthetic_metadata.json
+no_transforms: False
+train_shuffle_proportion: 0.5
+out_checkpoint_path: model_checkpoints/classifier/cnn_masses_optimam_bcdr_full
+validation_shuffle_proportion: 0
+classes: is_healthy
+use_synthetic: True
+dataset_names:
+  - inbreast
+training_sampling_proportion: 1.
+is_trained_on_calcifications: False
+image_size: 128
+classify_binary_healthy: True
+synthetic_data_dir: synthetic/masses/bcdr_optimam_full

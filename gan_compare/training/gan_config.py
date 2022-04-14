@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from time import strftime
 
@@ -6,8 +7,43 @@ from gan_compare.training.base_config import BaseConfig
 
 @dataclass
 class GANConfig(BaseConfig):
-    # This model_name default should be overwritten by and further specified in -> the yaml file.
-    model_name: str = "dcgan"
+
+    # which type of GAN do you want to train, e.g. "lsgan", "dcgan", "wgangp"
+    gan_type: str = "wgangp"
+
+    ########## Start: Variables related to D2 Pretraining ###########
+
+    # Classification targets. Not relevant for GAN training atm, but required in base_config. Perhaps to be integrated into D2 GAN pretraining in the future.
+    classes: str = None  # one of ["is_benign", "is_healthy", "birads"]
+
+    # in case of a second discriminator is pretrained, which model should be used, e.g. "cnn", "swin_transformer"
+    model_name: str = None
+
+    # Is the classifier pretrained during GAN training?
+    pretrain_classifier: bool = False
+
+    # Is the type of classifier pretraining during GAN training adversarial? i.e. real/fake prediction with BCE loss.
+    is_pretraining_adversarial: bool = True
+
+    # If we pretrain_classifier, then the updates of G alternate per batch, e.g. in iteration 1 update is based on
+    # prediction from D1 and in iteration 2 it is based on D2, and so on.
+    are_Ds_alternating_to_update_G: bool = True
+
+    # If we want to wait with the backpropagation of D2, we specify the number of the epoch, in which D2 will start to backpropagate into G
+    start_backprop_D2_into_G_after_epoch: int = 0
+
+    # If we want to start the training of D2 later during GAN training, we specify the number of the epoch, in which D2 will start to train itself
+    start_training_D2_after_epoch: int = 0
+
+    ########## Start: Variables related to WGAN GP Training ###########
+
+    # lambda parameter is a multiplier of the gradient penalty in WGAN-GP's Discriminator loss.
+    wgangp_lambda = 10
+
+    # Update the critic (D) n times for each G update.
+    d_iters_per_g_update = 1
+
+    ########## Start: Variables related to standard GAN Training ###########
 
     # l2 regularization in discriminator value taken from here:
     # https://machinelearningmastery.com/how-to-reduce-overfitting-in-deep-learning-with-weight-regularization/
@@ -16,7 +52,7 @@ class GANConfig(BaseConfig):
     weight_decay: float = 0  # 5e-06  # 0.000005
 
     # Whether to use least square loss
-    use_lsgan_loss: bool = False
+    use_lsgan_loss: bool = True
 
     # Whether to switch the loss function (i.e. from ls to bce) on each epoch.
     switch_loss_each_epoch: bool = False
@@ -32,8 +68,8 @@ class GANConfig(BaseConfig):
     # https://github.com/soumith/ganhacks#6-use-soft-and-noisy-labels).
     use_one_sided_label_smoothing: bool = True
     # Define the one-sided label smoothing interval for positive labels (real images) for D.
-    label_smoothing_start: float = 0.8  # 0.8  # 0.95
-    label_smoothing_end: float = 1.1  # 1.1  # 1.0
+    label_smoothing_start: float = 0.7  # 0.8  # 0.95
+    label_smoothing_end: float = 1.2  # 1.1  # 1.0
 
     # Leakiness for LReLUs
     leakiness: float = 0.2
@@ -59,6 +95,7 @@ class GANConfig(BaseConfig):
 
     # Beta1 hyperparam for Adam optimizers
     beta1: float = 0.5
+    beta2: float = 0.999
 
     # The number of iterations between: i) prints and ii) storage of results in tensorboard
     num_iterations_between_prints: int = 2000
@@ -80,37 +117,6 @@ class GANConfig(BaseConfig):
         f"model_checkpoints/GAN_training_{model_name}_{strftime('%Y_%m_%d-%H_%M_%S')}/"
     )
 
-    # Is the classifier pretrained during GAN training?
-    pretrain_classifier: bool = False
-
-    # Is the type of classifier pretraining during GAN training adversarial? i.e. real/fake prediction with BCE loss.
-    is_pretraining_adversarial: bool = True
-
-    # If we pretrain_classifier, then the updates of G alternate per batch, e.g. in iteration 1 update is based on
-    # prediction from D1 and in iteration 2 it is based on D2, and so on.
-    are_Ds_alternating_to_update_G: bool = True
-
-    # If we want to wait with the backpropagation of D2, we specify the number of the epoch, in which D2 will start to backpropagate into G
-    start_backprop_D2_into_G_after_epoch: int = 0
-
-    # If we want to start the training of D2 later during GAN training, we specify the number of the epoch, in which D2 will start to train itself
-    start_training_D2_after_epoch: int = 0
-
-    ########## Start: Variables related to condition ###########
-
-    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
-    is_condition_categorical: bool = False
-
-    # the minimum possible value that the condition can have
-    condition_min: int = 1
-
-    # the maximum possible value that the condition can have
-    condition_max: int = 4
-
-    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
-    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
-    added_noise_term: float = 0.0
-
     # The dimension of embedding tensor in torch.nn.embedding layers in G and D in categorical c-GAN setting.
     num_embedding_dimensions: int = 50
 
@@ -120,7 +126,20 @@ class GANConfig(BaseConfig):
     # the number of epochs passed between each GAN model .pt file storage, i.e. store on each i_th epoch
     num_epochs_between_gan_storage: int = 50
 
-    ########## End: Variables related to condition ###########
+    ########## Start: Variables related to conditional GAN training ###########
+
+    # determines if we model the condition in the nn as either continuous (False) or discrete/categorical (True)
+    is_condition_categorical: bool = False
+
+    # To have more variation in continuous conditional variables, we can add to them some random noise drawn
+    # from [0,1] multiplied by the added_noise_term. The hope is that this reduces mode collapse.
+    added_noise_term: float = 0.0
+
+    # the minimum possible value that the condition can have
+    condition_min: int = 1
+
+    # the maximum possible value that the condition can have
+    condition_max: int = 4
 
     def __post_init__(self):
         super().__post_init__()

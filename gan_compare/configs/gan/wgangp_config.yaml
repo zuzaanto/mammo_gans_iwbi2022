@@ -1,6 +1,6 @@
 
 ########### GAN type ###########
-gan_type: dcgan # which GAN type to train, e.g. "lsgan", "dcgan", "wgangp"
+gan_type: wgangp # which GAN type to train, e.g. "lsgan", "dcgan", "wgangp"
 
 ########### Network Hyperparams ###########
 leakiness: 0.1
@@ -8,17 +8,19 @@ lr_g: 0.0001
 lr_d1: 0.0001
 lr_d2: 0.0001
 beta1: 0.5
+beta2: 0.9 # This is different to DCGAN's 0.999
+d_iters_per_g_update: 5 # Update critic n times for each g update
 nz: 100
 weight_decay: 0
-num_epochs: 20000
+num_epochs: 10000
 ndf: 64
 ngf: 64
 batch_size: 16
-image_size: 128
+image_size: 224
 use_lsgan_loss: False
 switch_loss_each_epoch: False
 kernel_size: 6
-use_one_sided_label_smoothing: False
+use_one_sided_label_smoothing: True
 
 ########### Hardware & I/O ###########
 workers: 2
@@ -33,11 +35,11 @@ data:
     dataset_names:
       - inbreast
       - bcdr
-      - cbis-ddsm
+      #- cbis-ddsm
     roi_types:
       - mass
-      - calcification
-      - other
+      #- calcification
+      #- other
 is_training_data_augmented: True
 
 ########### Preprocessing ###########
@@ -48,7 +50,7 @@ translation_spread: 0.  # 0.25 # the higher, the more variance in translation. M
 max_translation_offset: 0. # 0.33 # coefficient relative to the image size.
 
 ########### Pretraining of Dual Discriminator ###########
-model_name: None #One of the following: "swin_transformer", None, "cnn"
+model_name: None # "cnn" # "swin_transformer"
 pretrain_classifier: False
 are_Ds_alternating_to_update_G: False
 start_training_D2_after_epoch: 0

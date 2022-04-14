@@ -14,6 +14,7 @@ DATASET_LIST = ["bcdr", "inbreast", "cbis-ddsm"]
 
 
 def get_classifier(config: dataclass, num_classes: Optional[int] = None) -> nn.Module:
+
     if num_classes is None:
         # FIXME During GAN training config.n_cond is the number of conditions and not the number of classes.
         # Workaround: Usage of value from num_classes attribute instead.
@@ -39,4 +40,4 @@ def get_classifier(config: dataclass, num_classes: Optional[int] = None) -> nn.M
                 num_labels=num_classes, return_probabilities=return_probabilities
             )
         raise ValueError(f"Unrecognized CNN image size = {config.image_size}")
-    raise ValueError(f"Unrecognized model name = {config.name}")
+    raise ValueError(f"Unrecognized model name = {config.model_name}")

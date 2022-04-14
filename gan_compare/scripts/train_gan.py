@@ -16,18 +16,14 @@ from tqdm import tqdm
 from gan_compare.data_utils.utils import collate_fn, init_seed, setup_logger
 from gan_compare.dataset.mammo_dataset import MammographyDataset
 from gan_compare.training.gan_config import GANConfig
-from gan_compare.training.gan_model import GANModel
 from gan_compare.training.io import load_yaml
+from gan_compare.training.networks.generation.dcgan.dcgan_model import DCGANModel
+from gan_compare.training.networks.generation.lsgan.lsgan_model import LSGANModel
+from gan_compare.training.networks.generation.wgangp.wgangp_model import WGANGPModel
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        required=True,
-        help="Model name: supported: dcgan and lsgan",
-    )
     parser.add_argument(
         "--config_path",
         type=str,
@@ -57,7 +53,6 @@ def parse_args() -> argparse.Namespace:
 
 def train_gan(args):
     setup_logger()
-
     # Parse config file
     config_dict = load_yaml(path=args.config_path)
     config = from_dict(GANConfig, config_dict)
@@ -67,7 +62,6 @@ def train_gan(args):
 
     init_seed(args.seed)  # initializing the random seed
 
-    dataset_list = []
     transform_to_use = None
     if config.is_training_data_augmented:
         transform_to_use = transforms.Compose(
@@ -126,21 +120,33 @@ def train_gan(args):
                 else f"{i}.png"
             )
             cv2.imwrite(str(output_dataset_dir / out_image_path), image)
-    # Emptying the cache for GPU RAM.
+    # Emptying the cache for GPU RAM i.e. to avoid cuda out of memory issues
     torch.cuda.empty_cache()
     logging.info("Loading model...")
-    model = GANModel(
-        model_name=args.model_name,
-        config=config,
-        dataloader=dataloader,
-        out_dataset_path=args.out_dataset_path,
-    )
-    logging.info("Loaded model. Starting training...")
-    # Emptying the cache to avoid cuda out of memory issues
+    if config.gan_type == "dcgan":
+        model = DCGANModel(
+            config=config,
+            dataloader=dataloader,
+        )
+    elif config.gan_type == "lsgan":
+        model = LSGANModel(
+            config=config,
+            dataloader=dataloader,
+        )
+    elif config.gan_type == "wgangp":
+        model = WGANGPModel(
+            config=config,
+            dataloader=dataloader,
+        )
+    else:
+        raise Exception(
+            f"The gan_type ('{config.gan_type}') you provided via args is not valid."
+        )
+
+    logging.info(f"Initialized {config.gan_type} model. Now starting training...")
     model.train()
 
 
 if __name__ == "__main__":
     args = parse_args()
-
     train_gan(args)

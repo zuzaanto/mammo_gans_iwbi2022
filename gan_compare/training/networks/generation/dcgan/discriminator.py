@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 
-from gan_compare.training.networks.base_discriminator import BaseDiscriminator
+from gan_compare.training.networks.generation.base_discriminator import (
+    BaseDiscriminator,
+)
 
 
 class Discriminator(BaseDiscriminator):
@@ -19,6 +21,7 @@ class Discriminator(BaseDiscriminator):
         is_condition_categorical: bool = False,
         num_embedding_dimensions: int = 50,
         kernel_size: int = 6,
+        **kwargs,
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,
@@ -139,7 +142,7 @@ class Discriminator(BaseDiscriminator):
             )
         else:
             raise ValueError(
-                f"Allowed image sizes are 128 and 64. You provided {self.image_size}. Please adjust."
+                f"Allowed image sizes are 224, 128 and 64. You provided {self.image_size}. Please adjust."
             )
 
         self.main = nn.Sequential(

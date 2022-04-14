@@ -3,12 +3,20 @@ Implementation taken from https://github.com/meliketoy/LSGAN.pytorch
 """
 import torch.nn as nn
 
-from gan_compare.training.networks.base_discriminator import BaseDiscriminator
+from gan_compare.training.networks.generation.base_discriminator import (
+    BaseDiscriminator,
+)
 
 
 class Discriminator(BaseDiscriminator):
     def __init__(
-        self, ndf: int, nc: int, ngpu: int, leakiness: float, bias: bool = False
+        self,
+        ndf: int,
+        nc: int,
+        ngpu: int,
+        leakiness: float,
+        bias: bool = False,
+        **kwargs,
     ):
         super(Discriminator, self).__init__(
             ndf=ndf,

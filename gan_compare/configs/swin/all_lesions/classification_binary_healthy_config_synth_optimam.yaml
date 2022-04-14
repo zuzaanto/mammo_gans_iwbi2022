@@ -35,5 +35,4 @@ validation_shuffle_proportion: 0
 classes: is_healthy
 use_synthetic: True
 image_size: 128
-classify_binary_healthy: True
 synthetic_data_dir: synthetic/optimam

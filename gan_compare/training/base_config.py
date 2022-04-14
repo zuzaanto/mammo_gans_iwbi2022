@@ -9,6 +9,7 @@ from gan_compare.training.dataset_config import DatasetConfig
 
 @dataclass
 class BaseConfig:
+
     metadata_path: str
     data: Dict[str, DatasetConfig]
 
@@ -21,11 +22,13 @@ class BaseConfig:
     # Birads range
     birads_min: int = 2
     birads_max: int = 6
+
     # random seed
     seed: int = 42
     # 4a 4b 4c of birads are splitted into integers
     split_birads_fours: bool = True
     # The number of condition labels for input into conditional GAN (i.e. 7 for BI-RADS 0 - 6)
+    # OR for classification, the number of classes (set automatically though in classification_config.py)
     n_cond: int = birads_max + 1
     # Number of workers for dataloader
     workers: int = 2
@@ -36,24 +39,23 @@ class BaseConfig:
     image_size: int = 64
     # Number of training epochs
     num_epochs: int = 60
+    # Learning rate for optimizers
+    lr: float = 0.0001  # Used only in train_test_classifier.py. Note: there are lr_g, lr_d in gan_config.py
+
     ngpu: int = 1
     # Whether to train conditional GAN
     conditional: bool = False
     # We can condition on different variables such as breast density or birads status of lesion. Default = "density"
-    conditioned_on: str = "density"
-    # Specifiy whether birads condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
+    conditioned_on: str = None  # "density", "birads"
+    # Specifiy whether condition is modeled as binary e.g., benign/malignant with birads 1-3 = 0, 4-6 = 1
     is_condition_binary: bool = False
 
     # Preprocessing of training images
     # Variables for utils.py -> get_measures_for_crop():
     zoom_offset: float = 0.2  # the higher, the more likely the patch is zoomed out. if 0, no offset. negative means, patch is rather zoomed in
-    zoom_spread: float = (
-        0.33  # the higher, the more variance in zooming. must be greater 0.
-    )
+    zoom_spread: float = 0.33  # the higher, the more variance in zooming. Must be greater or equal 0. with 0. being minimal variance.
     ratio_spread: float = 0.05  # NOT IN USE ANYMORE. coefficient for how much to spread the ratio between height and width. the higher, the more spread.
-    translation_spread: float = (
-        0.25  # the higher, the more variance in translation. must be greater 0.
-    )
+    translation_spread: float = 0.25  # the higher, the more variance in translation. Must be greater or equal 0. with 0. being minimal variance.
     max_translation_offset: float = 0.33  # coefficient relative to the image size.
 
     def __post_init__(self):

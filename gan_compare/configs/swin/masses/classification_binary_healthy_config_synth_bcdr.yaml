@@ -30,5 +30,4 @@ classes: is_healthy
 use_synthetic: True
 training_sampling_proportion: 1.
 image_size: 128
-classify_binary_healthy: True
 synthetic_data_dir: synthetic/masses/exp28exp38/bcdr_synthetic
