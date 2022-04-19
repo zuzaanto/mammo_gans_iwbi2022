@@ -19,6 +19,7 @@ class Discriminator(BaseDiscriminator):
         is_condition_categorical: bool = False,
         num_embedding_dimensions: int = 50,
         kernel_size: int = 6,
+        is_instance_norm_used: bool = True,
         **kwargs,
     ):
         super(Discriminator, self).__init__(
@@ -51,6 +52,9 @@ class Discriminator(BaseDiscriminator):
         # The image size (supported params should be 128 or 64)
         self.image_size = image_size
 
+        # Instance normalization instead of batchnorm as suggested in wgangp paper
+        self.is_instance_norm_used = is_instance_norm_used
+
         stride = 2
         padding = 2
         if self.kernel_size == 4:
@@ -59,6 +63,7 @@ class Discriminator(BaseDiscriminator):
             raise ValueError(
                 f"Allowed kernel sizes are 6 and 4. You provided {self.kernel_size}. Please adjust."
             )
+
         if self.image_size == 224:
             self.ndf_input_main = (
                 self.ndf * 4
@@ -83,6 +88,7 @@ class Discriminator(BaseDiscriminator):
                     padding=padding + 2,
                     bias=self.bias,
                 ),
+                self.normalize(self.ndf * 2),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # state size. (ndf) x 58 x 58
                 nn.Conv2d(
@@ -93,6 +99,7 @@ class Discriminator(BaseDiscriminator):
                     padding=padding + 3,
                     bias=self.bias,
                 ),
+                self.normalize(self.ndf * 4),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # state size. (ndf) x 32 x 32
             )
@@ -120,6 +127,7 @@ class Discriminator(BaseDiscriminator):
                     padding=padding,
                     bias=self.bias,
                 ),
+                self.normalize(self.ndf * 2),
                 nn.LeakyReLU(self.leakiness, inplace=True),
                 # state size. (ndf) x 32 x 32
             )
@@ -156,6 +164,7 @@ class Discriminator(BaseDiscriminator):
                 padding=padding,
                 bias=self.bias,
             ),
+            self.normalize(self.ndf_input_main * 2),
             nn.LeakyReLU(self.leakiness, inplace=True),
             # state size. (ndf*4) x 16 x 16
             nn.Conv2d(
@@ -166,6 +175,7 @@ class Discriminator(BaseDiscriminator):
                 padding=padding,
                 bias=self.bias,
             ),
+            self.normalize(self.ndf_input_main * 4),
             nn.LeakyReLU(self.leakiness, inplace=True),
             # state size. (ndf*8) x 8 x 8
             nn.Conv2d(
@@ -176,6 +186,7 @@ class Discriminator(BaseDiscriminator):
                 padding=padding,
                 bias=self.bias,
             ),
+            self.normalize(self.ndf_input_main * 8),
             nn.LeakyReLU(self.leakiness, inplace=True),
             # state size. (ndf*16) x 4 x 4
             nn.Conv2d(
@@ -192,7 +203,13 @@ class Discriminator(BaseDiscriminator):
             # state size. 1
         )
         # FIXME Adjust input dimension in linear layer!
-        self.linear = nn.Linear(self.ndf_input_main * 16, 1)
+        # self.linear = nn.Linear(self.ndf_input_main * 16, 1)
+
+    def normalize(self, num_features):
+        if self.is_instance_norm_used:
+            return nn.InstanceNorm2d(num_features=num_features)
+        else:
+            pass  # We do not use normalization layers (as recommended in wgangp paper)
 
     def forward(self, x, conditions=None):
         output = self.main(x)
