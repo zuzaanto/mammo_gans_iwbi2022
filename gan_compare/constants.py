@@ -18,7 +18,7 @@ def get_classifier(config: dataclass, num_classes: Optional[int] = None) -> nn.M
     if num_classes is None:
         # FIXME During GAN training config.n_cond is the number of conditions and not the number of classes.
         # Workaround: Usage of value from num_classes attribute instead.
-        num_classes = config.n_cond
+        num_classes = config.num_classes
     if config.model_name == "swin_transformer":
         if not config.image_size == 224:
             logging.warning(

@@ -12,13 +12,21 @@ import cv2
 import numpy as np
 import pandas as pd
 import pydicom as dicom
+import SimpleITK as sitk
 import torch
 from deprecation import deprecated
+from radiomics import featureextractor
 from skimage.draw import polygon
+from tqdm import tqdm
 
 from gan_compare.dataset.constants import BCDR_VIEW_DICT
 from gan_compare.dataset.metapoint import Metapoint
-from gan_compare.paths import BCDR_ROOT_PATH, INBREAST_IMAGE_PATH, INBREAST_ROOT_PATH
+from gan_compare.paths import (
+    BCDR_ROOT_PATH,
+    CBIS_DDSM_ROOT_PATH,
+    INBREAST_IMAGE_PATH,
+    INBREAST_ROOT_PATH,
+)
 
 LOGFILENAME = None
 
@@ -223,7 +231,7 @@ def generate_inbreast_metapoints(
                 roi_type=[str(roi_type).lower()],
                 biopsy_proven_status=None,
                 dataset="inbreast",
-                # "contour": c.tolist(),
+                contour=np.squeeze(c).tolist(),
             )
             patch_id += 1
             # logging.info(f' patent = {patient_id}, start_index = {start_index}')
@@ -300,6 +308,16 @@ def generate_bcdr_metapoint(
             density = int(row_df["density"].strip())
     else:
         density = row_df["density"]
+
+    contour = np.array(
+        list(
+            zip(
+                parse_str_to_list_of_ints(row_df["lw_x_points"]),
+                parse_str_to_list_of_ints(row_df["lw_y_points"]),
+            )
+        )
+    )
+
     metapoint = Metapoint(
         patch_id=patch_id,
         image_id=row_df["study_id"],
@@ -319,10 +337,7 @@ def generate_bcdr_metapoint(
         roi_type=get_bcdr_lesion_type(row_df),
         biopsy_proven_status=row_df["classification"].strip(),
         dataset="bcdr",
-        contour=[
-            parse_str_to_list_of_ints(row_df["lw_x_points"]),
-            parse_str_to_list_of_ints(row_df["lw_y_points"]),
-        ],
+        contour=contour.tolist(),
     )
     return metapoint
 
@@ -422,8 +437,7 @@ def generate_cbis_ddsm_metapoints(
     csv_metadata: pd.Series,
     image_path: Path,
     roi_type: str = "undefined",
-    mask_path: Path = None,
-) -> List[Metapoint]:
+) -> Tuple[List[Metapoint], int]:
     """
     Generate CBIS-DDSM metapoints based on extracted contours and metadata
     """
@@ -459,11 +473,11 @@ def generate_cbis_ddsm_metapoints(
                 view=csv_metadata["image view"],
                 lesion_id=csv_metadata["image view"] + "_" + str(patch_id),
                 bbox=cv2.boundingRect(c),
-                image_path=str(image_path.resolve()),
-                mask_path=str(mask_path.resolve()),
+                image_path=str(image_path.relative_to(CBIS_DDSM_ROOT_PATH)),
                 roi_type=roi_type,
                 biopsy_proven_status=csv_metadata["pathology"],
                 dataset="cbis-ddsm",
+                contour=np.squeeze(c).tolist(),
             )
             patch_id += 1
             lesion_metapoints.append(metapoint)
@@ -506,3 +520,90 @@ def save_split_to_file(
     }
     with open(str(out_path.resolve()), "w") as out_file:
         json.dump(patient_ids_dict, out_file, indent=4)
+
+
+def get_image_from_metapoint(metapoint: Metapoint) -> np.ndarray:
+    image_path = metapoint.get_absolute_image_path()
+    if Path(image_path).suffix == ".dcm":
+        ds = dicom.dcmread(image_path)
+        image = ds.pixel_array
+    else:
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    return image
+
+
+def get_mask_from_metapoint(metapoint: Metapoint) -> np.ndarray:
+    image = get_image_from_metapoint(metapoint)
+    mask = np.zeros(image.shape)
+    if metapoint.contour is not None:
+        mask = cv2.fillPoly(mask, pts=[np.array(metapoint.contour)], color=255)
+    else:
+        logging.warning("Mask missing, using bbox as a mask")
+        pt1 = (metapoint.bbox[0], metapoint.bbox[1])
+        pt2 = (
+            metapoint.bbox[0] + metapoint.bbox[2],
+            metapoint.bbox[1] + metapoint.bbox[3],
+        )
+        mask = cv2.rectangle(mask, pt1, pt2, color=255, thickness=-1)
+
+    return mask
+
+
+def generate_radiomics(
+    metadata: List[Metapoint],
+    features_to_compute: List[str] = [
+        "firstorder",
+        "glcm",
+        "glrlm",
+        "gldm",
+        "glszm",
+        "ngtdm",
+    ],
+) -> List[Metapoint]:
+    """
+    Generate radiomics features for each metapoint
+    :param metadata: list of metapoints
+    :param features_to_compute: list of radiomics features to compute, see https://pyradiomics.readthedocs.io/
+
+    :return: list of metapoints with computed radiomics features
+    """
+    settings = {}
+    # Resize mask if there is a size mismatch between image and mask
+    settings["setting"] = {"correctMask": True}
+    # Set the minimum number of dimensions for a ROI mask. Needed to avoid error, as in our MMG datasets we have some masses with dim=1.
+    # https://pyradiomics.readthedocs.io/en/latest/radiomics.html#radiomics.imageoperations.checkMask
+    settings["setting"] = {"minimumROIDimensions": 1}
+
+    # Set feature classes to compute
+    settings["featureClass"] = {feature: [] for feature in features_to_compute}
+    # Suppress warnings and logging infos from radiomics
+    logging.getLogger("radiomics").setLevel(logging.ERROR)
+
+    extractor = featureextractor.RadiomicsFeatureExtractor(settings)
+
+    logging.info(
+        "Enabled radiomics feature classes: {} ".format(extractor.enabledFeatures)
+    )
+
+    logging.info("Computing radiomics for metadata")
+    for metapoint in tqdm(metadata):
+        image = get_image_from_metapoint(metapoint)
+        mask = get_mask_from_metapoint(metapoint)
+        sitk_image = sitk.GetImageFromArray(image)
+        sitk_mask = sitk.GetImageFromArray(mask)
+
+        output = extractor.execute(sitk_image, sitk_mask, label=255)
+
+        radiomics_features = {}
+        for feature_name in output.keys():
+            # Discard non-relevant diagnostics information
+            if "diagnostics" not in feature_name:
+                # Keep only shortened feature names
+                radiomics_features[feature_name.replace("original_", "")] = float(
+                    output[feature_name]
+                )
+
+        metapoint.radiomics = radiomics_features
+
+    return metadata

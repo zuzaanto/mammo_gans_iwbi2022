@@ -1,5 +1,10 @@
 from dataclasses import dataclass
 
+import ijson
+import torch.nn as nn
+from dacite import from_dict
+
+from gan_compare.dataset.metapoint import Metapoint
 from gan_compare.training.base_config import BaseConfig
 
 
@@ -30,6 +35,13 @@ class ClassifierConfig(BaseConfig):
     out_checkpoint_path: str = ""
 
     classes: str = "is_healthy"  # one of ["is_benign", "is_healthy", "birads"]
+
+    # Metapoint attribute to be used as a training target
+    # Note: some attributes have special scenarios based on additional configuration
+    training_target: str = "biopsy_proven_status"
+
+    # Default loss in case of regression training
+    regression_loss = nn.L1Loss()
 
     # Learning rate for optimizer
     lr: float = 0.0001  # Note: The CLF equivalent of the learning rates lr_g, lr_d1, lr_d2 in gan_config.py for GAN training.
@@ -63,3 +75,38 @@ class ClassifierConfig(BaseConfig):
             self.image_size = (
                 224  # swin transformer currently only supports 224x224 images
             )
+
+        (
+            self.is_regression,
+            self.num_classes,
+        ) = self.deduce_training_target_task_and_size()
+
+        self.loss = self.deduce_loss()
+
+    def deduce_training_target_task_and_size(self):
+
+        num_classes = 1
+        is_regression = False
+
+        with open(self.metadata_path, "r") as metadata_file:
+            json_metapoint = next(ijson.items(metadata_file, "item"))
+        metapoint = from_dict(Metapoint, json_metapoint)
+        target = getattr(metapoint, self.training_target)
+
+        if type(target) == int:
+            num_classes = 1
+            is_regression = True
+        if type(target) == str:
+            if self.training_target == "birads":
+                num_classes = self.n_cond
+        if type(target) == dict:
+            num_classes = len(target.items())
+            is_regression = True
+
+        return is_regression, num_classes
+
+    def deduce_loss(self):
+        if self.is_regression:
+            return self.regression_loss
+        else:
+            return nn.CrossEntropyLoss()

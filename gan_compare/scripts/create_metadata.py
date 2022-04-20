@@ -17,9 +17,12 @@ from gan_compare.data_utils.utils import (
     generate_healthy_bcdr_metapoints,
     generate_healthy_inbreast_metapoints,
     generate_inbreast_metapoints,
+    generate_radiomics,
     get_file_list,
+    init_seed,
     load_inbreast_mask,
     read_csv,
+    setup_logger,
 )
 from gan_compare.dataset.constants import (
     BCDR_HEALTHY_SUBDIRECTORIES,
@@ -72,6 +75,11 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=2021,
         help="Seed the random generator. Can be used for example for generating different healthy patches.",
+    )
+    parser.add_argument(
+        "--radiomics",
+        action="store_true",
+        help="Whether to compute radiomics features for each patch.",
     )
     args = parser.parse_args()
     return args
@@ -141,7 +149,7 @@ def create_bcdr_metadata(
         )
         img_csv_df = pd.read_csv(csv_path)
         img_dir_path = BCDR_ROOT_PATH / subdirectory_name
-        for _, row in tqdm(img_csv_df.iterrows()):
+        for _, row in tqdm(img_csv_df.iterrows(), total=img_csv_df.shape[0]):
             metapoints, patch_id = generate_healthy_bcdr_metapoints(
                 patch_id=patch_id,
                 image_dir_path=img_dir_path,
@@ -200,6 +208,7 @@ def create_cbis_ddsm_metadata(
         cbis_ddsm_df = cbis_ddsm_df.replace("LEFT", "L")
         cbis_ddsm_df = cbis_ddsm_df.replace(r"\n", "", regex=True)
         cbis_ddsm_df = cbis_ddsm_df.rename(columns={"breast_density": "breast density"})
+        cbis_ddsm_df["breast density"] = cbis_ddsm_df["breast density"].replace(0, -1)
 
         for _, sample in tqdm(cbis_ddsm_df.iterrows(), total=cbis_ddsm_df.shape[0]):
             image_path = CBIS_DDSM_ROOT_PATH / sample["image file path"].replace(
@@ -231,6 +240,7 @@ def create_cbis_ddsm_metadata(
                 if not mask_path:
                     mask = np.zeros(ds.pixel_array.shape)
                     print(f"No mask found. Please review why. Path: {mask_directory}")
+
                 lesion_metapoints, patch_id = generate_cbis_ddsm_metapoints(
                     patch_id=patch_id,
                     mask=mask,
@@ -239,16 +249,26 @@ def create_cbis_ddsm_metadata(
                     csv_metadata=sample,
                     image_path=image_path,
                     roi_type=sample["abnormality type"],
-                    mask_path=mask_path,
                 )
                 # Add the metapoint objects of each contour to our metadata list
                 metadata.extend(lesion_metapoints)
     return metadata, patch_id
 
 
+def generate_additional_attributes_for_metadata(metadata, args):
+    if args.radiomics:
+        metadata = generate_radiomics(metadata)
+
+    return metadata
+
+
 if __name__ == "__main__":
+    _ = setup_logger()
     args = parse_args()
-    rng = np.random.default_rng(args.seed)  # seed the random generator
+    init_seed(args.seed)  # setting the seed from the args
+    rng = np.random.default_rng(
+        args.seed
+    )  # seed the random generator. TODO: use np.random.randint() instead of rng.integers()
     metadata = []
     patch_id = 0
     if "inbreast" in args.dataset:
@@ -271,12 +291,15 @@ if __name__ == "__main__":
     if "cbis-ddsm" in args.dataset:
         cbis_ddsm_metadata, patch_id = create_cbis_ddsm_metadata(
             patch_id=patch_id,
-            subsets=args.cbis_ddsm_csv_set,
+            subsets=["test"],
             per_image_count=args.per_image_count,
             target_size=args.healthy_size,
             rng=rng,
         )
         metadata.extend(cbis_ddsm_metadata)
+
+    metadata = generate_additional_attributes_for_metadata(metadata, args)
+
     # Output metadata as json file to specified location on disk
     outpath = Path(args.output_path)
     outpath.parent.mkdir(parents=True, exist_ok=True)

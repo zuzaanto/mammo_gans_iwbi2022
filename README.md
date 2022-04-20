@@ -123,7 +123,32 @@ python -m gan_compare.scripts.train_test_classifier \
   --save_dataset # Only use this if you just want to output your dataset as images, but don't want to perform any training our classifying
 ```
 
+#### Pretraining
+It is possible to use custom target for model training. Just insert attribute name from metadata file in the training config .yaml file.
+```
+training_target: "density"
+```
+The target size and type is deduced from metadata and the appropriate model is created. It allows to train classification and regression models.
+Other example targets:
+- "biopsy_proven_status"
+- "birads"
+- "density"
+- "view"
+##### Radiomics
+Pretrain model on radiomics feature prediction. Metadata file with precomputed radiomics values needs to be provided.
+```
+python -m gan_compare.scripts.create_metadata --output_path where/to/save/metadata.json --radiomics
+
+```
+After metadata generation, run training with the following line in the .yaml config file:
+```
+training_target: "radiomics"
+```
+This will train a regression model predicting every radiomics feature from the metadata.
+
+
 ### Peek through the dataset
+
 This script walks through your data directory and shows you InBreast images with overlayed ground-truth masks:
 ```
 python -m gan_compare.data_utils.data_utils.read_inbreast_image

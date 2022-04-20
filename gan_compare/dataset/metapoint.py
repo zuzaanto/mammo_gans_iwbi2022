@@ -10,6 +10,7 @@ from gan_compare.dataset.constants import (
     ROI_TYPES,
     VIEWS,
 )
+from gan_compare.paths import DATASET_PATH_DICT
 
 
 @dataclass
@@ -26,9 +27,9 @@ class Metapoint:
     biopsy_proven_status: str = "unknown"
     birads: str = "0"
     density: int = -1
-    contour: Optional[List[List[int]]] = None
     lesion_id: Optional[str] = None
-    mask_path: Optional[str] = None
+    contour: Optional[List[List[int]]] = None
+    radiomics: Optional[dict] = None
 
     def __post_init__(self):
         if type(self.roi_type) == str:
@@ -64,9 +65,12 @@ class Metapoint:
         assert (
             self.density in DENSITY_DICT.keys() or self.density == -1
         ), f"{self.density} not in known DENSITY_DICT"
-        self.is_healthy = "healthy" in self.roi_type
+        self.healthy = "healthy" in self.roi_type
         self.is_benign = (
             self.biopsy_proven_status == "benign"
             if self.biopsy_proven_status in ["benign", "malignant"]
             else -1
         )  # this will throw an error later if benign/malignant classification is attempted and there is a metapoint without a biopsy_proven_status
+
+    def get_absolute_image_path(self) -> str:
+        return str((DATASET_PATH_DICT[self.dataset] / self.image_path).resolve())

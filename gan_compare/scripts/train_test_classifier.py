@@ -26,6 +26,7 @@ from gan_compare.scripts.metrics import (
     calc_all_scores,
     calc_AUPRC,
     calc_AUROC,
+    calc_loss,
     output_ROC_curve,
 )
 from gan_compare.training.classifier_config import ClassifierConfig
@@ -192,7 +193,7 @@ if __name__ == "__main__":
 
     net = get_classifier(config).to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = config.loss
 
     if args.save_dataset:
         # This code section is only for saving patches as image files and further info about the patch if needed.
@@ -251,7 +252,7 @@ if __name__ == "__main__":
         # PREPARE TRAINING
         # TODO: Optimizer params (lr, momentum) should be moved to classifier_config.
         optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-        best_loss = 10000
+        best_loss = float("inf")
         best_f1 = 0
         best_epoch = 0
         best_prc_auc = 0
@@ -302,27 +303,37 @@ if __name__ == "__main__":
                     y_true.append(labels)
                     y_prob_logit.append(outputs.data.cpu())
                 val_loss = np.mean(val_loss)
-                _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(
-                    torch.cat(y_true),
-                    torch.cat(y_prob_logit),
-                    val_loss,
-                    "Valid",
-                    epoch,
-                )
-                val_f1 = prec_rec_f1[-1:][0]
-                # if val_loss < best_loss:
-                # if val_f1 > best_f1:
-                if prc_auc is None or np.isnan(prc_auc):
-                    prc_auc = best_prc_auc
-                if prc_auc > best_prc_auc:
-                    best_loss = val_loss
-                    best_f1 = val_f1
-                    best_prc_auc = prc_auc
-                    best_epoch = epoch
-                    torch.save(net.state_dict(), config.out_checkpoint_path)
-                    logging.info(
-                        f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}"
+
+                if config.is_regression:
+                    loss = calc_loss(val_loss, "Valid", epoch)
+                    if loss < best_loss:
+                        best_loss = loss
+                        torch.save(net.state_dict(), config.out_checkpoint_path)
+                        logging.info(
+                            f"Saving best model so far at epoch {epoch} with loss = {loss}"
+                        )
+                else:  # classification
+                    _, _, prec_rec_f1, roc_auc, prc_auc = calc_all_scores(
+                        torch.cat(y_true),
+                        torch.cat(y_prob_logit),
+                        val_loss,
+                        "Valid",
+                        epoch,
                     )
+                    val_f1 = prec_rec_f1[-1:][0]
+                    # if val_loss < best_loss:
+                    # if val_f1 > best_f1:
+                    if prc_auc is None or np.isnan(prc_auc):
+                        prc_auc = best_prc_auc
+                    if prc_auc > best_prc_auc:
+                        best_loss = val_loss
+                        best_f1 = val_f1
+                        best_prc_auc = prc_auc
+                        best_epoch = epoch
+                        torch.save(net.state_dict(), config.out_checkpoint_path)
+                        logging.info(
+                            f"Saving best model so far at epoch {epoch} with f1 = {val_f1} and au prc = {prc_auc}"
+                        )
 
         logging.info("Finished Training")
         logging.info(f"Saved best model state dict to {config.out_checkpoint_path}")

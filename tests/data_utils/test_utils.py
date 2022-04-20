@@ -33,7 +33,7 @@ def test_generate_cbis_ddsm_metapoints():
     mask = np.zeros((1000, 1000))
     mask[20:500, 40:600] = 1
     image_id = "1234qwe"
-    image_path = Path("/path/image.dcm")
+    image_path = Path("/path/to/datasets/CBIS-DDSM/image.dcm")
     patient_id = "1287fdSA"
     roi_type = "mass"
     csv_metadata = {}
@@ -42,8 +42,6 @@ def test_generate_cbis_ddsm_metapoints():
     csv_metadata["left or right breast"] = "R"
     csv_metadata["image view"] = "MLO"
     csv_metadata["pathology"] = "malignant"
-    mask_path = Path("/path/mask.dcm")
-    allowed_calcifications = [1, 2, 3]
 
     result, _ = generate_cbis_ddsm_metapoints(
         patch_id=0,
@@ -53,7 +51,6 @@ def test_generate_cbis_ddsm_metapoints():
         csv_metadata=csv_metadata,
         image_path=image_path,
         roi_type=roi_type,
-        mask_path=mask_path,
     )
 
     assert len(result) == 1

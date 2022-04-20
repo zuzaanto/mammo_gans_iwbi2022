@@ -6,9 +6,15 @@ from typing import Tuple, Union
 
 import numpy as np
 from dacite import from_dict
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
-from gan_compare.dataset.constants import BCDR_BIRADS_DICT, BIRADS_DICT, DENSITY_DICT
+from gan_compare.dataset.constants import (
+    BCDR_BIRADS_DICT,
+    BIRADS_DICT,
+    DENSITY_DICT,
+    RADIOMICS_NORMALIZATION_PARAMS,
+)
 from gan_compare.dataset.metapoint import Metapoint
 from gan_compare.training.base_config import BaseConfig
 
@@ -27,6 +33,7 @@ class BaseDataset(Dataset):
         # Setting this to True will result in BiRADS annotation with 4a, 4b, 4c split to separate classes
         transform: any = None,
         sampling_ratio: float = 1.0,
+        normalize_output: bool = True,  # applies only to reggresion scenario
         subset: str = "train",
     ):
         assert (
@@ -58,6 +65,12 @@ class BaseDataset(Dataset):
         # self.model_name = config.model_name # rather calling self.config.model_name explicitely
         self.final_shape = (self.config.image_size, self.config.image_size)
         self.transform = transform
+        self.normalize_output = normalize_output
+
+        if config.is_regression and self.normalize_output:
+            self.normalize_output_data(
+                self.metadata_unfiltered, self.config.training_target
+            )
 
     def __len__(self):
         return len(self.metadata)
@@ -128,9 +141,17 @@ class BaseDataset(Dataset):
                 condition = max(min(condition + noise, 1.0), 0.0)
         return condition
 
-    def determine_label(self, metapoint: Metapoint) -> int:
-        if self.config.binary_classification:
-            target = getattr(metapoint, self.config.classes)
+    def determine_label(self, metapoint: Metapoint) -> Union[int, float, np.ndarray]:
+        target = getattr(metapoint, self.config.training_target)
+        if type(target) == int or type(target) == float:
+            return target
+        if type(target) == dict:
+            return np.asarray(list(target.values()))
+        if type(target) == bool:
+            return int(target)
+        if (
+            self.config.binary_classification
+        ):  # This could be possibly deleted. The bool case above should be enough
             if target == -1:
                 raise Exception(
                     f"Target of patch {metapoint.patch_id} is not valid. This happens for example if metapoint.biopsy_proven_status is not set: metapoint.biopsy_proven_status == {metapoint.biopsy_proven_status}"
@@ -242,3 +263,39 @@ class BaseDataset(Dataset):
         )  # move crop back into the image if it goes beyond the image
 
         return (c_new, l_new)
+
+    def normalize_output_data(self, metadata, attribute):
+        data = [
+            getattr(metapoint, self.config.training_target) for metapoint in metadata
+        ]
+        scaler = StandardScaler()
+
+        # load normalization parameters
+        if attribute == "radiomics":
+            self.norm_feature_params = RADIOMICS_NORMALIZATION_PARAMS
+        else:
+            # compute normalization parameters (mean, variance)
+            self.norm_feature_params = {}
+            for feature in data[0].keys():
+                per_feature_data = np.array(
+                    [features_point[feature] for features_point in data]
+                ).reshape(-1, 1)
+                scaler.fit(per_feature_data)
+                self.norm_feature_params[feature] = (scaler.mean_, scaler.scale_)
+
+        # normalize data using precomputed parameters
+        for feature in data[0].keys():
+            per_feature_data = np.array(
+                [features_point[feature] for features_point in data]
+            ).reshape(-1, 1)
+
+            scaler.mean_, scaler.scale_ = self.norm_feature_params[feature]
+            norm_per_feature_data = scaler.transform(per_feature_data).squeeze()
+
+            for sample, norm_feature_sample in zip(data, norm_per_feature_data):
+                sample[feature] = norm_feature_sample
+
+        for metapoint, norm_sample in zip(metadata, data):
+            setattr(metapoint, attribute, norm_sample)
+
+        return metadata
